@@ -171,6 +171,7 @@
         }
       ],
       "./plugins/with-sqlcipher-sqlite-fix",
+      "./plugins/with-arm64-simulator",
       [
         "expo-sqlite",
         {
