@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * GENERATED FILE. Do not edit the token blocks by hand.
+ * Source: src/design/tokens.ts   Regenerate: npm run theme:build
+ */
+@layer base {
+  :root {
+    --font-display:
+      Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
+      Segoe UI Symbol, Noto Color Emoji;
+    --font-mono:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+    --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
+
+    --color-brand: 74 87 173;
+    --color-brand-soft: 237 238 248;
+    --color-brand-strong: 61 72 143;
+    --color-brand-on: 255 255 255;
+    --color-canvas: 255 255 255;
+    --color-surface: 247 247 250;
+    --color-surface-raised: 255 255 255;
+    --color-surface-sunken: 240 240 245;
+    --color-content: 16 17 22;
+    --color-content-muted: 96 100 108;
+    --color-content-subtle: 142 146 156;
+    --color-line: 228 229 234;
+    --color-line-strong: 208 210 218;
+    --color-bubble-out: 74 87 173;
+    --color-bubble-out-on: 255 255 255;
+    --color-bubble-in: 240 240 245;
+    --color-bubble-in-on: 16 17 22;
+    --color-success: 22 163 74;
+    --color-warning: 217 138 12;
+    --color-danger: 220 60 62;
+  }
+
+  .dark:root {
+    --color-brand: 149 160 228;
+    --color-brand-soft: 27 30 55;
+    --color-brand-strong: 177 186 241;
+    --color-brand-on: 15 19 46;
+    --color-canvas: 9 9 13;
+    --color-surface: 20 20 27;
+    --color-surface-raised: 29 29 38;
+    --color-surface-sunken: 14 14 20;
+    --color-content: 244 244 248;
+    --color-content-muted: 158 162 173;
+    --color-content-subtle: 112 116 128;
+    --color-line: 38 39 49;
+    --color-line-strong: 55 57 69;
+    --color-bubble-out: 66 77 148;
+    --color-bubble-out-on: 235 239 254;
+    --color-bubble-in: 32 32 42;
+    --color-bubble-in-on: 244 244 248;
+    --color-success: 74 222 128;
+    --color-warning: 240 170 45;
+    --color-danger: 248 96 98;
+  }
+}

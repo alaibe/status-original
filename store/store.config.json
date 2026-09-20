@@ -1,0 +1,53 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Status Original",
+    "categories": [
+      "SOCIAL_NETWORKING",
+      "UTILITIES"
+    ],
+    "info": {
+      "en-US": {
+        "title": "Status Original",
+        "subtitle": "Encrypted chat, your own keys",
+        "description": "A messenger with no company in the middle.\n\nYour account is a twelve-word recovery phrase held on your device. There is no sign-up, phone number, email address, or account on an application server.\n\nWHAT IT DOES\n\u2022 End-to-end encrypted chats over XMTP, Nostr, or Waku\n\u2022 Replies, reactions, photos, files, GIFs, and voice messages\n\u2022 A local Status room for help and plugin commands\n\u2022 Optional payment, market, profile, bot, and dapp plugins\n\u2022 Ethereum, Bitcoin, Solana, and supported hardware accounts\n\nYOUR DATA\nRecovery phrases and credentials remain on the device. Message history uses per-account encrypted databases. Contacts are read only when preparing an invitation and are never uploaded by the app.\n\nYOUR RESPONSIBILITY\nNobody can reset your account. Write down the recovery phrase and keep it offline. If it is lost, the account cannot be recovered.",
+        "keywords": [
+          "messenger,encrypted,e2ee,xmtp,nostr,waku,wallet,ethereum,bitcoin,solana,web3,private,chat,keys"
+        ],
+        "releaseNotes": "First release.",
+        "promoText": "Encrypted messaging where the account is a key you hold. No phone number, no email, no server with your name on it.",
+        "privacyPolicyUrl": "https://github.com/alaibe/status-original/blob/main/PRIVACY.md",
+        "supportUrl": "https://github.com/alaibe/status-original/issues",
+        "marketingUrl": "https://github.com/alaibe/status-original"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": true,
+      "seventeenPlus": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": true
+    },
+    "review": {
+      "firstName": "REPLACE-ME",
+      "lastName": "REPLACE-ME",
+      "email": "REPLACE-ME@example.com",
+      "phone": "+00 000 000 0000",
+      "notes": "See store/review-notes.md in the repository for the full text; paste it here."
+    }
+  }
+}

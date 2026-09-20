@@ -1,0 +1,81 @@
+appId: com.statusoriginal.app
+---
+- runFlow: lib/open-status-room.yaml
+- runFlow:
+    file: lib/send-command.yaml
+    env:
+      TEXT: "/enable browser"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "conversation-local-dapps"
+    timeout: 15000
+- openLink: "statusoriginal://chat/local-dapps"
+- assertNotVisible:
+    id: "quick-swap"
+- tapOn:
+    id: "quick-scan"
+- extendedWaitUntil:
+    visible: "Scan to connect"
+    timeout: 10000
+- tapOn: "Stop scanning"
+- extendedWaitUntil:
+    visible:
+      id: "quick-dapps"
+    timeout: 10000
+- tapOn:
+    id: "composer-input"
+- inputText: "/"
+- assertVisible:
+    id: "command-commands"
+- tapOn:
+    id: "command-commands"
+- tapOn:
+    id: "composer-send"
+- tapOn:
+    point: "50%,25%"
+- scrollUntilVisible:
+    element: "/commands,.*"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "composer-input"
+- inputText: "/"
+- swipe:
+    from:
+      id: "command-suggestions"
+    direction: UP
+- assertVisible:
+    id: "command-scan"
+- tapOn:
+    id: "command-scan"
+- tapOn:
+    id: "composer-send"
+- extendedWaitUntil:
+    visible: "Scan to connect"
+    timeout: 10000
+- tapOn: "Stop scanning"
+- extendedWaitUntil:
+    visible:
+      id: "quick-dapps"
+    timeout: 10000
+- tapOn:
+    id: "quick-dapps"
+- scrollUntilVisible:
+    element: "Matcha,.*"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "quick-commands"
+- extendedWaitUntil:
+    visible: "/connect,.*"
+    timeout: 10000
+- tapOn: "/scan,.*"
+- extendedWaitUntil:
+    visible: "Scan to connect"
+    timeout: 10000
+- tapOn: "Stop scanning"
+- extendedWaitUntil:
+    visible:
+      id: "quick-dapps"
+    timeout: 10000

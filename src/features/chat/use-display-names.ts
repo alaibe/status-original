@@ -1,0 +1,96 @@
+import { useEffect, useMemo, useState } from 'react';
+
+import { shortAddress } from '@/core/identity/keyring';
+import { isLocalConversation, isParticipantId } from '@/core/messaging/bots';
+import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
+import type { Conversation, ParticipantId } from '@/core/messaging/types';
+
+export interface DisplayParticipant {
+  id: ParticipantId;
+  protocol?: string;
+}
+
+export function useDisplayNames(participants: DisplayParticipant[]) {
+  const sessions = useChatStore((s) => s.sessions);
+  const [addresses, setAddresses] = useState<Record<ParticipantId, string>>({});
+
+  const key = useMemo(
+    () =>
+      [...new Set(participants.map((p) => `${p.protocol ?? ''}:${p.id}`))].sort().join(','),
+    [participants]
+  );
+
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+
+    const byProtocol = new Map<string, ParticipantId[]>();
+    for (const entry of key.split(',')) {
+      const at = entry.indexOf(':');
+      const protocol = entry.slice(0, at);
+      const id = entry.slice(at + 1);
+      if (!protocol || !isParticipantId(id)) continue;
+      byProtocol.set(protocol, [...(byProtocol.get(protocol) ?? []), id]);
+    }
+
+    for (const [protocol, ids] of byProtocol) {
+      const session = sessions[protocol];
+      if (!session) continue;
+
+      session
+        .resolveAddresses(ids)
+        .then((resolved) => {
+          if (!cancelled) setAddresses((prev) => ({ ...prev, ...resolved }));
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessions, key]);
+
+  return useMemo(
+    () => ({
+      nameFor(id: ParticipantId): string {
+        const address = addresses[id];
+        return address ? shortAddress(address) : shortAddress(id, 6, 4);
+      },
+      addressFor(id: ParticipantId): string | undefined {
+        return addresses[id];
+      },
+    }),
+    [addresses]
+  );
+}
+
+export function conversationTitle(
+  conversation: Conversation,
+  selfId: ParticipantId,
+  nameFor: (id: ParticipantId) => string
+): string {
+  if (conversation.kind === 'group') return conversation.title;
+  if (isLocalConversation(conversation.id)) return conversation.title;
+
+  const peer = conversation.memberIds.find((id) => id !== selfId) ?? conversation.title;
+  return nameFor(peer);
+}
+
+/** Everyone in the conversation but us, shaped for `useDisplayNames`. */
+export function conversationPeers(
+  conversation: Conversation,
+  selfId: ParticipantId
+): DisplayParticipant[] {
+  return conversation.memberIds
+    .filter((id) => id !== selfId)
+    .map((id) => ({ id, protocol: conversation.protocol }));
+}
+
+export function usePeers(conversations: Conversation[]): DisplayParticipant[] {
+  const sessions = useChatStore((s) => s.sessions);
+  return useMemo(
+    () =>
+      conversations.flatMap((c) => conversationPeers(c, selfIdFor({ sessions }, c.protocol))),
+    [conversations, sessions]
+  );
+}

@@ -1,0 +1,18 @@
+# Creates the account required by later flows after a fresh reset.
+appId: com.statusoriginal.app
+---
+- launchApp
+
+- runFlow:
+    when:
+      visible: "Talk freely."
+    commands:
+      - tapOn: "Create an account"
+
+      - tapOn: "Reveal recovery phrase"
+      - tapOn: "I've written it down"
+
+- extendedWaitUntil:
+    visible:
+      id: "conversation-local-status"
+    timeout: 60000

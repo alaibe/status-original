@@ -1,0 +1,10 @@
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - 00-onboarding
+    - 01-launch
+    - 02-commands
+    - 03-plugins
+    - 04-status
+    - 05-settings
+    - 06-dapps

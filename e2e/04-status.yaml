@@ -1,0 +1,33 @@
+# Verifies local Status messages survive navigation and relaunch.
+appId: com.statusoriginal.app
+---
+- evalScript: ${output.note = 'ridge-trip-' + new Date().getTime().toString()}
+- runFlow: lib/open-status-room.yaml
+- assertVisible:
+    id: "chat-header-local-status"
+- assertNotVisible: ${output.note}
+
+- runFlow:
+    file: lib/send-command.yaml
+    env:
+      TEXT: ${output.note}
+- extendedWaitUntil:
+    visible: ${output.note}
+    timeout: 10000
+
+- tapOn: "Back"
+- waitForAnimationToEnd:
+    timeout: 5000
+- openLink: "statusoriginal://chat/local-status"
+- assertVisible:
+    id: "chat-header-local-status"
+- extendedWaitUntil:
+    visible: ${output.note}
+    timeout: 10000
+
+- runFlow: lib/open-status-room.yaml
+- assertVisible:
+    id: "chat-header-local-status"
+- extendedWaitUntil:
+    visible: ${output.note}
+    timeout: 15000

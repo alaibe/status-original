@@ -1,0 +1,10 @@
+# Sends TEXT from the composer, then taps a non-interactive area to dismiss the keyboard.
+appId: com.statusoriginal.app
+---
+- tapOn:
+    id: "composer-input"
+- inputText: ${TEXT}
+- tapOn:
+    id: "composer-send"
+- tapOn:
+    point: "50%,25%"

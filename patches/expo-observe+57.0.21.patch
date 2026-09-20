@@ -1,0 +1,18 @@
+diff --git a/node_modules/expo-observe/ios/ObserveModule.swift b/node_modules/expo-observe/ios/ObserveModule.swift
+index 5b7a398..f419de1 100644
+--- a/node_modules/expo-observe/ios/ObserveModule.swift
++++ b/node_modules/expo-observe/ios/ObserveModule.swift
+@@ -57,7 +57,12 @@ public final class ObserveModule: Module {
+ 
+       // Broadcast the integrations config so integration libraries (e.g. expo-image) can activate.
+       self.lastIntegrations = config.integrations ?? [:]
+-      self.emit(event: "configure", payload: ["integrations": self.lastIntegrations])
++      // Swift 6.2.4 rejects sending the non-Sendable `[String: Any]` into `emit`.
++      // The dictionary is built here and handed over once, never touched again
++      // from this side, so the hand-off is sound — same escape hatch Expo's own
++      // JavaScriptRuntime.swift uses for its call-scoped pointers.
++      nonisolated(unsafe) let payload: [String: Any] = ["integrations": self.lastIntegrations]
++      self.emit(event: "configure", payload: payload)
+     }
+ 
+     Function("getIntegrations") {

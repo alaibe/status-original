@@ -1,0 +1,13 @@
+{
+  "name": "status-original-echo-bot",
+  "private": true,
+  "type": "module",
+  "description": "A minimal XMTP bot, to prove the app's bot support end to end.",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@xmtp/node-sdk": "^6.1.0",
+    "viem": "^2.56.3"
+  }
+}

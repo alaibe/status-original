@@ -1,0 +1,13 @@
+diff --git a/node_modules/@xmtp/react-native-sdk/ios/XMTPModule.swift b/node_modules/@xmtp/react-native-sdk/ios/XMTPModule.swift
+index bd7013b..36c8db7 100644
+--- a/node_modules/@xmtp/react-native-sdk/ios/XMTPModule.swift
++++ b/node_modules/@xmtp/react-native-sdk/ios/XMTPModule.swift
+@@ -930,7 +930,7 @@ public class XMTPModule: Module {
+ 				groupParams ?? "")
+ 			let queryParams = ConversationListParamsWrapper.conversationListParamsFromJson(
+ 				queryParamsJson ?? "")
+-			var groupList: [Group] = try await client.conversations.listGroups(
++			var groupList: [XMTP.Group] = try await client.conversations.listGroups(
+ 				createdAfterNs: queryParams.createdAfterNs,
+ 				createdBeforeNs: queryParams.createdBeforeNs,
+ 				lastActivityAfterNs: queryParams.lastActivityAfterNs,

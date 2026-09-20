@@ -1,0 +1,107 @@
+import { HDKey } from '@scure/bip32';
+import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+
+import type { LocalAccount , Address } from 'viem';
+
+import type { AccountKind } from './account-kind';
+import { deriveEd25519, type Ed25519Key } from './slip10';
+import * as Crypto from 'expo-crypto';
+import { english, generateMnemonic, mnemonicToAccount } from 'viem/accounts';
+
+import { writeMnemonic } from './key-protection';
+import { accountDbKeyName, vaultGet, vaultSet } from '@/storage/vault';
+
+export interface DerivedKey {
+  path: string;
+  privateKey: Uint8Array;
+  publicKey: Uint8Array;
+}
+
+export interface Keyring {
+  kind: AccountKind;
+  mnemonic: string | null;
+  account: LocalAccount;
+  address: Address;
+  derive(path: string): DerivedKey;
+  deriveEd25519(path: string): Ed25519Key;
+}
+
+export function createMnemonic(): string {
+  return generateMnemonic(english);
+}
+
+export function isValidMnemonic(phrase: string): boolean {
+  try {
+    return validateMnemonic(normalizeMnemonic(phrase), english);
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeMnemonic(phrase: string): string {
+  return phrase.trim().toLowerCase().split(/\s+/).join(' ');
+}
+
+export function keyringFromMnemonic(phrase: string, addressIndex = 0): Keyring {
+  const mnemonic = normalizeMnemonic(phrase);
+  const account = mnemonicToAccount(mnemonic, { addressIndex });
+
+  let root: HDKey | null = null;
+
+  return {
+    kind: 'phrase',
+    mnemonic,
+    account,
+    address: account.address,
+    derive(path: string): DerivedKey {
+      root ??= HDKey.fromMasterSeed(mnemonicToSeedSync(mnemonic));
+
+      const node = root.derive(path);
+      if (!node.privateKey || !node.publicKey) {
+        throw new Error(`Could not derive a key at "${path}"`);
+      }
+      return { path, privateKey: node.privateKey, publicKey: node.publicKey };
+    },
+    deriveEd25519(path: string): Ed25519Key {
+      return deriveEd25519(mnemonicToSeedSync(mnemonic), path);
+    },
+  };
+}
+
+export async function persistAccountMnemonic(accountId: string, phrase: string): Promise<void> {
+  await writeMnemonic(accountId, normalizeMnemonic(phrase));
+}
+
+export async function loadOrCreateDbEncryptionKey(accountId: string): Promise<Uint8Array> {
+  const existing = await loadDbEncryptionKey(accountId);
+  if (existing) return existing;
+
+  const fresh = Crypto.getRandomBytes(32);
+  await vaultSet(accountDbKeyName(accountId), bytesToBase64(fresh));
+  return fresh;
+}
+
+export async function loadDbEncryptionKey(accountId: string): Promise<Uint8Array | null> {
+  const value = await vaultGet(accountDbKeyName(accountId));
+  if (!value) return null;
+  const bytes = base64ToBytes(value);
+  return bytes.length === 32 ? bytes : null;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return globalThis.btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = globalThis.atob(value);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+export function shortAddress(address: string, lead = 6, tail = 4): string {
+  if (address.length <= lead + tail + 2) return address;
+  return `${address.slice(0, lead)}…${address.slice(-tail)}`;
+}

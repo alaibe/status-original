@@ -1,0 +1,83 @@
+# Captures store images from the clean simulator prepared by `store-artifacts`.
+appId: com.statusoriginal.app
+---
+- launchApp:
+    stopApp: true
+
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+
+- runFlow:
+    when:
+      visible: "Ready for Apple Intelligence"
+    commands:
+      - swipe:
+          start: "50%,15%"
+          end: "50%,2%"
+
+- extendedWaitUntil:
+    visible: ".*Create an account.*"
+    timeout: 90000
+- waitForAnimationToEnd
+- takeScreenshot: 01-welcome
+
+- tapOn: ".*Create an account.*"
+- extendedWaitUntil:
+    visible: "Reveal recovery phrase"
+    timeout: 30000
+- tapOn: "Reveal recovery phrase"
+- waitForAnimationToEnd
+- tapOn: ".*written it down.*"
+- extendedWaitUntil:
+    visible: "Chats"
+    timeout: 60000
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "conversation-local-status"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: 02-chats
+
+- tapOn:
+    id: "conversation-local-status"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: 03-conversation
+
+- tapOn:
+    id: "composer-input"
+- inputText: "Remember to book the train tomorrow"
+- tapOn:
+    id: "composer-send"
+- tapOn:
+    point: "50%,25%"
+- waitForAnimationToEnd
+- takeScreenshot: 04-note
+
+- longPressOn: "Remember to book the train tomorrow"
+- waitForAnimationToEnd
+- takeScreenshot: 05-message-actions
+- tapOn:
+    point: "50%,10%"
+- waitForAnimationToEnd
+
+- tapOn: "Back"
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "settings-plugins"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: "settings-plugins"
+- waitForAnimationToEnd
+- takeScreenshot: 06-plugins

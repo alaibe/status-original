@@ -1,0 +1,35 @@
+# Opens settings screens and verifies account erasure requires confirmation.
+appId: com.statusoriginal.app
+---
+- launchApp
+- tapOn: "Settings"
+
+- tapOn:
+    id: "settings-accounts"
+- assertVisible: "Create a new account"
+- tapOn:
+    id: "BackButton"
+
+- scrollUntilVisible:
+    element:
+      id: "settings-plugins"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: "settings-plugins"
+- assertVisible:
+    id: "plugin-wallet"
+- tapOn:
+    id: "BackButton"
+
+- scrollUntilVisible:
+    element:
+      id: "settings-erase-account"
+    direction: UP
+    centerElement: true
+- tapOn:
+    id: "settings-erase-account"
+- assertVisible: "Erase this account?"
+- tapOn: "Cancel"
+- assertVisible:
+    id: "settings-erase-account"

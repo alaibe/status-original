@@ -1,0 +1,26 @@
+# Runs commands from a quick action and from the composer.
+appId: com.statusoriginal.app
+---
+- runFlow: lib/open-status-room.yaml
+
+- tapOn:
+    id: "quick-plugins"
+- extendedWaitUntil:
+    visible: "Plugins"
+    timeout: 15000
+
+- runFlow:
+    file: lib/send-command.yaml
+    env:
+      TEXT: "/whoami"
+- extendedWaitUntil:
+    visible: "Your address"
+    timeout: 15000
+
+- runFlow:
+    file: lib/send-command.yaml
+    env:
+      TEXT: "/nonsense"
+- extendedWaitUntil:
+    visible: "Unknown command.*"
+    timeout: 10000

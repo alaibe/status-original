@@ -1,0 +1,192 @@
+{
+  "expo": {
+    "name": "Status Original",
+    "slug": "status-original",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "statusoriginal",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
+      },
+      "bundleIdentifier": "com.statusoriginal.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": true,
+        "LSApplicationQueriesSchemes": [
+          "wc",
+          "ethereum"
+        ],
+        "NSMicrophoneUsageDescription": "Record a voice note to send in a message. Audio is recorded on this device and sent inside the encrypted message.",
+        "NSBluetoothAlwaysUsageDescription": "Connect to a hardware wallet over Bluetooth to confirm transactions on it. No data is collected and nothing is sent anywhere."
+      },
+      "buildNumber": "1",
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePerformanceData",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ],
+        "NSPrivacyTracking": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#4A57AD",
+        "foregroundImage": "./assets/images/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/images/adaptive-icon-background.png",
+        "monochromeImage": "./assets/images/adaptive-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.statusoriginal.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "usePrecompiledModules": false
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scanning a WalletConnect QR code is how a website connects to your wallet. The camera is used for that only, and nothing it sees leaves this device."
+        }
+      ],
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#4A57AD",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180,
+          "dark": {
+            "backgroundColor": "#141A3A"
+          }
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Confirm Face ID to unlock Status Original and the keys that control your accounts.",
+          "configureAndroidBackup": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "iosDisplayInForeground": true,
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#4A57AD"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Confirm Face ID to unlock Status Original and the keys that control your accounts."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Status Original reads your contacts on this device only, to suggest who to invite. They are never uploaded."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Record a voice note to send in a message. Audio is recorded on this device and sent inside the encrypted message."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a photo to a message. Photos are sent inside the encrypted message and are never uploaded to a server.",
+          "cameraPermission": "Take a photo to send in a message."
+        }
+      ],
+      "expo-asset",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "modes": [
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "Connect to a hardware wallet over Bluetooth to confirm transactions on it."
+        }
+      ],
+      "./plugins/with-sqlcipher-sqlite-fix",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
+      "expo-image",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "walletConnectProjectId": "860e6227a1f1c25e34248a064184c755"
+    },
+    "primaryColor": "#4A57AD"
+  }
+}

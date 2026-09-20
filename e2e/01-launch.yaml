@@ -1,0 +1,23 @@
+# Launches and checks the Status room navigation used by later flows.
+appId: com.statusoriginal.app
+---
+- launchApp
+- assertVisible:
+    id: "conversation-local-status"
+- assertVisible:
+    id: "header-new-conversation"
+
+- openLink: "statusoriginal://chat/local-status"
+# A freshly erased simulator asks before opening a custom scheme the first time.
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- assertVisible:
+    id: "chat-header-local-status"
+- assertVisible:
+    id: "composer-input"
+- tapOn: "Back"
+- assertVisible:
+    id: "conversation-local-status"
