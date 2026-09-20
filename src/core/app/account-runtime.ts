@@ -1,6 +1,7 @@
 import type { LocalAccount } from 'viem';
 
 import type { AccountRecord } from '../identity/accounts';
+import { reportError } from './report-error';
 import type { DerivedKey, Keyring } from '../identity/keyring';
 import { useAppearanceStore } from './appearance';
 import { loadProtocolConfig, saveProtocolConfig, type ProtocolConfig } from '../messaging/config';
@@ -469,6 +470,7 @@ export class AccountRuntime {
       else running.dispose = dispose;
     }).catch((error) => {
       console.warn(`[bots] "${bot.id}" failed to activate`, error);
+      reportError(error);
       if (this.bots.get(bot.id) === running) this.stopBot(bot.id);
     });
   }

@@ -5,6 +5,7 @@
  * Gating happens before de-duplication, which is what lets every network
  * define its own `/balance`: in any one conversation at most one survives.
  */
+import { reportError } from '../app/report-error';
 import { botConversationId, type Bot } from '../messaging/bots';
 import { inScope, type ConversationScope } from '../messaging/conversation-scope';
 import type { ConversationId } from '../messaging/types';
@@ -121,6 +122,7 @@ export class PluginRegistry {
     } catch (error) {
       revoke?.();
       console.error(`[plugins] "${id}" failed to set up and was skipped`, error);
+      reportError(error);
       return;
     }
 

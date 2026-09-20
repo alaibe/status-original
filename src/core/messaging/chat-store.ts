@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { reportError } from '../app/report-error';
+
 import {
   botConversationId,
   botIdFromConversation,
@@ -260,6 +262,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       get().replacePending(id, pending.id, 'failed');
       console.warn('[chat] send failed', error);
+      reportError(error);
     }
   },
 
@@ -276,6 +279,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       get().replacePending(id, messageId, 'failed');
       console.warn('[chat] retry failed', error);
+      reportError(error);
     }
   },
 

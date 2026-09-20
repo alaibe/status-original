@@ -1,8 +1,13 @@
-import { ToastHost, useThemeColors } from '@/design';
+import { EmptyState, ToastHost, useThemeColors } from '@/design';
 import '@/global.css';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { Observe, ObserveRoot, useObserve } from 'expo-observe';
+import {
+  Observe,
+  ObserveRoot,
+  useObserve,
+  type ObserveErrorBoundaryFallbackProps,
+} from 'expo-observe';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -47,7 +52,26 @@ function RootLayout() {
   );
 }
 
-export default ObserveRoot.wrap(RootLayout);
+function Crashed({ resetError }: ObserveErrorBoundaryFallbackProps) {
+  return (
+    <View className="flex-1 bg-canvas">
+      <EmptyState
+        title="Something went wrong"
+        description="This screen hit an error it could not recover from. Your account and messages are not affected."
+        actionLabel="Try again"
+        onAction={resetError}
+      />
+    </View>
+  );
+}
+
+export default function Root() {
+  return (
+    <ObserveRoot errorBoundaryFallback={Crashed}>
+      <RootLayout />
+    </ObserveRoot>
+  );
+}
 
 function PluginOverlays() {
   const { registry, enabledIds } = usePluginHost();

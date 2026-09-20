@@ -185,8 +185,12 @@
       "reactCompiler": true
     },
     "extra": {
-      "walletConnectProjectId": "860e6227a1f1c25e34248a064184c755"
+      "walletConnectProjectId": "860e6227a1f1c25e34248a064184c755",
+      "eas": {
+        "projectId": "79810f0e-e25f-4feb-bedf-b527e71edd9f"
+      }
     },
+    "owner": "alaibe",
     "primaryColor": "#4A57AD"
   }
 }
