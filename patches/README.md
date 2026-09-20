@@ -77,7 +77,7 @@ compiles under Swift 6.2.4 unpatched, and rebuild to confirm.
 
 ---
 
-## `expo-observe+57.0.19.patch`
+## `expo-observe+57.0.23.patch`
 
 Symptom: iOS build fails with:
 
@@ -98,9 +98,9 @@ this side, so the hand-off is sound. It is the same escape hatch Expo's own
 `JavaScriptRuntime.swift` uses for its call-scoped pointers.
 
 When to remove: when a published `expo-observe` compiles under Swift 6.2.4.
-`57.0.23`, the newest, fails on the same line, and this patch applies to it
-unchanged. Downgrading instead of patching is not a fix: `57.0.3` loses
-`filteredParams` and the third-party integration broadcast.
+`57.0.23`, the newest, is what is installed and still fails on that line.
+Downgrading instead of patching is not a fix: `57.0.3` loses `filteredParams`
+and the third-party integration broadcast.
 
 ---
 
