@@ -6,6 +6,13 @@ backend, and nobody can reset the account for you.
 
 Built with Expo SDK 57, React Native 0.86 and React 19.2.
 
+<p align="center">
+  <img src="store/screenshots/ios-6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
+  <img src="store/screenshots/ios-6.9/03-conversation.png" width="196" alt="The Status room, with command chips and links to the messaging networks">
+  <img src="store/screenshots/ios-6.9/05-message-actions.png" width="196" alt="Long-pressing a message: reactions, reply, copy and forward">
+  <img src="store/screenshots/ios-6.9/06-plugins.png" width="196" alt="Plugins screen: assistant, names, bots, wallet, browser and markets">
+</p>
+
 ## What it does
 
 - End-to-end encrypted messaging over XMTP, Nostr and Waku, in one inbox
@@ -119,8 +126,8 @@ Three kinds of file are generated and should not be edited by hand:
 `store/` holds everything App Store Connect and Google Play ask for: listing
 text, privacy answers, the export compliance reasoning, review notes and
 screenshots. `store/screenshots/capture.sh` regenerates the screenshots from
-an erased simulator. `docs/deploying.md` lists what is done and what only the
-account holder can do.
+an erased simulator; the ones above are the same files. `docs/deploying.md`
+lists what is done and what only the account holder can do.
 
 ## Security notes
 

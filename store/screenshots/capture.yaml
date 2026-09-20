@@ -48,6 +48,18 @@ appId: com.statusoriginal.app
 - extendedWaitUntil:
     visible:
       id: "composer-input"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: "composer-input"
+    commands:
+      - tapOn:
+          id: "conversation-local-status"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
     timeout: 20000
 - waitForAnimationToEnd
 - takeScreenshot: 03-conversation
