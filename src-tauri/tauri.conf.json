@@ -5,8 +5,8 @@
   "identifier": "com.statusoriginal.app",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:8081",
-    "beforeDevCommand": "npx expo start --port 8081",
+    "devUrl": "http://localhost:8082",
+    "beforeDevCommand": "npx expo start --port 8082",
     "beforeBuildCommand": "npx expo export --platform web"
   },
   "app": {

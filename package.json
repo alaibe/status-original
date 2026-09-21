@@ -18,6 +18,7 @@
     "@scure/bip39": "^2.4.0",
     "@shopify/flash-list": "2.0.2",
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-http": "^2.6.1",
     "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-opener": "^2.5.5",
     "@walletconnect/core": "^2.24.0",

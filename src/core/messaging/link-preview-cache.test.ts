@@ -65,7 +65,7 @@ describe('link preview cache', () => {
     expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
   });
 
-  it('remembers a miss too, so a dead link is not retried every render', async () => {
+  it('remembers a miss for a few minutes, so a dead link is not retried every render', async () => {
     await hydrateLinkPreviewCache(fakeStorage());
     fetchLinkPreview.mockResolvedValue(null);
     expect(await loadLinkPreview('https://dead.example/')).toBeNull();
@@ -73,6 +73,12 @@ describe('link preview cache', () => {
     expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
     expect(cachedLinkPreview('https://dead.example/')).toBeNull();
     expect(cachedLinkPreview('https://never.example/')).toBeUndefined();
+
+    jest.advanceTimersByTime(11 * 60 * 1000);
+    expect(cachedLinkPreview('https://dead.example/')).toBeUndefined();
+    fetchLinkPreview.mockResolvedValue(preview);
+    expect(await loadLinkPreview('https://dead.example/')).toEqual(preview);
+    expect(fetchLinkPreview).toHaveBeenCalledTimes(2);
   });
 
   it('reloads saved entries and drops the ones older than a week', async () => {
@@ -81,11 +87,13 @@ describe('link preview cache', () => {
       'link-previews': {
         'https://fresh.example/': { preview, at: now - 1000 },
         'https://stale.example/': { preview, at: now - 8 * 24 * 60 * 60 * 1000 },
+        'https://miss.example/': { preview: null, at: now - 60 * 60 * 1000 },
       },
     });
     await hydrateLinkPreviewCache(storage);
     expect(cachedLinkPreview('https://fresh.example/')).toEqual(preview);
     expect(cachedLinkPreview('https://stale.example/')).toBeUndefined();
+    expect(cachedLinkPreview('https://miss.example/')).toBeUndefined();
   });
 
   it('forgets everything on clear and ignores a fetch that finishes for a previous account', async () => {

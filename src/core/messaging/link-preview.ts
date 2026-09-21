@@ -1,3 +1,5 @@
+import { previewFetch } from './preview-fetch';
+
 export interface LinkPreview {
   url: string;
   siteName?: string;
@@ -43,7 +45,7 @@ export function isPreviewable(url: string): boolean {
 
 export async function fetchLinkPreview(
   url: string,
-  { fetchImpl = fetch, timeoutMs = 10_000 }: FetchOptions = {}
+  { fetchImpl = previewFetch, timeoutMs = 10_000 }: FetchOptions = {}
 ): Promise<LinkPreview | null> {
   if (!isPreviewable(url)) return null;
 

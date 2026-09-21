@@ -26,6 +26,17 @@
       ]
     },
     "notification:default",
-    "window-state:default"
+    "window-state:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        }
+      ]
+    }
   ]
 }

@@ -4,6 +4,8 @@ import { fetchLinkPreview, type LinkPreview } from './link-preview';
 const KEY = 'link-previews';
 const LIMIT = 300;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// A miss may only mean the device was offline or the site slow to answer.
+const MISS_TTL_MS = 10 * 60 * 1000;
 const FLUSH_DELAY_MS = 500;
 
 type Entry = { preview: LinkPreview | null; at: number };
@@ -20,9 +22,8 @@ export async function hydrateLinkPreviewCache(target: AccountStorage): Promise<v
   pending.clear();
   const saved = await target.get<Record<string, Entry>>(KEY).catch(() => null);
   if (storage !== target) return;
-  const cutoff = Date.now() - TTL_MS;
   for (const [url, entry] of Object.entries(saved ?? {})) {
-    if (entry.at > cutoff) entries.set(url, entry);
+    if (fresh(entry)) entries.set(url, entry);
   }
 }
 
@@ -35,13 +36,14 @@ export function clearLinkPreviewCache(): void {
 }
 
 export function cachedLinkPreview(url: string): LinkPreview | null | undefined {
-  return entries.get(url)?.preview;
+  const known = entries.get(url);
+  return known && fresh(known) ? known.preview : undefined;
 }
 
 /** One request per URL, remembered across launches for a week. */
 export function loadLinkPreview(url: string): Promise<LinkPreview | null> {
   const known = entries.get(url);
-  if (known) return Promise.resolve(known.preview);
+  if (known && fresh(known)) return Promise.resolve(known.preview);
 
   let request = pending.get(url);
   if (!request) {
@@ -56,6 +58,10 @@ export function loadLinkPreview(url: string): Promise<LinkPreview | null> {
     pending.set(url, request);
   }
   return request;
+}
+
+function fresh(entry: Entry): boolean {
+  return entry.at > Date.now() - (entry.preview ? TTL_MS : MISS_TTL_MS);
 }
 
 function remember(url: string, preview: LinkPreview | null): void {

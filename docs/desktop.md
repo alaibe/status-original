@@ -10,15 +10,13 @@ Rust is needed on top of the mobile setup (`rustup` is enough; `cargo` must be
 on the path).
 
 ```bash
-npm run desktop          # Metro on 8081 plus a debug window that reloads on save
+npm run desktop          # Metro on 8082 plus a debug window that reloads on save
 npm run desktop:build    # dist/ from `expo export`, then src-tauri/target/release/bundle/
 ```
 
-If another Metro already holds 8081, point the window elsewhere for the session:
-
-```bash
-npx tauri dev --config '{"build":{"devUrl":"http://localhost:8082","beforeDevCommand":"npx expo start --port 8082"}}'
-```
+The desktop Metro takes 8082 so it can run next to the phone's on 8081. Both
+read `metro.config.js` once at start, so restart whichever one predates a
+change to it.
 
 Do not set `CI=true` when running `tauri dev`: Metro reads it and switches off
 file watching.
