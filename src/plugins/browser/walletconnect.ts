@@ -126,7 +126,16 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
   async pair(uri) {
     const kit = get().kit;
     if (!kit) throw new Error(get().error ?? 'WalletConnect is still starting up.');
-    await kit.pair({ uri });
+    try {
+      await kit.pair({ uri });
+    } catch (error) {
+      if (errorMessage(error, '').includes('Pairing already exists')) {
+        throw new Error(
+          'That link was already used once. Ask the site for a fresh code, then scan or paste it again.'
+        );
+      }
+      throw error;
+    }
   },
 
   async disconnectSession(topic) {
