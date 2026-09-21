@@ -1,4 +1,3 @@
-import { forwardRef } from 'react';
 import { TextInput, type TextInputProps, View } from 'react-native';
 
 import { useThemeColors } from '../hooks/use-theme-colors';
@@ -6,6 +5,7 @@ import { cn } from '../lib/cn';
 import { Text } from './text';
 
 export interface FieldProps extends TextInputProps {
+  ref?: React.Ref<TextInput>;
   label?: string;
   hint?: string;
   error?: string;
@@ -13,17 +13,13 @@ export interface FieldProps extends TextInputProps {
   containerClassName?: string;
 }
 
-export const Field = forwardRef<TextInput, FieldProps>(function Field(
-  { label, hint, error, className, containerClassName, ...props },
-  ref
-) {
+export function Field({ label, hint, error, className, containerClassName, ...props }: FieldProps) {
   const colors = useThemeColors();
 
   return (
     <View className={cn('gap-1.5', containerClassName)}>
       {label ? <Text variant="footnote">{label}</Text> : null}
       <TextInput
-        ref={ref}
         placeholderTextColor={colors['content-subtle']}
         style={{ borderCurve: 'continuous' }}
         className={cn(
@@ -42,4 +38,4 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
       ) : null}
     </View>
   );
-});
+}
