@@ -15,7 +15,11 @@ import {
 import { useAppearanceStore, type ThemeChoice } from '@/core/app/appearance';
 
 const THEMES: { id: ThemeChoice; label: string; hint: string }[] = [
-  { id: 'system', label: 'Match device', hint: 'Follows your iOS appearance setting' },
+  {
+    id: 'system',
+    label: 'Match device',
+    hint: `Follows your ${process.env.EXPO_OS === 'ios' ? 'iOS' : process.env.EXPO_OS === 'android' ? 'Android' : 'system'} appearance setting`,
+  },
   { id: 'light', label: 'Light', hint: '' },
   { id: 'dark', label: 'Dark', hint: '' },
 ];

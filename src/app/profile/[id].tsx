@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 
@@ -41,6 +40,7 @@ import {
 import { useBack } from '@/features/navigation/use-back';
 import { resolveEnsProfile, type EnsProfile } from '@/lib/evm/ens-profile';
 import { protocolSubtitle } from '@/features/protocols/presentation';
+import { openInBrowser } from '@/lib/open-url';
 
 const TABS: { id: MediaCategory; label: string }[] = [
   { id: 'media', label: 'Media' },
@@ -338,7 +338,7 @@ function MediaRow({ entry, category }: { entry: MediaEntry; category: MediaCateg
       subtitle={formatDayLabel(entry.sentAt)}
       leading={<Icon name={icon} size={20} color={colors['content-muted']} />}
       onPress={() => {
-        WebBrowser.openBrowserAsync(entry.uri).catch(() => {});
+        openInBrowser(entry.uri).catch(() => {});
       }}
     />
   );

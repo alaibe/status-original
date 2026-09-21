@@ -60,6 +60,13 @@ ${vars(light)}
   .dark:root {
 ${vars(dark)}
   }
+
+  /* Desktop: the app draws its own focus states. Keyboard focus keeps the ring. */
+  input,
+  textarea,
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
 }
 `;
 

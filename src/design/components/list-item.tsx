@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
 import { cn } from '../lib/cn';
+import { contextMenu, type MenuAnchor } from '../lib/context-menu';
 import { Pressable } from './pressable';
 import { Text } from './text';
 
@@ -13,6 +14,10 @@ export interface ListItemProps {
   trailing?: React.ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
+  /** A right-click on desktop; the long-press's counterpart. */
+  onContextMenu?: (anchor: MenuAnchor) => void;
+  /** The row whose content is open beside the list. */
+  selected?: boolean;
   unread?: boolean;
   className?: string;
   numberOfLinesSubtitle?: number;
@@ -29,6 +34,8 @@ export function ListItem({
   trailing,
   onPress,
   onLongPress,
+  onContextMenu,
+  selected = false,
   unread = false,
   className,
   numberOfLinesSubtitle = 1,
@@ -88,8 +95,9 @@ export function ListItem({
       accessibilityLabel={label}
       onPress={onPress}
       onLongPress={onLongPress}
+      {...(onContextMenu ? contextMenu(onContextMenu) : undefined)}
       pressScale={0.99}
-      className="mx-1 rounded-card active:bg-surface"
+      className={cn('mx-1 rounded-card active:bg-surface', selected && 'bg-brand-soft')}
       style={{ borderCurve: 'continuous' }}>
       {body}
     </Pressable>

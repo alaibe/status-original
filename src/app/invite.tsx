@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, Share, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -26,6 +26,7 @@ import {
   type DeviceContact,
 } from '@/features/contacts/device-contacts';
 import { ContactName } from '@/features/contacts/contact-name';
+import { shareText, shareWithNumbers, type ShareResult } from '@/lib/share';
 
 function inviteText(address: string): string {
   return (
@@ -87,6 +88,11 @@ export default function InviteScreen() {
     });
   }
 
+  function report(result: ShareResult | null) {
+    if (result === 'copied') toast.success('Invite copied');
+    if (result === 'copied-for-messages') toast.success('Invite copied, paste it into Messages');
+  }
+
   async function sendInvites() {
     if (!keyring) return;
 
@@ -94,16 +100,11 @@ export default function InviteScreen() {
     const numbers = chosen.map((c) => c.phone).filter((p): p is string => Boolean(p));
     const body = inviteText(keyring.address);
 
-    if (numbers.length === 0) {
-      await Share.share({ message: body }).catch(() => {});
-      return;
-    }
-
-    const url = `sms:${numbers.join(',')}&body=${encodeURIComponent(body)}`;
-    const opened = await Linking.canOpenURL(url)
-      .then((supported) => supported && Linking.openURL(url).then(() => true))
-      .catch(() => false);
-    if (!opened) await Share.share({ message: body }).catch(() => {});
+    report(
+      await (numbers.length > 0 ? shareWithNumbers(numbers, body) : shareText(body)).catch(
+        () => null
+      )
+    );
 
     const skipped = chosen.length - numbers.length;
     if (skipped > 0) {
@@ -145,8 +146,7 @@ export default function InviteScreen() {
             title={<Text className="font-semibold text-brand">Share Status Original</Text>}
             leading={<Icon name="heart-outline" size={22} color={colors.brand} />}
             onPress={async () => {
-              if (!keyring) return;
-              await Share.share({ message: inviteText(keyring.address) }).catch(() => {});
+              if (keyring) report(await shareText(inviteText(keyring.address)).catch(() => null));
             }}
           />
         </Section>
@@ -155,6 +155,13 @@ export default function InviteScreen() {
           <View className="py-10">
             <ActivityIndicator />
           </View>
+        ) : access === 'unavailable' ? (
+          <Note className="mx-gutter mt-6" icon="lock-closed-outline">
+            <Text variant="footnote">
+              Suggestions from your address book are not available on this system. Share the
+              link above, or scan the QR code from a phone that has the app.
+            </Text>
+          </Note>
         ) : access === 'none' || access === 'unknown' ? (
           <Note className="mx-gutter mt-6" icon="lock-closed-outline">
             <Text variant="footnote">

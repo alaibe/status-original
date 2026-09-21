@@ -49,10 +49,17 @@ const PATH = attribute(' d');
 const SAFE_RADIUS = (CANVAS / 2) * (66 / 108);
 const ADAPTIVE_SCALE = Math.min(1, (0.96 * SAFE_RADIUS) / REACH);
 
+// macOS applies no mask: the Dock expects a rounded tile on a transparent
+// canvas, 824 of 1024 across, with Apple's own corner radius so it lines up
+// with every other icon.
+const DESKTOP_TILE = 824 / 1024;
+const DESKTOP_RADIUS = 185.4 / 1024;
+
 /**
  * @param plate  What the mark sits on: a colour, or nothing for transparency.
  * @param shape  How the plate is cut. iOS masks its own icon, so `square`;
- *               the web and the in-app avatar draw their own corners.
+ *               the web and the in-app avatar draw their own corners, and
+ *               `desktop` is the inset macOS tile.
  * @param scale  1 places the mark exactly as the logo does; below 1 insets it.
  * @param mark   False draws the plate alone.
  */
@@ -62,6 +69,7 @@ function svg({ plate, shape = 'square', scale = 1, mark = true }) {
     square: `<rect width="${CANVAS}" height="${CANVAS}" fill="${plate}"/>`,
     rounded: `<rect width="${CANVAS}" height="${CANVAS}" rx="${RADIUS}" fill="${plate}"/>`,
     circle: `<circle cx="${half}" cy="${half}" r="${half}" fill="${plate}"/>`,
+    desktop: `<rect x="${(CANVAS * (1 - DESKTOP_TILE)) / 2}" y="${(CANVAS * (1 - DESKTOP_TILE)) / 2}" width="${CANVAS * DESKTOP_TILE}" height="${CANVAS * DESKTOP_TILE}" rx="${CANVAS * DESKTOP_RADIUS}" fill="${plate}"/>`,
   };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS}" height="${CANVAS}" viewBox="0 0 ${CANVAS} ${CANVAS}">
   ${plate ? plates[shape] : ''}
@@ -116,6 +124,10 @@ render('notification-icon', svg({ plate: null, scale: 0.85 }), 96);
 
 // Web: the tile as the logo draws it, corners included.
 render('favicon', svg({ plate: PLATE, shape: 'rounded' }), 64);
+
+// Desktop: `tauri icon` cuts this into the .icns, .ico and PNG set in
+// src-tauri/icons; see `brand:build`.
+render('icon-desktop', svg({ plate: PLATE, shape: 'desktop', scale: DESKTOP_TILE }), 1024);
 
 // The Status room's avatar in the chat list, header and pickers: a circle,
 // since that is what every other avatar is. 96pt at 3x.

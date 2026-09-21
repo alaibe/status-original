@@ -9,6 +9,7 @@ import * as Crypto from 'expo-crypto';
 import { english, generateMnemonic, mnemonicToAccount } from 'viem/accounts';
 
 import { writeMnemonic } from './key-protection';
+import { base64ToBytes, bytesToBase64 } from '@/lib/bytes';
 import { accountDbKeyName, vaultGet, vaultSet } from '@/storage/vault';
 
 export interface DerivedKey {
@@ -88,18 +89,6 @@ export async function loadDbEncryptionKey(accountId: string): Promise<Uint8Array
   return bytes.length === 32 ? bytes : null;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return globalThis.btoa(binary);
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  const binary = globalThis.atob(value);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
-}
 
 export function shortAddress(address: string, lead = 6, tail = 4): string {
   if (address.length <= lead + tail + 2) return address;

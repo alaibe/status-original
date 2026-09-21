@@ -19,7 +19,12 @@ export interface VoiceRecorderProps {
 
 export function VoiceRecorder({ onRecorded, onError }: VoiceRecorderProps) {
   const colors = useThemeColors();
-  const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
+  const recorder = useAudioRecorder({
+    ...RecordingPresets.LOW_QUALITY,
+    // The desktop's recorder writes whatever the browser prefers; a phone can
+    // only play the AAC that the `.m4a` name promises.
+    web: { mimeType: 'audio/mp4', bitsPerSecond: 64000 },
+  });
   const state = useAudioRecorderState(recorder, 250);
 
   const [starting, setStarting] = useState(false);

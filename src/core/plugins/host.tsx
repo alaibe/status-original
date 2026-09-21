@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { createContext, use, useState } from 'react';
-import { Linking } from 'react-native';
+import { openExternal } from '@/lib/open-url';
 
 import { capabilitiesOf } from '../identity/account-kind';
 import type { Keyring } from '../identity/keyring';
@@ -256,7 +256,7 @@ function makePluginContext(
       },
       async openExternalUrl(url: string) {
         require('browser.open');
-        await guard(() => Linking.openURL(url));
+        await guard(() => openExternal(url));
       },
     },
   };

@@ -86,6 +86,7 @@ export default function AccountsScreen() {
                 ) : undefined
               }
               onLongPress={() => setManaging(account.id)}
+              onContextMenu={() => setManaging(account.id)}
               onPress={async () => {
                 if (account.id === activeAccountId) {
                   setManaging(account.id);

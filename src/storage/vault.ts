@@ -1,9 +1,8 @@
 import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
 
 import { toHex } from '@/lib/bytes';
 
-const WEB_PREFIX = 'vault:';
+import * as store from './secure-store';
 
 export const VaultKey = {
   accountIndex: 'accounts.index',
@@ -48,18 +47,7 @@ export function accountScopedKeys(accountId: string): VaultKeyName[] {
   ];
 }
 
-export const isSecureStorageAvailable = process.env.EXPO_OS !== 'web';
-
-const PROTECTED_SERVICE = 'com.statusoriginal.protected';
-
-function protectedOptions(prompt: string): SecureStore.SecureStoreOptions {
-  return {
-    keychainService: PROTECTED_SERVICE,
-    requireAuthentication: true,
-    authenticationPrompt: prompt,
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  };
-}
+export { isSecureStorageAvailable } from './secure-store';
 
 export type ProtectedRead =
   | { status: 'ok'; value: string }
@@ -72,13 +60,8 @@ export async function vaultGetProtected(
   prompt: string,
   expectExisting: boolean,
 ): Promise<ProtectedRead> {
-  if (process.env.EXPO_OS === 'web') {
-    const value = await vaultGet(key);
-    return value === null ? { status: 'absent' } : { status: 'ok', value };
-  }
-
   try {
-    const value = await SecureStore.getItemAsync(key, protectedOptions(prompt));
+    const value = await store.getProtected(key, prompt);
     if (value !== null) return { status: 'ok', value };
     return expectExisting ? { status: 'invalidated' } : { status: 'absent' };
   } catch {
@@ -86,51 +69,24 @@ export async function vaultGetProtected(
   }
 }
 
-export async function vaultSetProtected(key: VaultKeyName, value: string): Promise<void> {
-  if (process.env.EXPO_OS === 'web') {
-    await vaultSet(key, value);
-    return;
-  }
-  await SecureStore.setItemAsync(key, value, protectedOptions('Confirm to save your keys'));
+export function vaultSetProtected(key: VaultKeyName, value: string): Promise<void> {
+  return store.setProtected(key, value, 'Confirm to save your keys');
 }
 
-export async function vaultDeleteProtected(key: VaultKeyName): Promise<void> {
-  if (process.env.EXPO_OS === 'web') {
-    await vaultDelete(key);
-    return;
-  }
-  await SecureStore.deleteItemAsync(key, {
-    keychainService: PROTECTED_SERVICE,
-  });
+export function vaultDeleteProtected(key: VaultKeyName): Promise<void> {
+  return store.removeProtected(key);
 }
 
-export async function vaultGet(key: VaultKeyName): Promise<string | null> {
-  if (process.env.EXPO_OS === 'web') {
-    try {
-      return globalThis.localStorage?.getItem(WEB_PREFIX + key) ?? null;
-    } catch {
-      return null;
-    }
-  }
-  return SecureStore.getItemAsync(key);
+export function vaultGet(key: VaultKeyName): Promise<string | null> {
+  return store.get(key);
 }
 
-export async function vaultSet(key: VaultKeyName, value: string): Promise<void> {
-  if (process.env.EXPO_OS === 'web') {
-    globalThis.localStorage?.setItem(WEB_PREFIX + key, value);
-    return;
-  }
-  await SecureStore.setItemAsync(key, value, {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
+export function vaultSet(key: VaultKeyName, value: string): Promise<void> {
+  return store.set(key, value);
 }
 
-export async function vaultDelete(key: VaultKeyName): Promise<void> {
-  if (process.env.EXPO_OS === 'web') {
-    globalThis.localStorage?.removeItem(WEB_PREFIX + key);
-    return;
-  }
-  await SecureStore.deleteItemAsync(key);
+export function vaultDelete(key: VaultKeyName): Promise<void> {
+  return store.remove(key);
 }
 
 export async function accountDatabaseKey(accountId: string): Promise<string> {

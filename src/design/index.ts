@@ -5,3 +5,7 @@ export { Duration, Enter, Exit, Spring, springLayout, stagger } from './motion';
 export { ToastHost, toast, useToastStore, type ToastTone } from './toast';
 export { useThemeColors, type ThemeColors } from './hooks/use-theme-colors';
 export { cn } from './lib/cn';
+export { contextMenu, type MenuAnchor } from './lib/context-menu';
+export { DRAG_REGION } from './lib/drag-region';
+export { useEscapeKey } from './lib/escape-key';
+export { LayoutInsetsContext, useLayoutInsets } from './lib/layout-insets';

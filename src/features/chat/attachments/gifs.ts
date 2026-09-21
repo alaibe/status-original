@@ -1,6 +1,5 @@
-import { File } from 'expo-file-system';
 
-import { mediaDirectory } from '@/storage/media';
+import { downloadMedia } from '@/core/messaging/media-store';
 
 import { HttpError } from '@/core/errors';
 import { readCredential, writeCredential } from '@/core/identity/credentials';
@@ -20,16 +19,23 @@ export const loadGifKey = (accountId: string) => readCredential(accountId, 'gifs
 export const saveGifKey = (accountId: string, key: string) =>
   writeCredential(accountId, 'gifs', key);
 
-export async function searchGifs(
-  key: string,
-  query: string,
-  limit = 24
-): Promise<Gif[]> {
-  const url =
+export function searchGifs(key: string, query: string, limit = 24): Promise<Gif[]> {
+  return fetchGifs(
     `https://tenor.googleapis.com/v2/search?key=${encodeURIComponent(key)}` +
-    `&q=${encodeURIComponent(query)}&limit=${limit}&media_filter=tinygif` +
-    `&contentfilter=medium`;
+      `&q=${encodeURIComponent(query)}&limit=${limit}&media_filter=tinygif` +
+      `&contentfilter=medium`
+  );
+}
 
+/** What Tenor is showing everyone right now: the grid before a search. */
+export function featuredGifs(key: string, limit = 30): Promise<Gif[]> {
+  return fetchGifs(
+    `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(key)}` +
+      `&limit=${limit}&media_filter=tinygif&contentfilter=medium`
+  );
+}
+
+async function fetchGifs(url: string): Promise<Gif[]> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new HttpError(
@@ -65,10 +71,9 @@ export async function searchGifs(
 }
 
 export async function gifToContent(accountId: string, gif: Gif): Promise<MessageContent> {
-  const file = new File(mediaDirectory('gifs', accountId), `${gif.id}.gif`);
-  if (!file.exists) await File.downloadFileAsync(gif.url, file);
+  const file = await downloadMedia('gifs', `${gif.id}.gif`, accountId, gif.url);
 
-  const size = file.size ?? 0;
+  const size = file.size;
   if (size > INLINE_LIMIT_BYTES) {
     throw new Error('That GIF is too large to send inline.');
   }

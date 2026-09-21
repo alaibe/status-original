@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/componentUtils.js b/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/componentUtils.js
+index 3185240..eb6f74e 100644
+--- a/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/componentUtils.js
++++ b/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/componentUtils.js
+@@ -190,8 +190,10 @@ export function setElementAnimation(element, animationConfig, shouldSavePosition
+   };
+   if (!(animationName in Animations)) {
+     scheduleAnimationCleanup(animationName, duration + delay, () => {
+-      if (shouldSavePosition) {
+-        setElementPosition(element, getSnapshotForElement(element));
++      // If the animation never started (throttled tab, occluded window), the
++      // element would otherwise stay hidden for good.
++      if (animationConfig.animationType === LayoutAnimationType.ENTERING && element.style) {
++        element.style.visibility = 'initial';
+       }
+       maybeRunCleanup();
+       maybeCallCallback(false);

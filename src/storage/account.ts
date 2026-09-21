@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PluginStorage } from '@/core/plugins/types';
 import type { MessageStore } from '@/core/messaging/message-store';
 import { SqliteMessageStore } from './sqlite-message-store';
-import { mediaDirectory, mediaFile } from './media';
 import { scopePrefix } from './scope';
 
 export interface AccountStorage {
@@ -13,8 +12,6 @@ export interface AccountStorage {
   set<T>(name: string, value: T): Promise<void>;
   remove(name: string): Promise<void>;
   plugin(pluginId: string): PluginStorage;
-  mediaDirectory(area: string): ReturnType<typeof mediaDirectory>;
-  mediaFile(area: string, name: string): ReturnType<typeof mediaFile>;
   readonly messages: MessageStore;
 }
 
@@ -48,8 +45,6 @@ export function createAccountStorage(accountId: string): AccountStorage {
         remove: (name: string) => storage.remove(pluginKey(name)),
       };
     },
-    mediaDirectory: (area: string) => mediaDirectory(area, accountId),
-    mediaFile: (area: string, name: string) => mediaFile(area, name, accountId),
     messages: new SqliteMessageStore(accountId),
   };
   return storage;

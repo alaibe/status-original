@@ -1,13 +1,8 @@
 import { Contact, ContactField, getPermissionsAsync, requestPermissionsAsync } from 'expo-contacts';
 
-export interface DeviceContact {
-  id: string;
-  given: string | null;
-  family: string | null;
-  phone: string | null;
-}
+import type { ContactAccess, DeviceContact } from './address-book';
 
-export type ContactAccess = 'unknown' | 'none' | 'limited' | 'all';
+export { contactSortKeyFor, type ContactAccess, type DeviceContact } from './address-book';
 
 function toAccess(result: { granted: boolean; accessPrivileges?: string }): ContactAccess {
   if (!result.granted) return 'none';
@@ -41,11 +36,4 @@ export async function readDeviceContacts(): Promise<DeviceContact[]> {
 
 export async function manageLimitedAccess(): Promise<void> {
   await Contact.presentAccessPicker();
-}
-
-export function contactSortKeyFor(contact: DeviceContact, by: 'given' | 'family'): string {
-  const first = (contact.given ?? '').trim();
-  const last = (contact.family ?? '').trim();
-  const parts = by === 'family' ? [last, first] : [first, last];
-  return parts.filter(Boolean).join(' ').toLocaleLowerCase();
 }

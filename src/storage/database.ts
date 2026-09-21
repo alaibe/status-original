@@ -1,10 +1,10 @@
-import * as SQLite from 'expo-sqlite';
-
+import type { AccountDatabase } from './account-database';
+import { deleteDatabase, openDatabase } from './sqlite-engine';
 import { accountDatabaseKey } from './vault';
 
 const SCHEMA_VERSION = 2;
 
-const databases = new Map<string, Promise<SQLite.SQLiteDatabase>>();
+const databases = new Map<string, Promise<AccountDatabase>>();
 const operations = new Map<string, { tail: Promise<void>; deleting: boolean; generation: number }>();
 
 function operationState(accountId: string) {
@@ -23,7 +23,7 @@ export function accountDatabaseGeneration(accountId: string): number {
 export function runAccountDatabaseOperation<T>(
   accountId: string,
   generation: number,
-  work: (db: SQLite.SQLiteDatabase) => Promise<T>,
+  work: (db: AccountDatabase) => Promise<T>,
 ): Promise<T> {
   const state = operationState(accountId);
   if (state.deleting || state.generation !== generation) {
@@ -39,12 +39,12 @@ export function databaseNameFor(accountId: string): string {
   return `account-${accountId}.db`;
 }
 
-export function openAccountDatabase(accountId: string): Promise<SQLite.SQLiteDatabase> {
+export function openAccountDatabase(accountId: string): Promise<AccountDatabase> {
   const existing = databases.get(accountId);
   if (existing) return existing;
 
   const opening = (async () => {
-    const db = await SQLite.openDatabaseAsync(databaseNameFor(accountId));
+    const db = await openDatabase(databaseNameFor(accountId));
     try {
       const key = await accountDatabaseKey(accountId);
       await db.execAsync(`PRAGMA key = '${key.replace(/'/g, "''")}'`);
@@ -66,7 +66,7 @@ export function openAccountDatabase(accountId: string): Promise<SQLite.SQLiteDat
   return opening;
 }
 
-async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
+async function migrate(db: AccountDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const current = row?.user_version ?? 0;
   if (current >= SCHEMA_VERSION) return;
@@ -131,7 +131,7 @@ export async function deleteAccountDatabase(accountId: string): Promise<void> {
 
   const failures: unknown[] = [];
   if (opening) {
-    let db: SQLite.SQLiteDatabase | undefined;
+    let db: AccountDatabase | undefined;
     try {
       db = await opening;
     } catch {}
@@ -145,7 +145,7 @@ export async function deleteAccountDatabase(accountId: string): Promise<void> {
   }
 
   try {
-    await SQLite.deleteDatabaseAsync(databaseNameFor(accountId));
+    await deleteDatabase(databaseNameFor(accountId));
   } catch (error) {
     failures.push(error);
   }

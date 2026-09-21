@@ -52,13 +52,15 @@ export default function QrScreen() {
       </View>
 
       <View className="gap-2">
-        <Button
-          label="Share address"
-          fullWidth
-          onPress={() => {
-            Share.share({ message: keyring.address }).catch(() => {});
-          }}
-        />
+        {process.env.EXPO_OS === 'web' ? null : (
+          <Button
+            label="Share address"
+            fullWidth
+            onPress={() => {
+              Share.share({ message: keyring.address }).catch(() => {});
+            }}
+          />
+        )}
         <Button
           label="Copy address"
           tone="neutral"

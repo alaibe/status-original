@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -30,9 +30,9 @@ import { useChatStore } from '@/core/messaging/chat-store';
 import type { ConversationId, MessageContent } from '@/core/messaging/types';
 import { usePluginHost } from '@/core/plugins/host';
 import { errorMessage } from '@/core/errors';
-import EmojiPicker from 'rn-emoji-keyboard';
 
-import { GifPicker } from './attachments/gif-picker';
+import { MediaPanel, type MediaAnchor } from './media-panel';
+import type { MediaTab } from './media-panel-content';
 import { pickFile, pickImage, takePhoto } from './attachments/pick';
 import { VoiceRecorder } from './attachments/voice-recorder';
 
@@ -77,8 +77,16 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
-  const [emoji, setEmoji] = useState(false);
-  const [gifs, setGifs] = useState(false);
+  const [media, setMedia] = useState<{ tab: MediaTab; anchor: MediaAnchor | null } | null>(null);
+  const emojiButton = useRef<View>(null);
+  const openMedia = (tab: MediaTab) => {
+    const button = emojiButton.current;
+    if (!button) {
+      setMedia({ tab, anchor: null });
+      return;
+    }
+    button.measureInWindow((x, y, width, height) => setMedia({ tab, anchor: { x, y, width, height } }));
+  };
 
   const canAttach = Boolean(onSendContent) && (
     !isLocalConversation(conversationId) ||
@@ -198,6 +206,14 @@ export function Composer({
     if (busy) return;
     return dispatch(value);
   };
+
+  useLayoutEffect(() => {
+    if (process.env.EXPO_OS !== 'web') return;
+    const element = inputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!element?.style) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
 
   useEffect(() => {
     if (!pendingCommand) return;
@@ -344,20 +360,38 @@ export function Composer({
           placeholder="Message"
           placeholderTextColor={colors['content-subtle']}
           multiline
+          // A browser textarea starts two rows tall and never grows on its own;
+          // see the effect that sizes it to its content on desktop.
+          numberOfLines={1}
           className="max-h-32 min-h-[42px] flex-1 py-2.5 pr-1 text-body text-content"
           returnKeyType="send"
           submitBehavior="submit"
           onSubmitEditing={submit}
+          // Desktop: Enter sends and keeps the focus, Shift+Enter breaks the
+          // line. Left to react-native-web, Enter would also blur the field.
+          onKeyPress={
+            process.env.EXPO_OS === 'web'
+              ? (event) => {
+                  const key = event.nativeEvent as unknown as KeyboardEvent;
+                  if (key.key === 'Enter' && !key.shiftKey && !key.isComposing) {
+                    event.preventDefault();
+                    void submit();
+                  }
+                }
+              : undefined
+          }
         />
 
+        <View ref={emojiButton} collapsable={false}>
         <Pressable
           testID="composer-emoji"
           accessibilityRole="button"
           accessibilityLabel="Emoji"
-          onPress={() => setEmoji(true)}
+          onPress={() => openMedia('emoji')}
           className="h-11 w-9 items-center justify-center">
           <Icon name="happy-outline" size={21} color={colors['content-muted']} />
         </Pressable>
+        </View>
         </View>
 
         {canAttach && value.trim().length === 0 && !busy ? (
@@ -389,23 +423,23 @@ export function Composer({
         )}
       </Animated.View>
 
-      <GifPicker
-        visible={gifs}
-        onClose={() => setGifs(false)}
-        onPick={(content) => {
-          onSendContent?.(content).catch((e) =>
-            setError(errorMessage(e, 'Could not send that GIF'))
-          );
-        }}
-      />
-
-      <EmojiPicker
-        open={emoji}
-        onClose={() => setEmoji(false)}
-        onEmojiSelected={(picked) => setValue((current) => current + picked.emoji)}
-        enableSearchBar
-        categoryPosition="top"
-      />
+      {media ? (
+        <MediaPanel
+          tab={media.tab}
+          anchor={media.anchor}
+          onClose={() => {
+            setMedia(null);
+            // After the modal has unmounted, or its focus trap puts the focus back on the button.
+            if (process.env.EXPO_OS === 'web') setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+          onEmoji={(picked) => setValue((current) => current + picked)}
+          onGif={(content) => {
+            onSendContent?.(content).catch((e) =>
+              setError(errorMessage(e, 'Could not send that GIF'))
+            );
+          }}
+        />
+      ) : null}
 
       <ActionSheet
         visible={attaching}
@@ -415,7 +449,7 @@ export function Composer({
           { label: 'Photo library', icon: 'images-outline', onPress: () => attach(pickImage) },
           { label: 'Take a photo', icon: 'videocam-outline', onPress: () => attach(takePhoto) },
           { label: 'File', icon: 'document-outline', onPress: () => attach(pickFile) },
-          { label: 'GIF', icon: 'happy-outline', onPress: () => setGifs(true) },
+          { label: 'GIF', icon: 'happy-outline', onPress: () => openMedia('gifs') },
         ]}
       />
     </View>

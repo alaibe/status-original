@@ -7,6 +7,8 @@
  */
 import './crypto';
 
-import '@walletconnect/react-native-compat';
+import './walletconnect';
+
+import './desktop';
 
 import './verify';

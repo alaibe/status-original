@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useEffect, useId, useRef } from 'react';
 import { create } from 'zustand';
 
+import type { MenuAnchor } from '../lib/context-menu';
+
 export interface SheetProps {
   visible: boolean;
   onClose: () => void;
@@ -9,6 +11,8 @@ export interface SheetProps {
   subtitle?: string;
   /** Sits before the title, the size of an avatar. */
   leading?: React.ReactNode;
+  /** Where a pointer opened it. Desktop places the menu there; a phone ignores it. */
+  anchor?: MenuAnchor | null;
   children: React.ReactNode;
 }
 

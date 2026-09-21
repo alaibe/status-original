@@ -14,6 +14,7 @@ import {
   Pressable,
   Text,
   toast,
+  useLayoutInsets,
   useThemeColors,
 } from '@/design';
 import { botIdFromConversation, isLocalConversation } from '@/core/messaging/bots';
@@ -50,9 +51,12 @@ export default function ConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const wallpaper = useAppearanceStore((s) => s.wallpaper);
+  // On desktop the frame draws the wallpaper and the sidebar does the navigating.
+  const desktop = process.env.EXPO_OS === 'web';
   const goBack = useBack('/chats');
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const frame = useLayoutInsets();
 
   const sessions = useChatStore((s) => s.sessions);
   const conversation = useChatStore((s) => s.conversations.find((c) => c.id === id));
@@ -158,12 +162,13 @@ export default function ConversationScreen() {
     : 'Conversation';
 
   return (
-    <View className="flex-1 bg-canvas">
-      <ChatBackground pattern={wallpaper} />
+    <View className={desktop ? 'flex-1' : 'flex-1 bg-canvas'}>
+      {desktop ? null : <ChatBackground pattern={wallpaper} />}
 
       <View
         className="absolute left-0 right-0 top-0 z-10 flex-row items-center gap-2 px-3"
-        style={{ paddingTop: insets.top + 6, paddingBottom: 8 }}>
+        style={{ paddingTop: insets.top + frame.top + 6, paddingBottom: 8 }}>
+        {desktop ? null : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
@@ -177,6 +182,7 @@ export default function ConversationScreen() {
           <View className="absolute inset-0 bg-canvas/55" />
           <Icon name="chevron-back" size={22} color={colors.brand} />
         </Pressable>
+        )}
 
         <Pressable
           // The pressable collapses its children into one accessibility element, so the
@@ -280,7 +286,7 @@ export default function ConversationScreen() {
               </View>
             }
             ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
-            contentContainerStyle={{ paddingTop: insets.top + 62, paddingBottom: 8 }}
+            contentContainerStyle={{ paddingTop: insets.top + frame.top + 62, paddingBottom: 8 }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             renderItem={renderItem}
