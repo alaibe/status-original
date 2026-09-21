@@ -4,6 +4,7 @@
 #   ./e2e/run.sh              the whole suite
 #   ./e2e/run.sh 03-plugins   one flow
 #   ./e2e/run.sh --fresh      wipe the account first, then the whole suite
+#   E2E_DEVICE=<udid> ...     pick the simulator when more than one is booted
 set -euo pipefail
 
 FRESH=0
@@ -70,8 +71,11 @@ if [ "$FRESH" = "1" ]; then
   xcrun simctl keychain booted reset
 fi
 
+DEVICE=()
+[ -n "${E2E_DEVICE:-}" ] && DEVICE=(--device "$E2E_DEVICE")
+
 if [ $# -gt 0 ]; then
-  exec "$MAESTRO" test "e2e/$1.yaml"
+  exec "$MAESTRO" "${DEVICE[@]}" test "e2e/$1.yaml"
 fi
 
-exec "$MAESTRO" test e2e
+exec "$MAESTRO" "${DEVICE[@]}" test e2e

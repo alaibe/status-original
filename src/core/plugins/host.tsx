@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { createContext, use, useState } from 'react';
+import { Linking } from 'react-native';
 
 import { capabilitiesOf } from '../identity/account-kind';
 import type { Keyring } from '../identity/keyring';
@@ -256,12 +256,7 @@ function makePluginContext(
       },
       async openExternalUrl(url: string) {
         require('browser.open');
-        await guard(() =>
-          WebBrowser.openBrowserAsync(url, {
-            presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-            enableBarCollapsing: true,
-          }).then(() => undefined)
-        );
+        await guard(() => Linking.openURL(url));
       },
     },
   };

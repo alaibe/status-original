@@ -84,6 +84,10 @@ export interface PluginChatApi {
 
 export interface PluginUiApi {
   notify(message: string, tone?: 'info' | 'success' | 'error'): void;
+  /**
+   * Hands the URL to the system browser. An in-app browser would lose the page
+   * the moment the user came back here to approve a WalletConnect request.
+   */
   openExternalUrl(url: string): Promise<void>;
   openConversation(conversationId: ConversationId): void;
   openProfile(conversationId: ConversationId, participantId?: ParticipantId): void;

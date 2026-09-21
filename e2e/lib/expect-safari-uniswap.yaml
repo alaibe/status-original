@@ -1,0 +1,7 @@
+# Safari is in front with Uniswap loaded, then the app comes back to the front.
+appId: com.apple.mobilesafari
+---
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 30000
+- openLink: "statusoriginal://chat/local-dapps"
