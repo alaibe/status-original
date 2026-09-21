@@ -46,8 +46,9 @@ function Scanner({ context, onClose }: { context: PluginContext; onClose(): void
   }, [getPermission]);
 
   const allowCamera = async () => {
+    const cannotAsk = permission?.canAskAgain === false;
     try {
-      if (permission?.canAskAgain === false) await Linking.openSettings();
+      if (cannotAsk) await Linking.openSettings();
       else await requestPermission();
     } catch (error) {
       setError(errorMessage(error, 'Could not request camera access'));

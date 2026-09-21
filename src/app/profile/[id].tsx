@@ -293,9 +293,8 @@ export default function ProfileScreen() {
               goBack();
             } catch (e) {
               toast.error(errorMessage(e, 'Could not remove them'));
-            } finally {
-              setBusy(false);
             }
+            setBusy(false);
           },
         }}
       />

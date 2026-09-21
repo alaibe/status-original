@@ -111,26 +111,27 @@ export default function NewChatScreen() {
     }
     setBusy(true);
     setError(null);
+    let participantId: string | null;
     try {
-      const participantId = await resolvePeer(descriptor.id, input);
-      if (!participantId) {
-        setError(descriptor.recipient.unreachable(input));
-        return;
-      }
-
-      if (recipients.some((r) => r.participantId === participantId)) {
-        setError(`${input} is already on the list.`);
-        return;
-      }
-
-      setRecipients((current) => [...current, { input, participantId }]);
-      setDraft('');
-      draftRef.current?.clear();
+      participantId = await resolvePeer(descriptor.id, input);
     } catch (e) {
       setError(errorMessage(e, 'Could not check that address'));
-    } finally {
       setBusy(false);
+      return;
     }
+    setBusy(false);
+
+    if (!participantId) {
+      setError(descriptor.recipient.unreachable(input));
+      return;
+    }
+    if (recipients.some((r) => r.participantId === participantId)) {
+      setError(`${input} is already on the list.`);
+      return;
+    }
+    setRecipients((current) => [...current, { input, participantId }]);
+    setDraft('');
+    draftRef.current?.clear();
   }
 
   const selectedIds = useMemo(
@@ -166,21 +167,20 @@ export default function NewChatScreen() {
 
     setBusy(true);
     setError(null);
+    const starting = isGroup
+      ? startGroup(
+          active,
+          recipients.map((r) => r.participantId),
+          title.trim() || defaultGroupName(recipients)
+        )
+      : startDm(active, recipients[0].participantId);
     try {
-      const conversation = isGroup
-        ? await startGroup(
-            active,
-            recipients.map((r) => r.participantId),
-            title.trim() || defaultGroupName(recipients)
-          )
-        : await startDm(active, recipients[0].participantId);
-
+      const conversation = await starting;
       router.dismissTo(`/chat/${conversation.id}`);
     } catch (e) {
       setError(errorMessage(e, 'Could not start that conversation'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (

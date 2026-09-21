@@ -66,10 +66,9 @@ export default function DevicesScreen() {
       await load();
     } catch (e) {
       toast.error(errorMessage(e, 'Could not revoke that device'));
-    } finally {
-      setBusy(false);
-      setConfirming(null);
     }
+    setBusy(false);
+    setConfirming(null);
   }
 
   const others = (installations ?? []).filter((i) => !i.current);

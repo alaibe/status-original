@@ -184,17 +184,15 @@ export default function AccountsScreen() {
           onPress: async () => {
             if (!confirmWipe) return;
             setBusy(true);
+            const next = accounts.length === 1 ? '/(onboarding)/welcome' : '/chats';
             try {
-              const wasLast = accounts.length === 1;
               await eraseAccount(confirmWipe);
-
               setConfirmWipe(null);
-              router.replace(wasLast ? '/(onboarding)/welcome' : '/chats');
+              router.replace(next);
             } catch (error) {
               toast.error(errorMessage(error, 'Could not erase that account'));
-            } finally {
-              setBusy(false);
             }
+            setBusy(false);
           },
         }}
       />

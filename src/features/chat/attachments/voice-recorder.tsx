@@ -30,16 +30,15 @@ export function VoiceRecorder({ onRecorded, onError }: VoiceRecorderProps) {
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         onError('Microphone access is off for this app.');
-        return;
+      } else {
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await recorder.prepareToRecordAsync();
+        recorder.record();
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
     } catch {
       onError('Could not start recording.');
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   }, [recorder, onError]);
 
   const finish = useCallback(
@@ -47,20 +46,21 @@ export function VoiceRecorder({ onRecorded, onError }: VoiceRecorderProps) {
       try {
         await recorder.stop();
         await setAudioModeAsync({ allowsRecording: false });
-
-        const uri = recorder.uri;
-        if (!keep || !uri) return;
-
-        const durationMs = Math.round((state.durationMillis ?? 0));
-        if (durationMs < 500) {
-          onError('Too short. Hold on a moment longer.');
-          return;
-        }
-
-        onRecorded({ kind: 'voice', uri, durationMs, name: 'voice.m4a', mimeType: 'audio/m4a' });
       } catch {
         onError('Could not save that recording.');
+        return;
       }
+
+      const uri = recorder.uri;
+      if (!keep || !uri) return;
+
+      const durationMs = Math.round(state.durationMillis ?? 0);
+      if (durationMs < 500) {
+        onError('Too short. Hold on a moment longer.');
+        return;
+      }
+
+      onRecorded({ kind: 'voice', uri, durationMs, name: 'voice.m4a', mimeType: 'audio/m4a' });
     },
     [recorder, state.durationMillis, onRecorded, onError]
   );

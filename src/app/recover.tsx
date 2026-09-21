@@ -55,14 +55,11 @@ export default function RecoverScreen() {
           tone="danger"
           fullWidth
           disabled={erasing}
-          onPress={async () => {
+          onPress={() => {
             setErasing(true);
-            try {
-              await eraseAllAccounts();
-              router.replace('/(onboarding)/welcome');
-            } finally {
-              setErasing(false);
-            }
+            eraseAllAccounts()
+              .then(() => router.replace('/(onboarding)/welcome'))
+              .finally(() => setErasing(false));
           }}
         />
       </View>

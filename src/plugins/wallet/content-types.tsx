@@ -76,51 +76,46 @@ function PaymentRequestCard({ data, fromMe, context, message }: MessageRendererP
     setError(null);
     setRows(null);
     setOpen(true);
+    if (!chain?.transfer) {
+      setError(networkOffMessage(chainLabel(data)));
+      return;
+    }
     setBusy(true);
     try {
-      if (!chain?.transfer) {
-        setError(networkOffMessage(chainLabel(data)));
-        return;
-      }
       const quoted = await chain.transfer.quote(context, { amount: data.amount, to: data.to });
       if ('error' in quoted) setError(`${quoted.error} Nothing was sent.`);
       else setRows(quoted.rows);
     } catch (e) {
       setError(walletErrorMessage(e, chain, 'review'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   async function pay() {
-    setBusy(true);
     setError(null);
-    try {
-      if (!chain?.transfer) {
-        setError(networkOffMessage(chainLabel(data)));
-        return;
-      }
-      const sent = await commitTransfer(
-        chain,
-        context,
-        { amount: data.amount, to: data.to },
-        {
-          conversationId: message.conversationId,
-          symbol: data.symbol,
-          onSent: () => setPaid(true),
-        }
-      );
-      if (!sent.ok) {
-        setRows(null);
-        setError(sent.message);
-        return;
-      }
-
-      context.ui.notify('Payment sent', 'success');
-      setOpen(false);
-    } finally {
-      setBusy(false);
+    if (!chain?.transfer) {
+      setError(networkOffMessage(chainLabel(data)));
+      return;
     }
+    setBusy(true);
+    const sent = await commitTransfer(
+      chain,
+      context,
+      { amount: data.amount, to: data.to },
+      {
+        conversationId: message.conversationId,
+        symbol: data.symbol,
+        onSent: () => setPaid(true),
+      }
+    ).finally(() => setBusy(false));
+    if (!sent.ok) {
+      setRows(null);
+      setError(sent.message);
+      return;
+    }
+
+    context.ui.notify('Payment sent', 'success');
+    setOpen(false);
   }
 
   return (
@@ -191,27 +186,23 @@ function SplitRequestCard({ data, fromMe, context, message }: MessageRendererPro
   const chain = strategyFor(data);
 
   async function payShare() {
-    setBusy(true);
     setError(null);
-    try {
-      if (!chain?.transfer) {
-        setError(networkOffMessage(chainLabel(data)));
-        return;
-      }
-      const sent = await commitTransfer(
-        chain,
-        context,
-        { amount: data.share, to: data.to },
-        {
-          conversationId: message.conversationId,
-          symbol: data.symbol,
-          onSent: () => setPaid(true),
-        }
-      );
-      if (!sent.ok) setError(sent.message);
-    } finally {
-      setBusy(false);
+    if (!chain?.transfer) {
+      setError(networkOffMessage(chainLabel(data)));
+      return;
     }
+    setBusy(true);
+    const sent = await commitTransfer(
+      chain,
+      context,
+      { amount: data.share, to: data.to },
+      {
+        conversationId: message.conversationId,
+        symbol: data.symbol,
+        onSent: () => setPaid(true),
+      }
+    ).finally(() => setBusy(false));
+    if (!sent.ok) setError(sent.message);
   }
 
   return (

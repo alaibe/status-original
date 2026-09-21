@@ -271,9 +271,8 @@ export default function SettingsScreen() {
               setConfirmErase(false);
             } catch (error) {
               toast.error(errorMessage(error, 'Could not erase that account'));
-            } finally {
-              setErasing(false);
             }
+            setErasing(false);
           },
         }}
       />

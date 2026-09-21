@@ -66,9 +66,8 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
         onClose();
       } catch (e) {
         setError(errorMessage(e, `Could not connect to your ${chosen.label}`));
-      } finally {
-        setBusy(false);
       }
+      setBusy(false);
     },
     [addHardwareAccount, onClose]
   );

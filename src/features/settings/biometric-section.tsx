@@ -38,27 +38,36 @@ export function BiometricSection() {
 
   const ids = accounts.map((a) => a.id);
 
+  function unchanged(reason: 'denied' | 'unreadable') {
+    return reason === 'denied'
+      ? `${label} was not confirmed, so nothing changed`
+      : 'Your recovery phrase could not be read, so nothing changed';
+  }
+
+  /** Unseals the keys first when the lock goes off; false when either step declined. */
+  async function changeLock(next: boolean): Promise<boolean> {
+    if (!next && protectedKeys) {
+      const unsealed = await disableKeyProtection(ids);
+      if (!unsealed.ok) {
+        toast.error(unchanged(unsealed.reason));
+        return false;
+      }
+      setProtectedKeys(false);
+    }
+    return setLockEnabled(next, label);
+  }
+
   async function applyProtection(next: boolean) {
     setBusy(true);
-    try {
-      const result = next
-        ? await enableKeyProtection(ids)
-        : await disableKeyProtection(ids);
+    const change = next ? enableKeyProtection : disableKeyProtection;
+    const result = await change(ids).catch(() => null);
+    setBusy(false);
 
-      if (result.ok) {
-        setProtectedKeys(next);
-        noteJustAuthenticated();
-        return;
-      }
-      toast.error(
-        result.reason === 'denied'
-          ? `${label} was not confirmed, so nothing changed`
-          : 'Your recovery phrase could not be read, so nothing changed'
-      );
-    } catch {
-      toast.error('Could not change key protection');
-    } finally {
-      setBusy(false);
+    if (!result) toast.error('Could not change key protection');
+    else if (!result.ok) toast.error(unchanged(result.reason));
+    else {
+      setProtectedKeys(next);
+      noteJustAuthenticated();
     }
   }
 
@@ -80,30 +89,14 @@ export function BiometricSection() {
               disabled={!enrolled || busy}
               onValueChange={async (next) => {
                 setBusy(true);
-                try {
-                  if (!next && protectedKeys) {
-                    const unsealed = await disableKeyProtection(ids);
-                    if (!unsealed.ok) {
-                      toast.error(
-                        unsealed.reason === 'denied'
-                          ? `${label} was not confirmed, so nothing changed`
-                          : 'Your recovery phrase could not be read, so nothing changed'
-                      );
-                      return;
-                    }
-                    setProtectedKeys(false);
-                  }
-
-                  const applied = await setLockEnabled(next, label);
-                  if (!applied) return;
-
-                  setEnabled(next);
-                  noteJustAuthenticated();
-                } catch {
+                const applied = await changeLock(next).catch(() => {
                   toast.error('Could not change the lock setting');
-                } finally {
-                  setBusy(false);
-                }
+                  return false;
+                });
+                setBusy(false);
+                if (!applied) return;
+                setEnabled(next);
+                noteJustAuthenticated();
               }}
             />
           }

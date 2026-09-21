@@ -51,16 +51,17 @@ export function ApiKeyScreen({
       toast.error('No account is active yet.');
       return;
     }
+    const next = value.trim() === '' ? null : value.trim();
+    const done = next ? savedMessage : 'Key removed';
     setBusy(true);
     try {
       await save(accountId, value);
-      setSaved(value.trim() || null);
-      toast.success(value.trim() ? savedMessage : 'Key removed');
+      setSaved(next);
+      toast.success(done);
     } catch (e) {
       toast.error(errorMessage(e, 'Could not save that key'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (

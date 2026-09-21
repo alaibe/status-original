@@ -57,9 +57,8 @@ export default function ProtocolConfigScreen() {
       toast.success(`${descriptor.label} settings saved`);
     } catch (e) {
       toast.error(errorMessage(e, 'Could not save those settings'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (

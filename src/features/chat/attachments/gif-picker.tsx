@@ -36,9 +36,8 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
       setResults(await searchGifs(key, query.trim()));
     } catch (e) {
       setError(errorMessage(e, 'Could not search GIFs'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }, [key, query]);
 
   return (

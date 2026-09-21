@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -59,7 +59,7 @@ export function Composer({
 }: ComposerProps) {
   const colors = useThemeColors();
   const inputRef = useRef<TextInput>(null);
-  const { registry, enabledIds } = usePluginHost();
+  const { registry } = usePluginHost();
 
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,10 +75,11 @@ export function Composer({
 
   const attach = useCallback(
     async (pick: () => Promise<MessageContent | null>) => {
+      const send = onSendContent;
+      if (!send) return;
       try {
         const content = await pick();
-        if (!content) return;
-        await onSendContent?.(content);
+        if (content) await send(content);
       } catch (e) {
         setError(errorMessage(e, 'Could not attach that'));
       }
@@ -89,17 +90,16 @@ export function Composer({
   const kind = useChatStore((s) => s.conversations.find((c) => c.id === conversationId)?.kind);
   const scope = conversationScope(conversationId, kind);
 
-  // `enabledIds` is in the deps because the registry is mutable: enabling a
-  // plugin changes what it answers without changing its identity.
-  const commands = useMemo(
+  const commands = useSyncExternalStore(
+    registry.subscribe,
     () => registry.commandListFor(conversationId, scope),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [registry, enabledIds, conversationId, scope]
+    () => registry.commandListFor(conversationId, scope)
   );
-  const quickActions = useMemo(() => {
-    return registry.composerActionsFor(conversationId, scope);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- as above.
-  }, [registry, enabledIds, conversationId, scope]);
+  const quickActions = useSyncExternalStore(
+    registry.subscribe,
+    () => registry.composerActionsFor(conversationId, scope),
+    () => registry.composerActionsFor(conversationId, scope)
+  );
 
   const commandNames = useMemo(
     () => commands.flatMap(({ command }) => [command.name, ...(command.aliases ?? [])]),
@@ -158,45 +158,46 @@ export function Composer({
         ? registry.commandsFor(conversationId, scope).get(parsed.name)
         : undefined;
 
-      setBusy(true);
-      try {
-        if (parsed && entry) {
-          onRunningChange?.(`/${parsed.name}`);
-          const result = await entry.command.run({
-            rest: parsed.rest,
-            args: parsed.args,
-            conversationId,
-            context: entry.context,
-            respond,
-          });
+      if (parsed && !entry) {
+        const elsewhere = registry.commands().get(parsed.name);
+        const home = elsewhere ? registry.get(elsewhere.pluginId)?.manifest.name : undefined;
+        setError(
+          home
+            ? `/${parsed.name} belongs to ${home}. Open that chat to use it.`
+            : `Unknown command /${parsed.name}. Type / to see what's available.`
+        );
+        return;
+      }
 
-          if (result.type === 'error') await respond(result.message);
-          if (result.type === 'notice') toast[result.tone ?? 'info'](result.message);
-          setValue(result.type === 'setComposer' ? result.text : '');
-          return;
-        }
-
-        if (parsed && !entry) {
-          const elsewhere = registry.commands().get(parsed.name);
-          const home = elsewhere ? registry.get(elsewhere.pluginId)?.manifest.name : undefined;
-          setError(
-            home
-              ? `/${parsed.name} belongs to ${home}. Open that chat to use it.`
-              : `Unknown command /${parsed.name}. Type / to see what's available.`
-          );
-          return;
-        }
-
+      const runCommand = async (command: NonNullable<typeof parsed>, found: NonNullable<typeof entry>) => {
+        onRunningChange?.(`/${command.name}`);
+        const result = await found.command.run({
+          rest: command.rest,
+          args: command.args,
+          conversationId,
+          context: found.context,
+          respond,
+        });
+        if (result.type === 'error') await respond(result.message);
+        if (result.type === 'notice') toast[result.tone ?? 'info'](result.message);
+        setValue(result.type === 'setComposer' ? result.text : '');
+      };
+      const sendText = async () => {
         await onSendText(text);
         setValue('');
+      };
+
+      setBusy(true);
+      const work = parsed && entry ? runCommand(parsed, entry) : sendText();
+      try {
+        await work;
       } catch (e) {
         const message = errorMessage(e, 'Could not send');
-        if (parsed && entry) await respond(message);
+        if (entry) await respond(message);
         else setError(message);
-      } finally {
-        setBusy(false);
-        onRunningChange?.(null);
       }
+      setBusy(false);
+      onRunningChange?.(null);
     },
     [registry, conversationId, scope, commands.length, onSendText, respond, onRunningChange]
   );

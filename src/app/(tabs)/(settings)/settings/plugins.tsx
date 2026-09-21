@@ -35,9 +35,10 @@ export default function PluginsScreen() {
   const [busy, setBusy] = useState(false);
 
   const apply = async (plugin: Plugin, next: boolean) => {
+    const done = `${plugin.manifest.name} ${next ? 'enabled' : 'disabled'}`;
     try {
       await setEnabled(plugin.manifest.id, next);
-      toast.success(`${plugin.manifest.name} ${next ? 'enabled' : 'disabled'}`);
+      toast.success(done);
     } catch (e) {
       toast.error(errorMessage(e, 'Could not update plugin'));
     }
@@ -145,12 +146,8 @@ export default function PluginsScreen() {
           onPress: async () => {
             if (!pendingDisable) return;
             setBusy(true);
-            try {
-              await apply(pendingDisable.plugin, false);
-              setPendingDisable(null);
-            } finally {
-              setBusy(false);
-            }
+            await apply(pendingDisable.plugin, false).finally(() => setBusy(false));
+            setPendingDisable(null);
           },
         }}
       />

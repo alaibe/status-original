@@ -66,9 +66,8 @@ export default function InviteScreen() {
         await load(privileges);
       } catch {
         setAccess('none');
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     })();
   }, [load]);
 
@@ -104,13 +103,10 @@ export default function InviteScreen() {
     }
 
     const url = `sms:${numbers.join(',')}&body=${encodeURIComponent(body)}`;
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) throw new Error('no sms');
-      await Linking.openURL(url);
-    } catch {
-      await Share.share({ message: body }).catch(() => {});
-    }
+    const opened = await Linking.canOpenURL(url)
+      .then((supported) => supported && Linking.openURL(url).then(() => true))
+      .catch(() => false);
+    if (!opened) await Share.share({ message: body }).catch(() => {});
 
     const skipped = chosen.length - numbers.length;
     if (skipped > 0) {

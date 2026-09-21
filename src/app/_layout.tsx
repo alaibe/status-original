@@ -14,7 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme as useSystemColorScheme, View } from 'react-native';
 import { colorScheme as nativewindColorScheme } from 'nativewind';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import { useAppearanceStore } from '@/core/app/appearance';
 import { useAppBoot, useAppLock, useDeepLinkRouter } from '@/core/app/boot';
@@ -74,11 +74,11 @@ export default function Root() {
 }
 
 function PluginOverlays() {
-  const { registry, enabledIds } = usePluginHost();
-  const overlays = useMemo(
+  const { registry } = usePluginHost();
+  const overlays = useSyncExternalStore(
+    registry.subscribe,
     () => registry.overlays(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the registry mutates when enabledIds changes.
-    [registry, enabledIds]
+    () => registry.overlays()
   );
 
   return (

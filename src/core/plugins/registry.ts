@@ -70,10 +70,28 @@ export class PluginRegistry {
     channelOwners?: Map<ConversationId, PluginId>;
     overlays?: { overlay: PluginOverlay; pluginId: PluginId }[];
     bots?: Bot[];
+    lists?: Map<string, unknown>;
   } = {};
+
+  private readonly listeners = new Set<() => void>();
 
   private invalidate() {
     this.cache = {};
+    for (const listener of this.listeners) listener();
+  }
+
+  /** Fires after every activation change; lets `useSyncExternalStore` read this mutable object. */
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  private memo<T>(key: string, compute: () => T): T {
+    const lists = (this.cache.lists ??= new Map());
+    if (!lists.has(key)) lists.set(key, compute());
+    return lists.get(key) as T;
   }
 
   constructor(plugins: Plugin[] = [], core: CoreContribution = {}) {
@@ -193,16 +211,18 @@ export class PluginRegistry {
     conversationId: ConversationId,
     scope?: ConversationScope
   ): { command: SlashCommand; pluginId: PluginId }[] {
-    const seen = new Set<string>();
-    const out: { command: SlashCommand; pluginId: PluginId }[] = [];
-    for (const { command, pluginId } of this.entries(conversationId, scope)) {
-      // Hidden only from the list. `commandsFor` still dispatches it, which is
-      // the point: a bot's buttons must keep working.
-      if (command.hidden || seen.has(command.name)) continue;
-      seen.add(command.name);
-      out.push({ command, pluginId });
-    }
-    return out.sort((a, b) => a.command.name.localeCompare(b.command.name));
+    return this.memo(`commands:${conversationId}:${scope}`, () => {
+      const seen = new Set<string>();
+      const out: { command: SlashCommand; pluginId: PluginId }[] = [];
+      for (const { command, pluginId } of this.entries(conversationId, scope)) {
+        // Hidden only from the list. `commandsFor` still dispatches it, which is
+        // the point: a bot's buttons must keep working.
+        if (command.hidden || seen.has(command.name)) continue;
+        seen.add(command.name);
+        out.push({ command, pluginId });
+      }
+      return out.sort((a, b) => a.command.name.localeCompare(b.command.name));
+    });
   }
 
   /** Core first, then plugins. No scope skips the `showIn` gate; no conversation skips ownership. */
@@ -223,16 +243,18 @@ export class PluginRegistry {
     conversationId: ConversationId,
     scope?: ConversationScope
   ): { action: ComposerAction; context: PluginContext; pluginId: PluginId }[] {
-    const core = (this.core.composerActions ?? [])
-      .filter((action) => scope === undefined || inScope(action.showIn, scope))
-      .map((action) => ({ action, context: CORE_CONTEXT, pluginId: CORE_ID }));
+    return this.memo(`actions:${conversationId}:${scope}`, () => {
+      const core = (this.core.composerActions ?? [])
+        .filter((action) => scope === undefined || inScope(action.showIn, scope))
+        .map((action) => ({ action, context: CORE_CONTEXT, pluginId: CORE_ID }));
 
-    return [
-      ...core,
-      ...this.composerActions().filter((e) =>
-        this.offers(conversationId, e.pluginId, e.action.global, e.action.showIn, scope)
-      ),
-    ];
+      return [
+        ...core,
+        ...this.composerActions().filter((e) =>
+          this.offers(conversationId, e.pluginId, e.action.global, e.action.showIn, scope)
+        ),
+      ];
+    });
   }
 
   private offers(
