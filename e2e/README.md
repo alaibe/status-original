@@ -35,8 +35,8 @@ room and `send-command` sends its `TEXT` parameter from the composer. Maestro
 only enumerates the top level of `e2e/`, so they never run as flows on their own.
 
 Use `id:` selectors for app controls. Pressable rows are single accessibility
-elements on iOS, so their child text is not a stable selector. Use the app's
-`Back` control from a chat and `id: BackButton` on native stack screens.
+elements on iOS, so their child text is not a stable selector. Use
+`id: BackButton` for the native back button.
 
 Maestro cannot dismiss this app's keyboard with `hideKeyboard`; the flows tap a
 non-interactive area instead. `04-status` creates unique text with `evalScript`

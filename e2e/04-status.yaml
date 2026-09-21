@@ -15,7 +15,8 @@ appId: com.statusoriginal.app
     visible: ${output.note}
     timeout: 10000
 
-- tapOn: "Back"
+- tapOn:
+    id: "BackButton"
 - waitForAnimationToEnd:
     timeout: 5000
 - openLink: "statusoriginal://chat/local-status"

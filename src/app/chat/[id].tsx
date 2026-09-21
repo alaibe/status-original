@@ -1,16 +1,16 @@
-import { BlurView } from 'expo-blur';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, View, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ChatBackground,
   EmptyState,
   Icon,
+  IconButton,
   Pressable,
   Text,
   toast,
@@ -152,87 +152,79 @@ export default function ConversationScreen() {
     <View className="flex-1 bg-canvas">
       <ChatBackground pattern={wallpaper} />
 
-      <View
-        className="absolute left-0 right-0 top-0 z-10 flex-row items-center gap-2 px-3"
-        style={{ paddingTop: insets.top + 6, paddingBottom: 8 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={goBack}
-          className="h-10 w-10 items-center justify-center overflow-hidden rounded-pill">
-          <BlurView
-            intensity={40}
-            tint={colors.scheme === 'dark' ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          />
-          <View className="absolute inset-0 bg-canvas/55" />
-          <Icon name="chevron-back" size={22} color={colors.brand} />
-        </Pressable>
-
-        <Pressable
-          // The pressable collapses its children into one accessibility element, so the
-          // label has to name the room itself.
-          testID={`chat-header-${id}`}
-          accessibilityRole="button"
-          accessibilityLabel={`${title}. Conversation details`}
-          disabled={isBot}
-          onPress={() => router.push(`/profile/${id}`)}
-          className="flex-1 items-center">
-          <View className="max-w-full overflow-hidden rounded-pill px-4 py-1.5">
-            <BlurView
-              intensity={40}
-              tint={colors.scheme === 'dark' ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-            <View className="absolute inset-0 bg-canvas/55" />
-            <Text className="text-center font-semibold" numberOfLines={1}>
-              {title}
-            </Text>
-            <Text variant="micro" numberOfLines={1} className="text-center">
-              {isBot
-                ? (botTagline ?? 'On this device only')
-                : conversation?.kind === 'group'
-                  ? `${conversation.memberIds.length} members · ${protocolSubtitle(conversation?.protocol)}`
-                  : protocolSubtitle(conversation?.protocol)}
-            </Text>
-          </View>
-        </Pressable>
-
-        {conversation ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Conversation details"
-            disabled={isBot}
-            onPress={() => router.push(`/profile/${id}`)}>
-            <ConversationAvatar conversation={conversation} selfId={selfId} size="md" />
-          </Pressable>
-        ) : (
-          <View className="h-10 w-10" />
-        )}
-      </View>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTransparent: process.env.EXPO_OS === 'ios',
+          headerBlurEffect: 'regular',
+          headerShadowVisible: false,
+          headerTintColor: colors.brand,
+          headerBackButtonDisplayMode: 'minimal',
+          headerStyle: { backgroundColor: colors.canvas },
+          headerLeft: router.canGoBack()
+            ? undefined
+            : () => <IconButton icon="chevron-back" label="Back" tone="brand" onPress={goBack} />,
+          headerTitle: () => (
+            <Pressable
+              // The pressable collapses its children into one accessibility element, so the
+              // label has to name the room itself.
+              testID={`chat-header-${id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${title}. Conversation details`}
+              disabled={isBot}
+              onPress={() => router.push(`/profile/${id}`)}
+              className="items-center px-4">
+              <Text className="text-center font-semibold" numberOfLines={1}>
+                {title}
+              </Text>
+              <Text variant="micro" numberOfLines={1} className="text-center">
+                {isBot
+                  ? (botTagline ?? 'On this device only')
+                  : conversation?.kind === 'group'
+                    ? `${conversation.memberIds.length} members · ${protocolSubtitle(conversation?.protocol)}`
+                    : protocolSubtitle(conversation?.protocol)}
+              </Text>
+            </Pressable>
+          ),
+          headerRight: conversation
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Conversation details"
+                  disabled={isBot}
+                  onPress={() => router.push(`/profile/${id}`)}>
+                  <ConversationAvatar conversation={conversation} selfId={selfId} size="md" />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
 
       <KeyboardAvoidingView
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
         className="flex-1">
         {messages.length === 0 ? (
-          <View className="flex-1">
+          <ScrollView
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled">
             <HistoryStatus protocol={conversation?.protocol} />
             <EmptyState
-            icon={
-              <Icon
-                name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
-                size={40}
-                color={colors['content-subtle']}
-              />
-            }
-            title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
-            description={
-              isBot
-                ? 'Type /commands to see what you can do in this chat.'
-                : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
-            }
+              icon={
+                <Icon
+                  name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
+                  size={40}
+                  color={colors['content-subtle']}
+                />
+              }
+              title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
+              description={
+                isBot
+                  ? 'Type /commands to see what you can do in this chat.'
+                  : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
+              }
             />
-          </View>
+          </ScrollView>
         ) : (
           <FlashList
             data={messages}
@@ -264,7 +256,8 @@ export default function ConversationScreen() {
               </View>
             }
             ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
-            contentContainerStyle={{ paddingTop: insets.top + 62, paddingBottom: 8 }}
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={{ paddingTop: 8, paddingBottom: 8 }}
             keyboardDismissMode="interactive"
             renderItem={renderItem}
           />
