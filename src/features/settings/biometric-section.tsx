@@ -44,7 +44,6 @@ export function BiometricSection() {
       : 'Your recovery phrase could not be read, so nothing changed';
   }
 
-  /** Unseals the keys first when the lock goes off; false when either step declined. */
   async function changeLock(next: boolean): Promise<boolean> {
     if (!next && protectedKeys) {
       const unsealed = await disableKeyProtection(ids);

@@ -134,9 +134,10 @@ export default function ContactsScreen() {
           onClose={() => setSorting(false)}
           title="Sort by"
           actions={[
-            { label: sortBy === 'name' ? 'Name \u2713' : 'Name', onPress: () => setSortBy('name') },
+            { label: 'Name', selected: sortBy === 'name', onPress: () => setSortBy('name') },
             {
-              label: sortBy === 'recent' ? 'Recently active \u2713' : 'Recently active',
+              label: 'Recently active',
+              selected: sortBy === 'recent',
               onPress: () => setSortBy('recent'),
             },
           ]}

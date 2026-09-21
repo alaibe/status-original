@@ -5,8 +5,9 @@ import { ScrollView, Switch, View } from 'react-native';
 
 import {
   Badge,
-  Button,
+  cn,
   ConfirmSheet,
+  Eyebrow,
   ListItem,
   RowIcon,
   Screen,
@@ -99,27 +100,43 @@ export default function PluginsScreen() {
         </Section>
       </ScrollView>
 
-      <Sheet visible={detail !== null} onClose={() => setDetail(null)} title={detail?.manifest.name}>
-        <View className="gap-3 pb-2">
+      <Sheet
+        visible={detail !== null}
+        onClose={() => setDetail(null)}
+        title={detail?.manifest.name}
+        subtitle={detail ? `v${detail.manifest.version}` : undefined}
+        leading={
+          detail ? (
+            <RowIcon name={detail.manifest.icon} tone={TONE[detail.manifest.id] ?? 'grey'} />
+          ) : undefined
+        }>
+        <View className="gap-3">
           <Text variant="footnote">{detail?.manifest.description}</Text>
 
-          <Section title="What it can reach">
-            <View className="gap-1.5 pt-1">
-              {detail?.manifest.permissions.map((permission) => (
-                <Text key={permission} variant="caption">
+          <View className="gap-1.5">
+            <Eyebrow>What it can reach</Eyebrow>
+            <View
+              style={{ borderCurve: 'continuous' }}
+              className="overflow-hidden rounded-card bg-surface-raised">
+              {detail?.manifest.permissions.map((permission, i) => (
+                <Text
+                  key={permission}
+                  variant="footnote"
+                  className={cn('px-4 py-2.5', i > 0 && 'border-t border-line')}>
                   {PERMISSION_LABELS[permission]}
                 </Text>
               ))}
             </View>
-          </Section>
-
-          <View className="flex-row flex-wrap gap-1.5">
-            <Badge label={`v${detail?.manifest.version}`} />
-            {detail?.manifest.requiresSessionRestart ? (
-              <Badge label="Reconnects chat" tone="warning" />
-            ) : null}
-            {detailHasChat ? <Badge label="Has its own chat" tone="brand" /> : null}
           </View>
+
+          {detail?.manifest.requiresSessionRestart || detailHasChat ? (
+            <View className="flex-row flex-wrap gap-1.5">
+              {detail?.manifest.requiresSessionRestart ? (
+                <Badge label="Reconnects chat" tone="warning" />
+              ) : null}
+              {detailHasChat ? <Badge label="Has its own chat" tone="brand" /> : null}
+            </View>
+          ) : null}
 
           {detailHasChat ? (
             <Text variant="caption">
@@ -127,8 +144,6 @@ export default function PluginsScreen() {
               and returns if you turn it back on.
             </Text>
           ) : null}
-
-          <Button label="Done" tone="ghost" fullWidth onPress={() => setDetail(null)} />
         </View>
       </Sheet>
 

@@ -23,7 +23,7 @@ export interface WidgetViewProps {
   widget: Widget;
   onCommand?: (command: string) => void;
   onOpenUrl?: (url: string) => void;
-  onOffer?: (title: string, actions: WidgetAction[]) => void;
+  onOffer?: (heading: { title: string; subtitle?: string }, actions: WidgetAction[]) => void;
 }
 
 const TEXT_TONE: Record<WidgetTone, string> = {
@@ -43,18 +43,22 @@ const CARD_TONE: Record<WidgetTone, string> = {
 };
 
 export function WidgetView(props: WidgetViewProps) {
-  const [offer, setOffer] = useState<{ title: string; actions: WidgetAction[] } | null>(null);
+  const [offer, setOffer] = useState<{
+    title: string;
+    subtitle?: string;
+    actions: WidgetAction[];
+  } | null>(null);
 
   return (
     <>
       <WidgetNode
         {...props}
-        onOffer={(title, actions) => {
+        onOffer={(heading, actions) => {
           if (actions.length === 1 && actions[0].tone !== 'danger') {
             props.onCommand?.(actions[0].command);
             return;
           }
-          setOffer({ title, actions });
+          setOffer({ ...heading, actions });
         }}
       />
 
@@ -62,18 +66,16 @@ export function WidgetView(props: WidgetViewProps) {
         visible={offer !== null}
         onClose={() => setOffer(null)}
         title={offer?.title}
+        subtitle={offer?.subtitle}
         actions={(offer?.actions ?? []).map((action) => ({
           label: action.label,
-          tone: buttonTone(action.tone),
+          icon: action.icon,
+          tone: action.tone,
           onPress: () => props.onCommand?.(action.command),
         }))}
       />
     </>
   );
-}
-
-function buttonTone(tone: WidgetTone | undefined): 'danger' | 'neutral' | 'primary' {
-  return tone === 'danger' ? 'danger' : tone === 'neutral' ? 'neutral' : 'primary';
 }
 
 /**
@@ -161,7 +163,12 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
           accessibilityRole="button"
           accessibilityHint={affordanceFor(widget.actions) ?? undefined}
           pressScale={0.99}
-          onPress={() => onOffer?.(widget.label ?? widget.value, widget.actions ?? [])}
+          onPress={() =>
+            onOffer?.(
+              widget.label ? { title: widget.label, subtitle: widget.value } : { title: widget.value },
+              widget.actions ?? []
+            )
+          }
           className="flex-row items-center justify-between gap-2">
           <View className="flex-1">{body}</View>
           <Affordance actions={widget.actions} tint={tint} />
@@ -207,7 +214,9 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
                 accessibilityLabel={`${row.label}, ${row.value}`}
                 accessibilityHint={affordanceFor(row.actions) ?? undefined}
                 pressScale={0.99}
-                onPress={() => onOffer?.(`${row.label} · ${row.value}`, row.actions ?? [])}
+                onPress={() =>
+                  onOffer?.({ title: row.label, subtitle: row.value || undefined }, row.actions ?? [])
+                }
                 className="-mx-1 rounded-field px-1 py-0.5 active:bg-surface-sunken">
                 {content}
               </Pressable>
@@ -256,7 +265,9 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
                 accessibilityLabel={item.subtitle ? `${item.title}, ${item.subtitle}` : item.title}
                 accessibilityHint={affordanceFor(item.actions) ?? undefined}
                 pressScale={0.99}
-                onPress={() => onOffer?.(item.title, item.actions ?? [])}
+                onPress={() =>
+                  onOffer?.({ title: item.title, subtitle: item.subtitle }, item.actions ?? [])
+                }
                 className="-mx-1.5 rounded-field px-1.5 active:bg-surface-sunken">
                 {body}
               </Pressable>
@@ -342,7 +353,7 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
               key={`${action.label}-${i}`}
               label={action.label}
               size="sm"
-              tone={buttonTone(action.tone)}
+              tone={action.tone}
               onPress={() => onCommand?.(action.command)}
             />
           ))}
@@ -434,7 +445,7 @@ function FormWidget({
         label={widget.submit.label}
         size="sm"
         disabled={missing}
-        tone={buttonTone(widget.submit.tone)}
+        tone={widget.submit.tone}
         onPress={() => onCommand?.(fillCommand(widget.submit.command, answers))}
       />
     </View>

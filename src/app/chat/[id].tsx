@@ -102,8 +102,6 @@ export default function ConversationScreen() {
   const runCommand = (command: string) => setPendingCommand(command);
   const clearPendingCommand = () => setPendingCommand(null);
 
-  // The list sticks to the newest message until the user scrolls away, and
-  // sticks again after they send something: the reply is what they are waiting for.
   const list = useRef<FlashListRef<ChatMessage>>(null);
   const following = useRef(true);
   const followNewest = () => {

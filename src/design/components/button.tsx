@@ -6,9 +6,11 @@ import { Pressable, type PressScaleProps } from './pressable';
 import { Text } from './text';
 
 const TONE = {
-  primary: { view: 'bg-brand active:bg-brand-strong', label: 'text-brand-on font-semibold' },
+  brand: { view: 'bg-brand active:bg-brand-strong', label: 'text-brand-on font-semibold' },
   neutral: { view: 'bg-surface-raised border border-line', label: 'text-content font-medium' },
   ghost: { view: 'bg-transparent', label: 'text-brand font-medium' },
+  success: { view: 'bg-success', label: 'text-white font-semibold' },
+  warning: { view: 'bg-warning', label: 'text-white font-semibold' },
   danger: { view: 'bg-danger', label: 'text-white font-semibold' },
 } as const;
 
@@ -30,7 +32,7 @@ export interface ButtonProps extends Omit<PressScaleProps, 'children'> {
 
 export function Button({
   label,
-  tone = 'primary',
+  tone = 'brand',
   size = 'md',
   loading = false,
   haptic = true,

@@ -6,31 +6,28 @@ export interface SheetProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
+  subtitle?: string;
+  /** Sits before the title, the size of an avatar. */
+  leading?: React.ReactNode;
   children: React.ReactNode;
-  className?: string;
 }
 
 interface Presented extends Omit<SheetProps, 'visible'> {
   id: string;
 }
 
-/** What the `/sheet` route renders. One sheet at a time, the way native form sheets work. */
 export const useSheetStore = create<{ current: Presented | null }>(() => ({ current: null }));
 
 function owns(id: string) {
   return useSheetStore.getState().current?.id === id;
 }
 
-/**
- * Presents `children` in the native form sheet route while `visible`. Renders
- * nothing where it is declared; the route reads the latest props from the store.
- */
-export function Sheet({ visible, title, children, onClose, className }: SheetProps) {
+export function Sheet({ visible, title, subtitle, leading, children, onClose }: SheetProps) {
   const id = useId();
   const presented = useRef(false);
 
   useEffect(() => {
-    const spec = { id, title, children, onClose, className };
+    const spec = { id, title, subtitle, leading, children, onClose };
     if (visible && !presented.current) {
       presented.current = true;
       useSheetStore.setState({ current: spec });
@@ -44,7 +41,7 @@ export function Sheet({ visible, title, children, onClose, className }: SheetPro
     } else if (visible && owns(id)) {
       useSheetStore.setState({ current: spec });
     }
-  }, [visible, id, title, children, onClose, className]);
+  }, [visible, id, title, subtitle, leading, children, onClose]);
 
   useEffect(
     () => () => {

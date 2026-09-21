@@ -28,7 +28,7 @@ import { availableFolders, matchesFolder, type FolderId } from '@/core/messaging
 import { isUnread } from '@/core/messaging/unread';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
-import { protocolBadge } from '@/features/protocols/presentation';
+import { protocolBadge, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
 
 export default function ChatsScreen() {
@@ -274,11 +274,26 @@ export default function ChatsScreen() {
         title={
           managing ? conversationTitle(managing, selfIdOf(managing), nameFor) : undefined
         }
+        subtitle={managing ? protocolSubtitle(managing.protocol) : undefined}
+        leading={
+          managing ? (
+            <ConversationAvatar conversation={managing} selfId={selfIdOf(managing)} size="md" />
+          ) : undefined
+        }
         actions={[
-          { label: managed?.pinned ? 'Unpin' : 'Pin to top', onPress: () => choose('pinned') },
-          { label: managed?.muted ? 'Unmute' : 'Mute', onPress: () => choose('muted') },
+          {
+            label: managed?.pinned ? 'Unpin' : 'Pin to top',
+            icon: 'pin-outline',
+            onPress: () => choose('pinned'),
+          },
+          {
+            label: managed?.muted ? 'Unmute' : 'Mute',
+            icon: managed?.muted ? 'volume-high-outline' : 'volume-mute-outline',
+            onPress: () => choose('muted'),
+          },
           {
             label: managed?.archived ? 'Move out of archive' : 'Archive',
+            icon: 'archive-outline',
             onPress: () => choose('archived'),
           },
         ]}

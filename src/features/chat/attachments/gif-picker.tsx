@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { Button, Field, Pressable, Sheet, Text } from '@/design';
+import { Field, Pressable, Sheet, Text } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import type { MessageContent } from '@/core/messaging/types';
 import { errorMessage } from '@/core/errors';
@@ -43,7 +43,7 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
   return (
     <Sheet visible={visible} onClose={onClose} title="GIFs">
       {key === null ? (
-        <View className="gap-3 pb-3">
+        <View className="gap-3">
           <Text variant="footnote">
             GIF search needs a Tenor key, which you add in Settings. There is no free keyless GIF
             API, and this app does not ship credentials of its own.
@@ -52,10 +52,9 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
             You can still send GIFs without one: pick them from your photo library like any other
             image and they send animated.
           </Text>
-          <Button label="Close" tone="ghost" fullWidth onPress={onClose} />
         </View>
       ) : (
-        <View className="gap-3 pb-3">
+        <View className="gap-3">
           <Field
             onChangeText={setQuery}
             placeholder="Search GIFs"

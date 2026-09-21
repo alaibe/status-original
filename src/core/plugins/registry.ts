@@ -80,7 +80,6 @@ export class PluginRegistry {
     for (const listener of this.listeners) listener();
   }
 
-  /** Fires after every activation change; lets `useSyncExternalStore` read this mutable object. */
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => {

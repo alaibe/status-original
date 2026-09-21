@@ -23,7 +23,7 @@ export function makeApprovalOverlay(context: PluginContext) {
         visible
         onClose={reject}
         title={isProposal ? 'Connect to dapp' : (described?.title ?? 'Request')}>
-        <View className="gap-3 pb-2">
+        <View className="gap-3">
           <View className="gap-1 rounded-card bg-surface-sunken p-3">
             <Text className="font-semibold">{isProposal ? metadata?.name : head.dappName}</Text>
             {isProposal && metadata?.url ? <Text variant="caption">{metadata.url}</Text> : null}
@@ -52,7 +52,7 @@ export function makeApprovalOverlay(context: PluginContext) {
             fullWidth
             onPress={() => approve(context)}
           />
-          <Button label="Reject" tone="ghost" fullWidth onPress={reject} />
+          <Button label="Reject" tone="neutral" fullWidth onPress={reject} />
         </View>
       </Sheet>
     );

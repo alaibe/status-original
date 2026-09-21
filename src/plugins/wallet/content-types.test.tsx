@@ -15,8 +15,11 @@ jest.mock('@/design', () => ({
   Text: 'Text',
   Eyebrow: 'Text',
   Icon: 'Icon',
-  Sheet: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
-    visible ? children : null,
+  Sheet: ({ visible, children, onClose }: { visible: boolean; children: React.ReactNode; onClose: () => void }) => {
+    const { createElement: h, Fragment: F } = jest.requireActual('react');
+    const { Button: B } = jest.requireActual('@/design/components/button');
+    return visible ? h(F, null, h(B, { label: 'Close', onPress: onClose }), children) : null;
+  },
   cn: (...classes: string[]) => classes.join(' '),
   Enter: { fade: () => undefined },
   useThemeColors: () => ({ brand: '#000', success: '#000' }),
@@ -73,7 +76,7 @@ async function press(label: string) {
 it('removes an old fee quote and disables sending when a later review fails', async () => {
   await press('Pay 0.1 ETH');
   expect(control('Confirm and send').props.accessibilityState.disabled).toBeFalsy();
-  await press('Cancel');
+  await press('Close');
   quote.mockRejectedValueOnce(new Error('Network request failed'));
 
   await press('Pay 0.1 ETH');
@@ -96,7 +99,7 @@ it('keeps a sent payment non-payable when posting its receipt fails', async () =
   expect(visible).toMatch(/payment was sent on Ethereum/i);
   expect(visible).toMatch(/do not send it again/i);
   expect(control('Confirm and send').props.accessibilityState.disabled).toBe(true);
-  await press('Cancel');
+  await press('Close');
   expect(tree.root.findAllByType(Button).some((node) => node.props.label.startsWith('Pay '))).toBe(false);
   expect(commit).toHaveBeenCalledTimes(1);
 });

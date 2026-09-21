@@ -76,7 +76,7 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
       visible={visible}
       onClose={onClose}
       title={vendor ? `Connect your ${vendor.label}` : 'Connect a hardware wallet'}>
-      <View className="gap-3 pb-2">
+      <View className="gap-3">
         {vendor === null ? (
           <>
             <Note icon="hardware-chip-outline">
@@ -131,18 +131,19 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
 
         {busy ? <Text variant="caption">Confirm on the device…</Text> : null}
 
-        <Button
-          label={vendor ? 'Back' : 'Cancel'}
-          tone="ghost"
-          fullWidth
-          disabled={busy}
-          onPress={() => {
-            setDevices([]);
-            setError(null);
-            if (vendor) setVendor(null);
-            else onClose();
-          }}
-        />
+        {vendor ? (
+          <Button
+            label="Back"
+            tone="neutral"
+            fullWidth
+            disabled={busy}
+            onPress={() => {
+              setDevices([]);
+              setError(null);
+              setVendor(null);
+            }}
+          />
+        ) : null}
       </View>
     </Sheet>
   );

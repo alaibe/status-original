@@ -147,8 +147,8 @@ function PaymentRequestCard({ data, fromMe, context, message }: MessageRendererP
       </CardShell>
 
       <Sheet visible={open} onClose={() => setOpen(false)} title="Review payment">
-        <View className="gap-3 pb-2">
-          <View className="gap-2 rounded-card bg-surface-sunken p-3">
+        <View className="gap-3">
+          <View className="gap-2 rounded-card bg-surface-raised p-3">
             <Row label="Amount" value={`${data.amount} ${data.symbol}`} />
             <Row label="To" value={shortAddress(data.to, 8, 6)} />
             {rows?.map((row) => <Row key={row.label} label={row.label} value={row.value} />) ??
@@ -170,7 +170,6 @@ function PaymentRequestCard({ data, fromMe, context, message }: MessageRendererP
             disabled={rows === null || error !== null}
             onPress={pay}
           />
-          <Button label="Cancel" tone="ghost" fullWidth onPress={() => setOpen(false)} />
         </View>
       </Sheet>
     </>

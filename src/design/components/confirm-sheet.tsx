@@ -1,21 +1,18 @@
 import { View } from 'react-native';
 
 import { Button } from './button';
-import { Sheet } from './sheet';
+import { Sheet, type SheetProps } from './sheet';
 import { Text } from './text';
 
-export interface ConfirmSheetProps {
-  visible: boolean;
-  onClose: () => void;
-  title?: string;
+export interface ConfirmSheetProps extends Omit<SheetProps, 'children'> {
   /** One paragraph, or several. Each becomes its own line of body copy. */
   body?: string | (string | undefined)[];
   confirm: {
     label: string;
     /** Shown in place of `label` while `busy`. */
     busyLabel?: string;
-    /** `danger` for anything that destroys something. Primary otherwise. */
-    tone?: 'primary' | 'danger';
+    /** `danger` for anything that destroys something. */
+    tone?: 'brand' | 'danger';
     testID?: string;
     onPress: () => void;
   };
@@ -32,40 +29,36 @@ export interface ConfirmSheetProps {
  * "are you sure?" is what these sheets exist to avoid.
  */
 export function ConfirmSheet({
-  visible,
-  onClose,
-  title,
   body,
   confirm,
   cancelLabel = 'Cancel',
   busy = false,
+  ...sheet
 }: ConfirmSheetProps) {
   const paragraphs = (Array.isArray(body) ? body : [body]).filter(Boolean) as string[];
 
   return (
-    <Sheet visible={visible} onClose={onClose} title={title}>
-      <View className="gap-3 pb-2">
-        {paragraphs.map((paragraph) => (
-          <Text key={paragraph} variant="footnote">
-            {paragraph}
-          </Text>
-        ))}
+    <Sheet {...sheet}>
+      {paragraphs.length > 0 ? (
+        <View className="gap-2">
+          {paragraphs.map((paragraph) => (
+            <Text key={paragraph} variant="footnote">
+              {paragraph}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      <View className="gap-2 pt-1">
         <Button
           testID={confirm.testID}
           label={busy ? (confirm.busyLabel ?? confirm.label) : confirm.label}
-          tone={confirm.tone ?? 'primary'}
+          tone={confirm.tone ?? 'brand'}
           fullWidth
           loading={busy}
           disabled={busy}
           onPress={confirm.onPress}
         />
-        <Button
-          label={cancelLabel}
-          tone="neutral"
-          fullWidth
-          disabled={busy}
-          onPress={onClose}
-        />
+        <Button label={cancelLabel} tone="neutral" fullWidth disabled={busy} onPress={sheet.onClose} />
       </View>
     </Sheet>
   );

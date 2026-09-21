@@ -136,17 +136,23 @@ export default function AccountsScreen() {
         actions={[
           {
             label: 'Rename',
+            icon: 'create-outline',
             onPress: () => {
               setDraftLabel(target?.label ?? '');
               setRenaming(managing);
             },
           },
-          { label: 'Erase this account', tone: 'danger', onPress: () => setConfirmWipe(managing) },
+          {
+            label: 'Erase this account',
+            icon: 'trash-outline',
+            tone: 'danger',
+            onPress: () => setConfirmWipe(managing),
+          },
         ]}
       />
 
       <Sheet visible={renaming !== null} onClose={() => setRenaming(null)} title="Rename account">
-        <View className="gap-3 pb-2">
+        <View className="gap-3">
           <Field
             defaultValue={draftLabel}
             onChangeText={setDraftLabel}
@@ -167,7 +173,6 @@ export default function AccountsScreen() {
               setRenaming(null);
             }}
           />
-          <Button label="Cancel" tone="ghost" fullWidth onPress={() => setRenaming(null)} />
         </View>
       </Sheet>
 

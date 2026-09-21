@@ -1,7 +1,7 @@
 import { FlashList } from '@shopify/flash-list';
 import { View } from 'react-native';
 
-import { ListItem, Sheet, Text, toast } from '@/design';
+import { ListItem, Sheet, toast } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { contentPreview } from '@/core/messaging/preview';
 import type { ChatMessage, ConversationId, ParticipantId } from '@/core/messaging/types';
@@ -25,11 +25,14 @@ export function ForwardSheet({
   const sendMessage = useChatStore((s) => s.sendMessage);
 
   return (
-    <Sheet visible={message !== null} onClose={onClose} title="Forward to">
-      <View className="max-h-[420px]">
-        <Text variant="footnote" className="px-gutter pb-2">
-          {message ? contentPreview(message.content) : ''}
-        </Text>
+    <Sheet
+      visible={message !== null}
+      onClose={onClose}
+      title="Forward to"
+      subtitle={message ? contentPreview(message.content) : undefined}>
+      <View
+        style={{ borderCurve: 'continuous' }}
+        className="max-h-[420px] overflow-hidden rounded-card bg-surface-raised">
         <FlashList
           data={conversations.filter((c) => c.id !== from)}
           keyExtractor={(c) => c.id}
