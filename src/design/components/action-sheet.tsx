@@ -4,7 +4,7 @@ import { useThemeColors } from '../hooks/use-theme-colors';
 import { cn } from '../lib/cn';
 import { Icon, type IconName } from '../icon';
 import { ListItem } from './list-item';
-import { Sheet, type SheetProps } from './sheet';
+import { closeSheetThen, Sheet, type SheetProps } from './sheet';
 import { Text } from './text';
 
 export interface SheetAction {
@@ -45,10 +45,7 @@ export function ActionSheet({ actions, ...sheet }: ActionSheetProps) {
               trailing={
                 action.selected ? <Icon name="checkmark" size={18} color={colors.brand} /> : undefined
               }
-              onPress={() => {
-                sheet.onClose();
-                action.onPress();
-              }}
+              onPress={() => closeSheetThen(sheet, action.onPress)}
             />
           );
         })}

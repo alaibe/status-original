@@ -34,6 +34,26 @@ appId: com.statusoriginal.app
     visible: "Opening Uniswap.*"
     timeout: 10000
 - assertNotVisible: "Running /browse.*"
+
+# The same through a widget row's action sheet, which has to finish closing
+# before the browser can be presented.
+- tapOn:
+    id: "quick-dapps"
+- extendedWaitUntil:
+    visible: "Zapper.*"
+    timeout: 15000
+- tapOn: "Zapper.*"
+- extendedWaitUntil:
+    visible: "Open Zapper"
+    timeout: 5000
+- tapOn: "Open Zapper"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 20000
+- tapOn: "Done"
+- extendedWaitUntil:
+    notVisible: "Running /browse.*"
+    timeout: 10000
 - tapOn:
     id: "composer-input"
 - inputText: "hello"

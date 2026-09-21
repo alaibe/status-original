@@ -16,7 +16,26 @@ interface Presented extends Omit<SheetProps, 'visible'> {
   id: string;
 }
 
-export const useSheetStore = create<{ current: Presented | null }>(() => ({ current: null }));
+interface SheetState {
+  current: Presented | null;
+  afterClose: (() => void) | null;
+}
+
+/**
+ * How long the native dismissal takes. UIKit refuses to present anything (a
+ * browser, another sheet) while it runs, and nothing reports when it is over:
+ * the route unmounts at once and a form sheet triggers no appearance callback
+ * on the screen beneath.
+ */
+export const SHEET_DISMISS_MS = 500;
+
+export const useSheetStore = create<SheetState>(() => ({ current: null, afterClose: null }));
+
+/** Closes the sheet and runs `action` once it is off screen. */
+export function closeSheetThen(sheet: Pick<SheetProps, 'onClose'>, action: () => void) {
+  useSheetStore.setState({ afterClose: action });
+  sheet.onClose();
+}
 
 function owns(id: string) {
   return useSheetStore.getState().current?.id === id;

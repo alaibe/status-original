@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton, Text } from '@/design';
-import { useSheetStore } from '@/design/components/sheet';
+import { SHEET_DISMISS_MS, useSheetStore } from '@/design/components/sheet';
 
 export default function SheetRoute() {
   const current = useSheetStore((s) => s.current);
@@ -12,9 +12,10 @@ export default function SheetRoute() {
   // Unmounting is how a swipe-to-dismiss reaches the owner.
   useEffect(
     () => () => {
-      const closing = useSheetStore.getState().current;
-      useSheetStore.setState({ current: null });
+      const { current: closing, afterClose } = useSheetStore.getState();
+      useSheetStore.setState({ current: null, afterClose: null });
       closing?.onClose();
+      if (afterClose) setTimeout(afterClose, SHEET_DISMISS_MS);
     },
     []
   );
