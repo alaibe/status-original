@@ -201,6 +201,10 @@ export function Composer({
 
   useEffect(() => {
     if (!pendingCommand) return;
+    if (busy) {
+      onPendingCommandHandled?.();
+      return;
+    }
     let cancelled = false;
     Promise.resolve().then(() => {
       if (cancelled) return;
@@ -211,7 +215,7 @@ export function Composer({
     return () => {
       cancelled = true;
     };
-  }, [pendingCommand, dispatch, onPendingCommandHandled]);
+  }, [pendingCommand, busy, dispatch, onPendingCommandHandled]);
 
   const canSend = value.trim().length > 0 && !busy;
 
@@ -323,7 +327,6 @@ export function Composer({
         ) : null}
 
         <View className="min-h-[44px] flex-1 flex-row items-end rounded-pill border border-line bg-surface-raised pl-4 pr-1">
-        {/* Controlled: typing a slash command rewrites the text with its completion. */}
         <TextInput
           testID="composer-input"
           ref={inputRef}
@@ -409,10 +412,10 @@ export function Composer({
         onClose={() => setAttaching(false)}
         title="Attach"
         actions={[
-          { label: 'Photo library', onPress: () => attach(pickImage) },
-          { label: 'Take a photo', onPress: () => attach(takePhoto) },
-          { label: 'File', onPress: () => attach(pickFile) },
-          { label: 'GIF', onPress: () => setGifs(true) },
+          { label: 'Photo library', icon: 'images-outline', onPress: () => attach(pickImage) },
+          { label: 'Take a photo', icon: 'videocam-outline', onPress: () => attach(takePhoto) },
+          { label: 'File', icon: 'document-outline', onPress: () => attach(pickFile) },
+          { label: 'GIF', icon: 'happy-outline', onPress: () => setGifs(true) },
         ]}
       />
     </View>

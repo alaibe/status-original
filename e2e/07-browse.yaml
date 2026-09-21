@@ -1,0 +1,42 @@
+# Opens a dapp in the in-app browser and comes back with the composer free again.
+appId: com.statusoriginal.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "conversation-local-status"
+    timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 5000
+- openLink: "statusoriginal://chat/local-dapps"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
+    timeout: 15000
+
+- tapOn:
+    id: "composer-input"
+- inputText: "/browse uniswap"
+- tapOn:
+    id: "composer-send"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 20000
+- assertVisible: "Address"
+- tapOn: "Done"
+
+- extendedWaitUntil:
+    visible: "Opening Uniswap.*"
+    timeout: 10000
+- assertNotVisible: "Running /browse.*"
+- tapOn:
+    id: "composer-input"
+- inputText: "hello"
+- assertVisible:
+    id: "composer-send"
+- tapOn: "Back"

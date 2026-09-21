@@ -67,7 +67,7 @@ function Crashed({ resetError }: ObserveErrorBoundaryFallbackProps) {
 
 export default function Root() {
   return (
-    <ObserveRoot errorBoundaryFallback={Crashed}>
+    <ObserveRoot errorBoundaryFallback={(props) => <Crashed {...props} />}>
       <RootLayout />
     </ObserveRoot>
   );
@@ -136,8 +136,7 @@ function AppShell() {
           options={{
             presentation: 'formSheet',
             sheetAllowedDetents: 'fitToContents',
-            sheetGrabberVisible: true,
-            contentStyle: { backgroundColor: colors['surface-raised'] },
+            contentStyle: { backgroundColor: colors.surface },
           }}
         />
       </Stack>
