@@ -25,27 +25,26 @@ function owns(id: string) {
  * Presents `children` in the native form sheet route while `visible`. Renders
  * nothing where it is declared; the route reads the latest props from the store.
  */
-export function Sheet({ visible, ...spec }: SheetProps) {
+export function Sheet({ visible, title, children, onClose, className }: SheetProps) {
   const id = useId();
   const presented = useRef(false);
 
   useEffect(() => {
-    if (visible === presented.current) return;
-    presented.current = visible;
-    if (visible) {
-      useSheetStore.setState({ current: { id, ...spec } });
+    const spec = { id, title, children, onClose, className };
+    if (visible && !presented.current) {
+      presented.current = true;
+      useSheetStore.setState({ current: spec });
       router.push('/sheet');
-    } else if (owns(id)) {
-      useSheetStore.setState({ current: null });
-      router.back();
+    } else if (!visible && presented.current) {
+      presented.current = false;
+      if (owns(id)) {
+        useSheetStore.setState({ current: null });
+        router.back();
+      }
+    } else if (visible && owns(id)) {
+      useSheetStore.setState({ current: spec });
     }
-    // Only the transition matters here; the effect below keeps the content fresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
-
-  useEffect(() => {
-    if (presented.current && owns(id)) useSheetStore.setState({ current: { id, ...spec } });
-  });
+  }, [visible, id, title, children, onClose, className]);
 
   useEffect(
     () => () => {

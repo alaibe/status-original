@@ -2,8 +2,8 @@ import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 
-import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
-import { useEffect, useState } from 'react';
+import { FlashList, type FlashListRef, type ListRenderItemInfo } from '@shopify/flash-list';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -102,7 +102,17 @@ export default function ConversationScreen() {
   const runCommand = (command: string) => setPendingCommand(command);
   const clearPendingCommand = () => setPendingCommand(null);
 
+  // The list sticks to the newest message until the user scrolls away, and
+  // sticks again after they send something: the reply is what they are waiting for.
+  const list = useRef<FlashListRef<ChatMessage>>(null);
+  const following = useRef(true);
+  const followNewest = () => {
+    following.current = true;
+    list.current?.scrollToEnd({ animated: true });
+  };
+
   const onSendContent = async (content: MessageContent) => {
+    followNewest();
     await sendMessage(id, content);
   };
 
@@ -117,6 +127,7 @@ export default function ConversationScreen() {
   const replyPreview = replyTarget ? { id: replyTarget.id, ...previewOf(replyTarget) } : null;
 
   const onSendText = async (text: string) => {
+    followNewest();
     await sendMessage(id, { kind: 'text', text }, replyTo ?? undefined);
     setReplyTo(null);
   };
@@ -235,7 +246,14 @@ export default function ConversationScreen() {
           </View>
         ) : (
           <FlashList
+            ref={list}
             data={messages}
+            onScrollBeginDrag={() => {
+              following.current = false;
+            }}
+            onContentSizeChange={() => {
+              if (following.current) list.current?.scrollToEnd({ animated: false });
+            }}
             keyExtractor={(m) => m.id}
             getItemType={(m) => m.content.kind}
             maintainVisibleContentPosition={{
@@ -282,7 +300,10 @@ export default function ConversationScreen() {
             onCancelReply={() => setReplyTo(null)}
             pendingCommand={pendingCommand}
             onPendingCommandHandled={clearPendingCommand}
-            onRunningChange={setRunning}
+            onRunningChange={(command) => {
+              setRunning(command);
+              if (command) followNewest();
+            }}
           />
           )}
         </View>

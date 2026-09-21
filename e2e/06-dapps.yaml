@@ -36,7 +36,7 @@ appId: com.statusoriginal.app
     point: "50%,25%"
 - scrollUntilVisible:
     element: "/commands,.*"
-    direction: UP
+    direction: DOWN
     timeout: 10000
 - tapOn:
     id: "composer-input"
