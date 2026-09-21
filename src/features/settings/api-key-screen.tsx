@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Linking, ScrollView, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Linking, ScrollView, type TextInput, View } from 'react-native';
 
 import { Button, Field, Note, Screen, Section, Text, toast } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
@@ -32,7 +32,8 @@ export function ApiKeyScreen({
 }: ApiKeyScreenProps) {
   const accountId = useIdentityStore((s) => s.activeAccountId);
   const [key, setKey] = useState('');
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>();
+  const inputRef = useRef<TextInput>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -67,46 +68,50 @@ export function ApiKeyScreen({
       <Stack.Screen options={{ title }} />
 
       <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-        <Section title={sectionTitle} surface="card" className="mb-6">
-          <View className="gap-3 px-gutter py-4">
-            <Field
-              testID={testIdPrefix}
-              value={key}
-              onChangeText={setKey}
-              placeholder={placeholder}
-              autoCorrect={false}
-              autoCapitalize="none"
-              hint={saved ? 'A key is saved for this account.' : 'No key yet.'}
-            />
-            <View className="flex-row gap-2">
-              <View className="flex-1">
-                <Button
-                  testID={`${testIdPrefix}-save`}
-                  label="Save"
-                  fullWidth
-                  loading={busy}
-                  disabled={busy || key.trim() === (saved ?? '')}
-                  onPress={() => submit(key)}
-                />
-              </View>
-              {saved ? (
+        {saved === undefined ? null : (
+          <Section title={sectionTitle} surface="card" className="mb-6">
+            <View className="gap-3 px-gutter py-4">
+              <Field
+                ref={inputRef}
+                testID={testIdPrefix}
+                defaultValue={saved ?? ''}
+                onChangeText={setKey}
+                placeholder={placeholder}
+                autoCorrect={false}
+                autoCapitalize="none"
+                hint={saved ? 'A key is saved for this account.' : 'No key yet.'}
+              />
+              <View className="flex-row gap-2">
                 <View className="flex-1">
                   <Button
-                    testID={`${testIdPrefix}-clear`}
-                    label="Remove"
-                    tone="neutral"
+                    testID={`${testIdPrefix}-save`}
+                    label="Save"
                     fullWidth
-                    disabled={busy}
-                    onPress={() => {
-                      setKey('');
-                      submit('');
-                    }}
+                    loading={busy}
+                    disabled={busy || key.trim() === (saved ?? '')}
+                    onPress={() => submit(key)}
                   />
                 </View>
-              ) : null}
+                {saved ? (
+                  <View className="flex-1">
+                    <Button
+                      testID={`${testIdPrefix}-clear`}
+                      label="Remove"
+                      tone="neutral"
+                      fullWidth
+                      disabled={busy}
+                      onPress={() => {
+                        inputRef.current?.clear();
+                        setKey('');
+                        submit('');
+                      }}
+                    />
+                  </View>
+                ) : null}
+              </View>
             </View>
-          </View>
-        </Section>
+          </Section>
+        )}
 
         <Note className="mx-gutter" icon="information-circle-outline">
           {notes.map((note) => (

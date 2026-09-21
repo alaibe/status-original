@@ -422,7 +422,7 @@ function FormWidget({
           label={fillText(field.label, display)}
           hint={field.hint ? fillText(field.hint, display) : undefined}
           placeholder={field.placeholder ? fillText(field.placeholder, display) : undefined}
-          value={answers[field.id] ?? ''}
+          defaultValue={field.value ?? ''}
           onChangeText={(text) => setValues({ ...answers, [field.id]: text })}
           autoCorrect={false}
           autoCapitalize="none"

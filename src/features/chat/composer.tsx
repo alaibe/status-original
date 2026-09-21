@@ -330,6 +330,7 @@ export function Composer({
         ) : null}
 
         <View className="min-h-[44px] flex-1 flex-row items-end rounded-pill border border-line bg-surface-raised pl-4 pr-1">
+        {/* Controlled: typing a slash command rewrites the text with its completion. */}
         <TextInput
           testID="composer-input"
           ref={inputRef}

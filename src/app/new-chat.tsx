@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { KeyboardAvoidingView, ScrollView, type TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {
@@ -52,6 +52,7 @@ export default function NewChatScreen() {
   const descriptor = available.find((p) => p.id === active);
 
   const [draft, setDraft] = useState('');
+  const draftRef = useRef<TextInput>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export default function NewChatScreen() {
 
       setRecipients((current) => [...current, { input, participantId }]);
       setDraft('');
+      draftRef.current?.clear();
     } catch (e) {
       setError(errorMessage(e, 'Could not check that address'));
     } finally {
@@ -290,7 +292,7 @@ export default function NewChatScreen() {
               containerClassName="flex-1"
               label={descriptor?.recipient.label ?? 'Recipient'}
               placeholder={descriptor?.recipient.placeholder}
-              value={draft}
+              ref={draftRef}
               onChangeText={(t) => {
                 setDraft(t);
                 if (error) setError(null);
@@ -349,7 +351,6 @@ export default function NewChatScreen() {
                 testID="new-chat-title"
                 label="Group name"
                 placeholder={defaultGroupName(recipients)}
-                value={title}
                 onChangeText={setTitle}
                 returnKeyType="done"
               />

@@ -69,7 +69,6 @@ export default function CreateIdentity() {
           <Field
             label="Name this account"
             placeholder="Personal"
-            value={label}
             onChangeText={setLabel}
             maxLength={40}
             autoCapitalize="words"

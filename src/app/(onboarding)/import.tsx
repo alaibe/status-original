@@ -64,7 +64,6 @@ export default function ImportIdentity() {
             testID="import-phrase"
             label="Recovery phrase"
             placeholder="witch collapse practice feed shame open despair creek road again ice least"
-            value={phrase}
             onChangeText={(t) => {
               setPhrase(t);
               if (error) setError(null);

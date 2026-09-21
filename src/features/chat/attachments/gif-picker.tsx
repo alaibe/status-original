@@ -58,7 +58,6 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
       ) : (
         <View className="gap-3 pb-3">
           <Field
-            value={query}
             onChangeText={setQuery}
             placeholder="Search GIFs"
             autoCapitalize="none"

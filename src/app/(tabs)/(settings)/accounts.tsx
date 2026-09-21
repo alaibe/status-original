@@ -148,7 +148,7 @@ export default function AccountsScreen() {
       <Sheet visible={renaming !== null} onClose={() => setRenaming(null)} title="Rename account">
         <View className="gap-3 pb-2">
           <Field
-            value={draftLabel}
+            defaultValue={draftLabel}
             onChangeText={setDraftLabel}
             autoFocus
             placeholder="Personal"

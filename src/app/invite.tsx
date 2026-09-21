@@ -138,7 +138,6 @@ export default function InviteScreen() {
 
       <View className="px-gutter pb-4">
         <Field
-          value={query}
           onChangeText={setQuery}
           placeholder="Search"
           autoCorrect={false}

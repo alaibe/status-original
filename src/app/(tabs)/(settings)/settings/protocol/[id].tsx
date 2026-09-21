@@ -117,7 +117,7 @@ export default function ProtocolConfigScreen() {
                   label={field.label}
                   placeholder={field.placeholder}
                   hint={field.help}
-                  value={config[field.key] ?? ''}
+                  defaultValue={config[field.key] ?? ''}
                   onChangeText={(text) =>
                     setConfig((current) => ({ ...(current ?? {}), [field.key]: text }))
                   }
