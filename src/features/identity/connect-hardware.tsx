@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, ListItem, Note, RowIcon, Sheet, Text, toast } from '@/design';
@@ -54,23 +54,20 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
     };
   }, [vendor]);
 
-  const connect = useCallback(
-    async (chosen: HardwareVendor, deviceId?: string) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const signer = await chosen.connect(deviceId);
-        const address = await signer.getAddress(DEFAULT_EVM_PATH);
-        await addHardwareAccount({ address, vendorId: chosen.id, label: chosen.label });
-        toast.success(`${chosen.label} connected`);
-        onClose();
-      } catch (e) {
-        setError(errorMessage(e, `Could not connect to your ${chosen.label}`));
-      }
-      setBusy(false);
-    },
-    [addHardwareAccount, onClose]
-  );
+  const connect = async (chosen: HardwareVendor, deviceId?: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const signer = await chosen.connect(deviceId);
+      const address = await signer.getAddress(DEFAULT_EVM_PATH);
+      await addHardwareAccount({ address, vendorId: chosen.id, label: chosen.label });
+      toast.success(`${chosen.label} connected`);
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e, `Could not connect to your ${chosen.label}`));
+    }
+    setBusy(false);
+  };
 
   const vendors = hardwareVendors();
 

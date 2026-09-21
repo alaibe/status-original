@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { View } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -33,7 +33,7 @@ const ACTION_RADIUS = 14;
 export function SwipeableRow({ right, left, children }: SwipeableRowProps) {
   const ref = useRef<SwipeableMethods>(null);
 
-  const run = useCallback((action: SwipeAction) => {
+  const run = (action: SwipeAction) => {
     ref.current?.close();
     if (process.env.EXPO_OS === 'ios') {
       Haptics.impactAsync(
@@ -43,28 +43,25 @@ export function SwipeableRow({ right, left, children }: SwipeableRowProps) {
       ).catch(() => {});
     }
     action.onPress();
-  }, []);
+  };
 
-  const render = useCallback(
-    (actions: SwipeAction[], side: 'left' | 'right') =>
-      function SwipeActions() {
-            return (
-          <View className="flex-row items-stretch py-1 pl-1 pr-1">
-            {actions.map((action, index) => (
-              <ActionButton
-                key={action.id}
-                action={action}
-                onRun={run}
-                first={index === 0}
-                last={index === actions.length - 1}
-                side={side}
-              />
-            ))}
-              </View>
-            );
-      },
-    [run]
-  );
+  const render = (actions: SwipeAction[], side: 'left' | 'right') =>
+    function SwipeActions() {
+          return (
+        <View className="flex-row items-stretch py-1 pl-1 pr-1">
+          {actions.map((action, index) => (
+            <ActionButton
+              key={action.id}
+              action={action}
+              onRun={run}
+              first={index === 0}
+              last={index === actions.length - 1}
+              side={side}
+            />
+          ))}
+            </View>
+          );
+    };
 
   if (!right?.length && !left?.length) return <>{children}</>;
 

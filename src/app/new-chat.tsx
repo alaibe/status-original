@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, type TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -31,6 +31,29 @@ interface Recipient {
   participantId: string;
 }
 
+type KnownRow =
+  | { kind: 'header'; letter: string }
+  | { kind: 'person'; id: string; name: string; conversationId: string };
+
+function groupByInitial(people: { id: string; name: string; conversationId: string }[]): KnownRow[] {
+  const out: KnownRow[] = [];
+  let letter = '';
+  for (const person of people) {
+    const initial = person.name.charAt(0).toUpperCase();
+    if (initial !== letter) {
+      letter = initial;
+      out.push({ kind: 'header', letter });
+    }
+    out.push({
+      kind: 'person',
+      id: person.id,
+      name: person.name,
+      conversationId: person.conversationId,
+    });
+  }
+  return out;
+}
+
 export default function NewChatScreen() {
   const router = useRouter();
   const colors = useThemeColors();
@@ -42,10 +65,7 @@ export default function NewChatScreen() {
   const startDm = useChatStore((s) => s.startDm);
   const startGroup = useChatStore((s) => s.startGroup);
 
-  const available = useMemo(
-    () => transportProtocols().filter((p) => sessions[p.id]),
-    [sessions]
-  );
+  const available = transportProtocols().filter((p) => sessions[p.id]);
 
   const [protocol, setProtocol] = useState<ProtocolId | null>(null);
   const active = protocol ?? available[0]?.id ?? null;
@@ -60,39 +80,16 @@ export default function NewChatScreen() {
 
   const isGroup = recipients.length > 1;
 
-  const peers = useMemo(
-    () => peersOf(conversations, (p) => selfIdFor({ sessions }, p)),
-    [conversations, sessions]
-  );
+  const peers = peersOf(conversations, (p) => selfIdFor({ sessions }, p));
 
   const { nameFor } = useDisplayNames(peers);
 
-  const known = useMemo(() => {
-    const people = peers
+  const known = groupByInitial(
+    peers
       .filter((peer) => peer.protocol === active)
       .map((peer) => ({ ...peer, name: nameFor(peer.id) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    const out: (
-      | { kind: 'header'; letter: string }
-      | { kind: 'person'; id: string; name: string; conversationId: string }
-    )[] = [];
-    let letter = '';
-    for (const person of people) {
-      const initial = person.name.charAt(0).toUpperCase();
-      if (initial !== letter) {
-        letter = initial;
-        out.push({ kind: 'header', letter });
-      }
-      out.push({
-        kind: 'person',
-        id: person.id,
-        name: person.name,
-        conversationId: person.conversationId,
-      });
-    }
-    return out;
-  }, [peers, active, nameFor]);
+      .sort((a, b) => a.name.localeCompare(b.name))
+  );
 
   function chooseProtocol(next: ProtocolId) {
     if (next === active) return;
@@ -134,10 +131,7 @@ export default function NewChatScreen() {
     draftRef.current?.clear();
   }
 
-  const selectedIds = useMemo(
-    () => new Set(recipients.map((r) => r.participantId)),
-    [recipients]
-  );
+  const selectedIds = new Set(recipients.map((r) => r.participantId));
 
   function toggleRecipient(id: string, name: string) {
     setError(null);
@@ -148,14 +142,11 @@ export default function NewChatScreen() {
     );
   }
 
-  const existingDm = useMemo(() => {
-    if (recipients.length !== 1) return null;
-    const [only] = recipients;
-    return (
-      peers.find((p) => p.protocol === active && p.id === only.participantId)?.conversationId ??
-      null
-    );
-  }, [recipients, peers, active]);
+  const only = recipients.length === 1 ? recipients[0] : null;
+  const existingDm = only
+    ? (peers.find((p) => p.protocol === active && p.id === only.participantId)?.conversationId ??
+      null)
+    : null;
 
   async function start() {
     if (existingDm) {

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { createContext, use, useCallback, useMemo, useState } from 'react';
+import { createContext, use, useState } from 'react';
 
 import { capabilitiesOf } from '../identity/account-kind';
 import type { Keyring } from '../identity/keyring';
@@ -268,39 +268,28 @@ function makePluginContext(
 }
 
 export function PluginProvider({ plugins, defaultEnabled, children }: PluginProviderProps) {
-  const registry = useMemo(
-    () =>
-      new PluginRegistry(plugins, {
-        commands: groupCommands,
-        composerActions: groupComposerActions,
-      }),
-    [plugins]
-  );
+  const registry = new PluginRegistry(plugins, {
+    commands: groupCommands,
+    composerActions: groupComposerActions,
+  });
   const [enabledIds, setEnabledIds] = useState<PluginId[]>([]);
 
+  const setEnabled = async (id: PluginId, enabled: boolean) => {
+    await accountRuntime.setPluginEnabled(id, enabled);
+  };
 
-  const setEnabled = useCallback(
-    async (id: PluginId, enabled: boolean) => {
-      await accountRuntime.setPluginEnabled(id, enabled);
-    },
-    []
-  );
+  const handleUri = (url: string) => registry.handleUri(url);
 
-  const handleUri = useCallback((url: string) => registry.handleUri(url), [registry]);
-
-  const value = useMemo<PluginHostValue>(
-    () => ({
-      registry,
-      enabledIds,
-      defaultEnabled: defaultEnabled ?? registry.list().map((plugin) => plugin.manifest.id),
-      makeContext: (plugin, accountId, keyring, storage, lease) =>
-        makePluginContext(registry, plugin, accountId, keyring, storage, lease),
-      onPluginsChanged: setEnabledIds,
-      setEnabled,
-      handleUri,
-    }),
-    [registry, enabledIds, defaultEnabled, setEnabled, handleUri]
-  );
+  const value: PluginHostValue = {
+    registry,
+    enabledIds,
+    defaultEnabled: defaultEnabled ?? registry.list().map((plugin) => plugin.manifest.id),
+    makeContext: (plugin, accountId, keyring, storage, lease) =>
+      makePluginContext(registry, plugin, accountId, keyring, storage, lease),
+    onPluginsChanged: setEnabledIds,
+    setEnabled,
+    handleUri,
+  };
 
   return <PluginHostContext value={value}>{children}</PluginHostContext>;
 }

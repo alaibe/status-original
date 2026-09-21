@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import {
@@ -32,29 +32,22 @@ export default function ContactsScreen() {
   const [sorting, setSorting] = useState(false);
   const [access, setAccess] = useState<ContactAccess>('unknown');
 
-  const refreshAccess = useCallback(() => {
+  const refreshAccess = () => {
     currentAccess().then(setAccess).catch(() => setAccess('none'));
-  }, []);
+  };
 
   useEffect(refreshAccess, [refreshAccess]);
 
-  const peers = useMemo(
-    () => peersOf(conversations, (protocol) => selfIdFor({ sessions }, protocol)),
-    [conversations, sessions]
-  );
+  const peers = peersOf(conversations, (protocol) => selfIdFor({ sessions }, protocol));
 
   const { nameFor } = useDisplayNames(peers);
 
-  const visible = useMemo(() => {
-    const ordered =
-      sortBy === 'name'
-        ? [...peers].sort((a, b) => nameFor(a.id).localeCompare(nameFor(b.id)))
-        : peers;
-
-    const q = query.trim().toLowerCase();
-    if (!q) return ordered;
-    return ordered.filter((p) => nameFor(p.id).toLowerCase().includes(q));
-  }, [peers, query, nameFor, sortBy]);
+  const ordered =
+    sortBy === 'name'
+      ? [...peers].sort((a, b) => nameFor(a.id).localeCompare(nameFor(b.id)))
+      : peers;
+  const q = query.trim().toLowerCase();
+  const visible = q ? ordered.filter((p) => nameFor(p.id).toLowerCase().includes(q)) : ordered;
 
   return (
     <>

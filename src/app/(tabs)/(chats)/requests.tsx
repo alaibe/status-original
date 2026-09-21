@@ -1,6 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
 
-import { useMemo } from 'react';
 import { FlashList } from '@shopify/flash-list';
 
 import { EmptyState, ListItem, Screen, SwipeableRow } from '@/design';
@@ -15,10 +14,7 @@ export default function RequestsScreen() {
 
   const sessions = useChatStore((s) => s.sessions);
   const conversations = useChatStore((s) => s.conversations);
-  const requests = useMemo(
-    () => conversations.filter((c) => c.consent === 'unknown'),
-    [conversations]
-  );
+  const requests = conversations.filter((c) => c.consent === 'unknown');
 
   const { nameFor } = useDisplayNames(usePeers(requests));
 

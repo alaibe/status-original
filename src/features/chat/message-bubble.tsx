@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable as RNPressable, View } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
@@ -31,7 +31,7 @@ export interface MessageBubbleProps {
   replyPreview?: { author: string; preview: string };
 }
 
-export const MessageBubble = memo(function MessageBubble({
+export function MessageBubble({
   message,
   grouped,
   senderName,
@@ -162,7 +162,7 @@ export const MessageBubble = memo(function MessageBubble({
       {children}
     </BubbleShell>
   );
-});
+}
 
 function TextBody({
   message,
@@ -230,12 +230,12 @@ function BubbleShell({
   const [anchor, setAnchor] = useState<MessageAnchor | null>(null);
   const bubbleRef = useRef<View>(null);
 
-  const open = useCallback(() => {
+  const open = () => {
     bubbleRef.current?.measureInWindow((x, y, width, height) => {
       setAnchor({ x, y, width, height });
       setPicking(true);
     });
-  }, []);
+  };
 
   const actions: MessageAction[] = [];
   if (onRetry) {

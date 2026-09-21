@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import {
@@ -44,7 +44,7 @@ export default function SettingsScreen() {
   const [gifKey, setGifKey] = useState<string | null>(null);
   const [tokenKey, setTokenKey] = useState<string | null>(null);
   useFocusEffect(
-    useCallback(() => {
+    () => {
       let cancelled = false;
       setGifKey(null);
       setTokenKey(null);
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
         .then((key) => { if (!cancelled) setTokenKey(key); })
         .catch(() => { if (!cancelled) setTokenKey(null); });
       return () => { cancelled = true; };
-    }, [activeAccountId]),
+    },
   );
 
   const [confirmErase, setConfirmErase] = useState(false);
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
 
   const [ensName, setEnsName] = useState<string | null>(null);
   useFocusEffect(
-    useCallback(() => {
+    () => {
       const address = keyring?.address;
       if (!address) return;
       let cancelled = false;
@@ -76,7 +76,7 @@ export default function SettingsScreen() {
       return () => {
         cancelled = true;
       };
-    }, [keyring?.address]),
+    },
   );
 
   const account = accounts.find((a) => a.id === activeAccountId);

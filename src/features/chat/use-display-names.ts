@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { shortAddress } from '@/core/identity/keyring';
 import { isLocalConversation, isParticipantId } from '@/core/messaging/bots';
@@ -14,11 +14,7 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
   const sessions = useChatStore((s) => s.sessions);
   const [addresses, setAddresses] = useState<Record<ParticipantId, string>>({});
 
-  const key = useMemo(
-    () =>
-      [...new Set(participants.map((p) => `${p.protocol ?? ''}:${p.id}`))].sort().join(','),
-    [participants]
-  );
+  const key = [...new Set(participants.map((p) => `${p.protocol ?? ''}:${p.id}`))].sort().join(',');
 
   useEffect(() => {
     if (!key) return;
@@ -50,18 +46,15 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
     };
   }, [sessions, key]);
 
-  return useMemo(
-    () => ({
-      nameFor(id: ParticipantId): string {
-        const address = addresses[id];
-        return address ? shortAddress(address) : shortAddress(id, 6, 4);
-      },
-      addressFor(id: ParticipantId): string | undefined {
-        return addresses[id];
-      },
-    }),
-    [addresses]
-  );
+  return ({
+    nameFor(id: ParticipantId): string {
+      const address = addresses[id];
+      return address ? shortAddress(address) : shortAddress(id, 6, 4);
+    },
+    addressFor(id: ParticipantId): string | undefined {
+      return addresses[id];
+    },
+  });
 }
 
 export function conversationTitle(
@@ -88,9 +81,5 @@ export function conversationPeers(
 
 export function usePeers(conversations: Conversation[]): DisplayParticipant[] {
   const sessions = useChatStore((s) => s.sessions);
-  return useMemo(
-    () =>
-      conversations.flatMap((c) => conversationPeers(c, selfIdFor({ sessions }, c.protocol))),
-    [conversations, sessions]
-  );
+  return conversations.flatMap((c) => conversationPeers(c, selfIdFor({ sessions }, c.protocol)));
 }

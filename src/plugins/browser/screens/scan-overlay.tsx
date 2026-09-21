@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, Linking, Modal, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -55,30 +55,27 @@ function Scanner({ context, onClose }: { context: PluginContext; onClose(): void
     }
   };
 
-  const onScanned = useCallback(
-    async ({ data }: { data: string }) => {
-      // One pairing per visit. The scanner fires per frame, so without this a
-      // code in view for half a second pairs a dozen times.
-      if (pairing) return;
-      if (!data.startsWith('wc:')) {
-        setError('That is a QR code, but not a WalletConnect one.');
-        return;
-      }
+  const onScanned = async ({ data }: { data: string }) => {
+    // One pairing per visit. The scanner fires per frame, so without this a
+    // code in view for half a second pairs a dozen times.
+    if (pairing) return;
+    if (!data.startsWith('wc:')) {
+      setError('That is a QR code, but not a WalletConnect one.');
+      return;
+    }
 
-      setPairing(true);
-      try {
-        const store = useWalletConnectStore.getState();
-        if (!store.kit) await store.init(context);
-        await store.pair(data);
-        context.ui.notify('Pairing… approve the request when it appears.');
-        onClose();
-      } catch (e) {
-        setError(errorMessage(e, 'Could not pair with that code'));
-        setPairing(false);
-      }
-    },
-    [context, onClose, pairing]
-  );
+    setPairing(true);
+    try {
+      const store = useWalletConnectStore.getState();
+      if (!store.kit) await store.init(context);
+      await store.pair(data);
+      context.ui.notify('Pairing… approve the request when it appears.');
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e, 'Could not pair with that code'));
+      setPairing(false);
+    }
+  };
 
   return (
     <Screen className="px-0" edges={['top', 'bottom']}>

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, ScrollView, Share, View } from 'react-native';
 
 import {
@@ -71,13 +71,10 @@ export default function InviteScreen() {
     })();
   }, [load]);
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return contacts;
-    return contacts.filter((c) =>
-      `${c.given ?? ''} ${c.family ?? ''}`.toLowerCase().includes(q)
-    );
-  }, [contacts, query]);
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? contacts.filter((c) => `${c.given ?? ''} ${c.family ?? ''}`.toLowerCase().includes(q))
+    : contacts;
 
   const allVisibleSelected = visible.length > 0 && visible.every((c) => selected.has(c.id));
 

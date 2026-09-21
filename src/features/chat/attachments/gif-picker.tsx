@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Button, Field, Pressable, Sheet, Text } from '@/design';
@@ -28,7 +28,7 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
     loadGifKey(accountId).then(setKey).catch(() => setKey(null));
   }, [visible, accountId]);
 
-  const run = useCallback(async () => {
+  const run = async () => {
     if (!key || query.trim().length === 0) return;
     setBusy(true);
     setError(null);
@@ -38,7 +38,7 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
       setError(errorMessage(e, 'Could not search GIFs'));
     }
     setBusy(false);
-  }, [key, query]);
+  };
 
   return (
     <Sheet visible={visible} onClose={onClose} title="GIFs">

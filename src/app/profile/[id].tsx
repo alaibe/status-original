@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 
 import {
@@ -64,10 +64,7 @@ export default function ProfileScreen() {
 
   const conversation = conversations.find((c) => c.id === id);
   const selfId = selfIdFor({ sessions }, conversation?.protocol);
-  const peers = useMemo(
-    () => (conversation ? conversationPeers(conversation, selfId) : []),
-    [conversation, selfId]
-  );
+  const peers = conversation ? conversationPeers(conversation, selfId) : [];
   const { nameFor, addressFor } = useDisplayNames(peers);
 
   const [tab, setTab] = useState<MediaCategory>('media');
@@ -89,8 +86,8 @@ export default function ProfileScreen() {
     };
   }, [peerAddress]);
 
-  const counts = useMemo(() => countsFor(mediaIndex, id), [mediaIndex, id]);
-  const entries = useMemo(() => entriesOf(mediaIndex, id, tab), [mediaIndex, id, tab]);
+  const counts = countsFor(mediaIndex, id);
+  const entries = entriesOf(mediaIndex, id, tab);
 
   if (!conversation) {
     return (

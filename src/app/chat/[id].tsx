@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -82,10 +82,7 @@ export default function ConversationScreen() {
     isBot ? s.bots[botIdFromConversation(id)]?.tagline : undefined
   );
 
-  const peers = useMemo(
-    () => (conversation ? conversationPeers(conversation, selfId) : []),
-    [conversation, selfId]
-  );
+  const peers = conversation ? conversationPeers(conversation, selfId) : [];
   const { nameFor } = useDisplayNames(peers);
 
   const accountId = useChatStore((s) => s.accountId);
@@ -102,69 +99,49 @@ export default function ConversationScreen() {
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
-  const runCommand = useCallback((command: string) => setPendingCommand(command), []);
-  const clearPendingCommand = useCallback(() => setPendingCommand(null), []);
+  const runCommand = (command: string) => setPendingCommand(command);
+  const clearPendingCommand = () => setPendingCommand(null);
 
-  const onSendContent = useCallback(
-    async (content: MessageContent) => {
-      await sendMessage(id, content);
-    },
-    [id, sendMessage]
-  );
+  const onSendContent = async (content: MessageContent) => {
+    await sendMessage(id, content);
+  };
 
-  const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const byId = new Map(messages.map((m) => [m.id, m]));
 
-  const previewOf = useCallback(
-    (target: ChatMessage): ReplyPreview => ({
-      author: target.fromMe ? 'You' : nameFor(target.senderId),
-      preview: contentPreview(target.content) || 'Message',
-    }),
-    [nameFor]
-  );
+  const previewOf = (target: ChatMessage): ReplyPreview => ({
+    author: target.fromMe ? 'You' : nameFor(target.senderId),
+    preview: contentPreview(target.content) || 'Message',
+  });
 
-  const replyPreview = useMemo(() => {
-    const target = replyTo ? byId.get(replyTo) : undefined;
-    return target ? { id: target.id, ...previewOf(target) } : null;
-  }, [replyTo, byId, previewOf]);
+  const replyTarget = replyTo ? byId.get(replyTo) : undefined;
+  const replyPreview = replyTarget ? { id: replyTarget.id, ...previewOf(replyTarget) } : null;
 
-  const onSendText = useCallback(
-    async (text: string) => {
-      await sendMessage(id, { kind: 'text', text }, replyTo ?? undefined);
-      setReplyTo(null);
-    },
-    [id, sendMessage, replyTo]
-  );
+  const onSendText = async (text: string) => {
+    await sendMessage(id, { kind: 'text', text }, replyTo ?? undefined);
+    setReplyTo(null);
+  };
 
-  const onRetryId = useCallback(
-    (messageId: string) => void retryMessage(id, messageId),
-    [id, retryMessage]
-  );
-  const onReactTo = useCallback(
-    (messageId: string, emoji: string) => {
-      react(id, messageId, emoji).catch((e) => toast.error(errorMessage(e, 'Could not react')));
-    },
-    [id, react]
-  );
+  const onRetryId = (messageId: string) => void retryMessage(id, messageId);
+  const onReactTo = (messageId: string, emoji: string) => {
+    react(id, messageId, emoji).catch((e) => toast.error(errorMessage(e, 'Could not react')));
+  };
 
   const isGroup = conversation?.kind === 'group';
   const botName = conversation?.title ?? 'Bot';
-  const renderItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<ChatMessage>) => (
-      <MessageRow
-        message={item}
-        previous={messages[index - 1]}
-        replyTarget={item.replyTo ? byId.get(item.replyTo) : undefined}
-        senderName={isBot ? botName : nameFor(item.senderId)}
-        isGroup={isGroup}
-        previewOf={previewOf}
-        onCommand={runCommand}
-        onReplyTo={setReplyTo}
-        onForwardMessage={setForwarding}
-        onRetryId={onRetryId}
-        onReactTo={onReactTo}
-      />
-    ),
-    [messages, byId, isBot, botName, nameFor, isGroup, previewOf, runCommand, onRetryId, onReactTo]
+  const renderItem = ({ item, index }: ListRenderItemInfo<ChatMessage>) => (
+    <MessageRow
+      message={item}
+      previous={messages[index - 1]}
+      replyTarget={item.replyTo ? byId.get(item.replyTo) : undefined}
+      senderName={isBot ? botName : nameFor(item.senderId)}
+      isGroup={isGroup}
+      previewOf={previewOf}
+      onCommand={runCommand}
+      onReplyTo={setReplyTo}
+      onForwardMessage={setForwarding}
+      onRetryId={onRetryId}
+      onReactTo={onReactTo}
+    />
   );
 
   const title = conversation
@@ -321,7 +298,7 @@ export default function ConversationScreen() {
   );
 }
 
-const MessageRow = memo(function MessageRow({
+function MessageRow({
   message,
   previous,
   replyTarget,
@@ -373,4 +350,4 @@ const MessageRow = memo(function MessageRow({
       />
     </>
   );
-});
+}

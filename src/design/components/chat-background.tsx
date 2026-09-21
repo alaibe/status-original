@@ -1,4 +1,4 @@
-import { memo } from 'react';
+
 import { Image, StyleSheet, View, type ImageURISource } from 'react-native';
 
 import { useThemeColors } from '../hooks/use-theme-colors';
@@ -30,7 +30,7 @@ export interface ChatBackgroundProps {
   pattern?: ChatPatternName;
 }
 
-export const ChatBackground = memo(function ChatBackground({
+export function ChatBackground({
   pattern = 'doodles',
 }: ChatBackgroundProps) {
   const colors = useThemeColors();
@@ -60,4 +60,4 @@ export const ChatBackground = memo(function ChatBackground({
       />
     </View>
   );
-});
+}

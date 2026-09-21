@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlashList } from '@shopify/flash-list';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -51,73 +51,55 @@ export default function ChatsScreen() {
   const sync = useChatStore((s) => s.sync);
   const sessions = useChatStore((s) => s.sessions);
 
-  const selfIdOf = useCallback(
-    (conversation: Conversation) => selfIdFor({ sessions }, conversation.protocol),
-    [sessions]
-  );
+  const selfIdOf = (conversation: Conversation) => selfIdFor({ sessions }, conversation.protocol);
 
   const { nameFor } = useDisplayNames(usePeers(conversations));
   const readAt = useChatStore((s) => s.readAt);
   const chatPrefs = useChatStore((s) => s.chatPrefs);
   const setChatPref = useChatStore((s) => s.setChatPref);
-  const toggle = useCallback(
-    (id: string, key: keyof ChatPrefs) => setChatPref(id, { [key]: !chatPrefs[id]?.[key] }),
-    [chatPrefs, setChatPref]
-  );
+  const toggle = (id: string, key: keyof ChatPrefs) => setChatPref(id, { [key]: !chatPrefs[id]?.[key] });
 
   const [query, setQuery] = useState('');
   const [managing, setManaging] = useState<Conversation | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [chosenFolder, setFolder] = useState<FolderId>('all');
 
-  const { allowed, requests } = useMemo(
-    () => ({
-      allowed: conversations.filter((c) => c.consent === 'allowed'),
-      requests: conversations.filter((c) => c.consent === 'unknown'),
-    }),
-    [conversations]
-  );
+  const { allowed, requests } = {
+    allowed: conversations.filter((c) => c.consent === 'allowed'),
+    requests: conversations.filter((c) => c.consent === 'unknown'),
+  };
 
-  const folderContext = useMemo(() => ({ prefs: chatPrefs, readAt }), [chatPrefs, readAt]);
-  const folders = useMemo(
-    () => availableFolders(allowed, folderContext),
-    [allowed, folderContext]
-  );
+  const folderContext = { prefs: chatPrefs, readAt };
+  const folders = availableFolders(allowed, folderContext);
 
   const folder = folders.some((f) => f.id === chosenFolder) ? chosenFolder : 'all';
 
-  const visible = useMemo(() => {
-    const ordered = showArchived
-      ? orderConversations(allowed, chatPrefs, { includeArchived: true }).filter(
-          (c) => chatPrefs[c.id]?.archived
-        )
-      : orderConversations(allowed, chatPrefs);
-    const inFolder = ordered.filter((c) => matchesFolder(c, folder, folderContext));
+  const ordered = showArchived
+    ? orderConversations(allowed, chatPrefs, { includeArchived: true }).filter(
+        (c) => chatPrefs[c.id]?.archived
+      )
+    : orderConversations(allowed, chatPrefs);
+  const inFolder = ordered.filter((c) => matchesFolder(c, folder, folderContext));
 
-    const q = query.trim().toLowerCase();
-    if (!q) return inFolder;
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? inFolder.filter((c) => {
+        const title = conversationTitle(c, selfIdOf(c), nameFor).toLowerCase();
+        return title.includes(q) || messagePreview(c.lastMessage).toLowerCase().includes(q);
+      })
+    : inFolder;
 
-    return inFolder.filter((c) => {
-      const title = conversationTitle(c, selfIdOf(c), nameFor).toLowerCase();
-      return title.includes(q) || messagePreview(c.lastMessage).toLowerCase().includes(q);
-    });
-  }, [allowed, chatPrefs, query, selfIdOf, nameFor, showArchived, folder, folderContext]);
-
-  const archived = useMemo(() => archivedCount(allowed, chatPrefs), [allowed, chatPrefs]);
+  const archived = archivedCount(allowed, chatPrefs);
 
   const managed = managing ? chatPrefs[managing.id] : undefined;
   const choose = (key: keyof ChatPrefs) => {
     if (managing) toggle(managing.id, key);
   };
 
-  const showProtocol = useMemo(() => {
-    const networked = new Set(
-      conversations
-        .map((c) => c.protocol)
-        .filter((p): p is string => Boolean(p) && p !== 'local')
-    );
-    return networked.size > 1;
-  }, [conversations]);
+  const networked = new Set(
+    conversations.map((c) => c.protocol).filter((p): p is string => Boolean(p) && p !== 'local')
+  );
+  const showProtocol = networked.size > 1;
 
   return (
     <Screen className="px-0" edges={[]}>

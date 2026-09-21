@@ -5,7 +5,7 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Icon, Pressable, Text, useThemeColors } from '@/design';
@@ -24,7 +24,7 @@ export function VoiceRecorder({ onRecorded, onError }: VoiceRecorderProps) {
 
   const [starting, setStarting] = useState(false);
 
-  const start = useCallback(async () => {
+  const start = async () => {
     setStarting(true);
     try {
       const permission = await requestRecordingPermissionsAsync();
@@ -39,31 +39,28 @@ export function VoiceRecorder({ onRecorded, onError }: VoiceRecorderProps) {
       onError('Could not start recording.');
     }
     setStarting(false);
-  }, [recorder, onError]);
+  };
 
-  const finish = useCallback(
-    async (keep: boolean) => {
-      try {
-        await recorder.stop();
-        await setAudioModeAsync({ allowsRecording: false });
-      } catch {
-        onError('Could not save that recording.');
-        return;
-      }
+  const finish = async (keep: boolean) => {
+    try {
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+    } catch {
+      onError('Could not save that recording.');
+      return;
+    }
 
-      const uri = recorder.uri;
-      if (!keep || !uri) return;
+    const uri = recorder.uri;
+    if (!keep || !uri) return;
 
-      const durationMs = Math.round(state.durationMillis ?? 0);
-      if (durationMs < 500) {
-        onError('Too short. Hold on a moment longer.');
-        return;
-      }
+    const durationMs = Math.round(state.durationMillis ?? 0);
+    if (durationMs < 500) {
+      onError('Too short. Hold on a moment longer.');
+      return;
+    }
 
-      onRecorded({ kind: 'voice', uri, durationMs, name: 'voice.m4a', mimeType: 'audio/m4a' });
-    },
-    [recorder, state.durationMillis, onRecorded, onError]
-  );
+    onRecorded({ kind: 'voice', uri, durationMs, name: 'voice.m4a', mimeType: 'audio/m4a' });
+  };
 
   if (!state.isRecording) {
     return (

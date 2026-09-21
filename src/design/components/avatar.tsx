@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useMemo } from 'react';
+
 import { View } from 'react-native';
 
 import { cn } from '../lib/cn';
@@ -16,23 +16,21 @@ function hash(seed: string) {
   return h >>> 0;
 }
 
-function useIdenticon(seed: string) {
-  return useMemo(() => {
-    const h = hash(seed);
-    const hue = h % 360;
-    const bg = `hsl(${hue} 68% 52%)`;
-    const fg = `hsl(${(hue + 42) % 360} 74% 74%)`;
+function identicon(seed: string) {
+  const h = hash(seed);
+  const hue = h % 360;
+  const bg = `hsl(${hue} 68% 52%)`;
+  const fg = `hsl(${(hue + 42) % 360} 74% 74%)`;
 
-    const cells: boolean[] = [];
-    for (let row = 0; row < 5; row++) {
-      const left: boolean[] = [];
-      for (let col = 0; col < 3; col++) {
-        left.push(((h >>> ((row * 3 + col) % 29)) & 1) === 1);
-      }
-      cells.push(...left, left[1], left[0]);
+  const cells: boolean[] = [];
+  for (let row = 0; row < 5; row++) {
+    const left: boolean[] = [];
+    for (let col = 0; col < 3; col++) {
+      left.push(((h >>> ((row * 3 + col) % 29)) & 1) === 1);
     }
-    return { bg, fg, cells };
-  }, [seed]);
+    cells.push(...left, left[1], left[0]);
+  }
+  return { bg, fg, cells };
 }
 
 export interface AvatarProps {
@@ -47,7 +45,7 @@ export interface AvatarProps {
 
 export function Avatar({ seed, size = 'md', label, image, emoji, className }: AvatarProps) {
   const px = SIZE[size];
-  const { bg, fg, cells } = useIdenticon(seed || 'anon');
+  const { bg, fg, cells } = identicon(seed || 'anon');
 
   // expo-image has no NativeWind interop here, so the circle is plain style.
   if (image !== undefined) {

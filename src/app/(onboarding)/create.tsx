@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -28,8 +28,8 @@ export default function CreateIdentity() {
   const router = useRouter();
   const adoptIdentity = useIdentityStore((s) => s.adoptIdentity);
 
-  const phrase = useMemo(() => createMnemonic(), []);
-  const preview = useMemo(() => keyringFromMnemonic(phrase), [phrase]);
+  const phrase = createMnemonic();
+  const preview = keyringFromMnemonic(phrase);
 
   const [revealed, setRevealed] = useState(false);
   const [saving, setSaving] = useState(false);

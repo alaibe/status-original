@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -47,6 +47,18 @@ export interface ComposerProps {
   onPendingCommandHandled?(): void;
 }
 
+async function respondIn(conversationId: ConversationId, content: MessageContent | string) {
+  const body = toContent(content);
+  const chat = useChatStore.getState();
+
+  if (isLocalConversation(conversationId)) {
+    await chat.postLocalMessage(conversationId, body, 'bot');
+    return;
+  }
+
+  await chat.postPrivateMessage(conversationId, body);
+}
+
 export function Composer({
   conversationId,
   onSendText,
@@ -73,19 +85,16 @@ export function Composer({
     conversationId === STATUS_LOCAL_ID
   );
 
-  const attach = useCallback(
-    async (pick: () => Promise<MessageContent | null>) => {
-      const send = onSendContent;
-      if (!send) return;
-      try {
-        const content = await pick();
-        if (content) await send(content);
-      } catch (e) {
-        setError(errorMessage(e, 'Could not attach that'));
-      }
-    },
-    [onSendContent]
-  );
+  const attach = async (pick: () => Promise<MessageContent | null>) => {
+    const send = onSendContent;
+    if (!send) return;
+    try {
+      const content = await pick();
+      if (content) await send(content);
+    } catch (e) {
+      setError(errorMessage(e, 'Could not attach that'));
+    }
+  };
 
   const kind = useChatStore((s) => s.conversations.find((c) => c.id === conversationId)?.kind);
   const scope = conversationScope(conversationId, kind);
@@ -101,40 +110,23 @@ export function Composer({
     () => registry.composerActionsFor(conversationId, scope)
   );
 
-  const commandNames = useMemo(
-    () => commands.flatMap(({ command }) => [command.name, ...(command.aliases ?? [])]),
-    [commands]
-  );
+  const commandNames = commands.flatMap(({ command }) => [command.name, ...(command.aliases ?? [])]);
 
-  const suggestions = useMemo(() => {
-    if (!isTypingCommandName(value)) return [];
-    const prefix = commandNamePrefix(value);
-    return commands.filter(
-      ({ command }) =>
-        command.name.startsWith(prefix) ||
-        command.aliases?.some((alias) => alias.startsWith(prefix))
-    );
-  }, [value, commands]);
-
-  const respond = useCallback(
-    async (content: MessageContent | string) => {
-      const body = toContent(content);
-      const chat = useChatStore.getState();
-
-      if (isLocalConversation(conversationId)) {
-        await chat.postLocalMessage(conversationId, body, 'bot');
-        return;
-      }
-
-      await chat.postPrivateMessage(conversationId, body);
-    },
-    [conversationId]
-  );
+  const prefix = isTypingCommandName(value) ? commandNamePrefix(value) : null;
+  const suggestions =
+    prefix === null
+      ? []
+      : commands.filter(
+          ({ command }) =>
+            command.name.startsWith(prefix) ||
+            command.aliases?.some((alias) => alias.startsWith(prefix))
+        );
 
   const dispatch = useCallback(
     async (raw: string, from: 'typed' | 'action' = 'typed') => {
       const text = raw.trim();
       if (!text) return;
+      const respond = (content: MessageContent | string) => respondIn(conversationId, content);
 
       setError(null);
 
@@ -199,13 +191,13 @@ export function Composer({
       setBusy(false);
       onRunningChange?.(null);
     },
-    [registry, conversationId, scope, commands.length, onSendText, respond, onRunningChange]
+    [registry, conversationId, scope, commands.length, onSendText, onRunningChange]
   );
 
-  const submit = useCallback(() => {
+  const submit = () => {
     if (busy) return;
     return dispatch(value);
-  }, [busy, dispatch, value]);
+  };
 
   useEffect(() => {
     if (!pendingCommand) return;
