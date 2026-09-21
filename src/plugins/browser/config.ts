@@ -92,13 +92,6 @@ export const FEATURED_DAPPS: Dapp[] = [
     icon: 'images-outline',
   },
   {
-    id: 'zapper',
-    name: 'Zapper',
-    url: 'https://zapper.xyz',
-    description: 'See everything you hold, across chains, in one view.',
-    icon: 'pie-chart-outline',
-  },
-  {
     id: 'etherscan',
     name: 'Etherscan',
     url: 'https://etherscan.io',
