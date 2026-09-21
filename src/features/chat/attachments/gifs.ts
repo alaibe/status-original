@@ -26,39 +26,45 @@ export async function searchGifs(
   limit = 24
 ): Promise<Gif[]> {
   const url =
-    `https://tenor.googleapis.com/v2/search?key=${encodeURIComponent(key)}` +
-    `&q=${encodeURIComponent(query)}&limit=${limit}&media_filter=tinygif` +
-    `&contentfilter=medium`;
+    `https://api.klipy.com/api/v1/${encodeURIComponent(key)}/gifs/search` +
+    `?q=${encodeURIComponent(query)}&per_page=${limit}&rating=pg`;
 
   const response = await fetch(url);
   if (!response.ok) {
+    // KLIPY answers an unknown key with 404, not 401.
     throw new HttpError(
       response.status,
-      response.status === 403 || response.status === 401
+      [401, 403, 404].includes(response.status)
         ? 'That GIF key was rejected. Check it in Settings.'
         : `GIF search failed (${response.status})`
     );
   }
 
+  type KlipyFile = { url: string; width: number; height: number; size: number };
   const body = (await response.json()) as {
-    results?: {
-      id: string;
-      content_description?: string;
-      media_formats?: Record<string, { url: string; dims: [number, number] }>;
-    }[];
+    data?: {
+      data?: {
+        id: number;
+        title?: string;
+        type?: string;
+        file?: Partial<Record<'xs' | 'sm' | 'md' | 'hd', { gif?: KlipyFile }>>;
+      }[];
+    };
   };
 
-  return (body.results ?? [])
-    .map((result) => {
-      const tiny = result.media_formats?.tinygif;
-      if (!tiny) return null;
+  return (body.data?.data ?? [])
+    .map((item) => {
+      // Results can interleave `type: 'ad'` items.
+      const { md, sm, xs } = item.file ?? {};
+      const full = [md?.gif, sm?.gif, xs?.gif].find((f) => f && f.size <= INLINE_LIMIT_BYTES);
+      if (item.type !== 'gif' || !sm?.gif || !full) return null;
       return {
-        id: result.id,
-        url: tiny.url,
-        previewUrl: tiny.url,
-        width: tiny.dims?.[0] ?? 0,
-        height: tiny.dims?.[1] ?? 0,
-        description: result.content_description ?? 'GIF',
+        id: String(item.id),
+        url: full.url,
+        previewUrl: sm.gif.url,
+        width: full.width,
+        height: full.height,
+        description: item.title ?? 'GIF',
       };
     })
     .filter((g): g is Gif => g !== null);

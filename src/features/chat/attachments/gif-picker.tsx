@@ -45,8 +45,8 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
       {key === null ? (
         <View className="gap-3">
           <Text variant="footnote">
-            GIF search needs a Tenor key, which you add in Settings. There is no free keyless GIF
-            API, and this app does not ship credentials of its own.
+            GIF search needs a KLIPY key, which you add in Settings. There is no keyless GIF API,
+            and this app does not ship credentials of its own.
           </Text>
           <Text variant="footnote">
             You can still send GIFs without one: pick them from your photo library like any other
@@ -101,6 +101,10 @@ export function GifPicker({ visible, onClose, onPick }: GifPickerProps) {
               </View>
             </ScrollView>
           )}
+
+          <Text variant="micro" className="text-right">
+            GIFs by KLIPY
+          </Text>
         </View>
       )}
     </Sheet>

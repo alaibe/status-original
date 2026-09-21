@@ -29,7 +29,7 @@ for that network, or to one you set with `/rpc`. That endpoint sees the
 addresses you look at and the transactions you send.
 
 Prices come from a public market data endpoint with no account and no
-identifier. Token balances use Alchemy and GIF search uses Tenor, each only if
+identifier. Token balances use Alchemy and GIF search uses KLIPY, each only if
 you enter your own key for it.
 
 ## What stays on your device

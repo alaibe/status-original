@@ -54,7 +54,7 @@ reader will want to know.
 | Blockchain reads and sends | Direct from the device to a public endpoint, or the user's own if set. That endpoint sees the addresses looked at. Said in the app under `/rpc`. | `src/lib/evm/chains.ts`, `src/plugins/wallet/{bitcoin,solana}` |
 | Prices | Public market endpoint, no account, no identifier. | `src/plugins/markets/api.ts` |
 | Token balances | Alchemy, only if the user supplies their own key. | `src/lib/evm/tokens.ts` |
-| GIF search | Tenor, only if the user supplies their own key. | `src/features/chat/attachments/gifs.ts` |
+| GIF search | KLIPY, only if the user supplies their own key. | `src/features/chat/attachments/gifs.ts` |
 | Push notifications | Local notifications only; no push token is registered with a server. | `src/core/app/use-notifications.ts` |
 
 ## Permission strings

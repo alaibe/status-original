@@ -91,7 +91,7 @@ than from Expo's precompiled frameworks for the same reason; `docs/deploying.md`
 has the details and the crash reports behind that choice.
 
 WalletConnect needs a project ID from Reown Cloud in
-`expo.extra.walletConnectProjectId`. Alchemy and Tenor keys are optional and
+`expo.extra.walletConnectProjectId`. Alchemy and KLIPY keys are optional and
 entered per account inside the app.
 
 Android has not been built or run yet. The native project generates, but

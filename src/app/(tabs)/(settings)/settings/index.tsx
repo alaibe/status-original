@@ -203,7 +203,7 @@ export default function SettingsScreen() {
           <ListItem
             testID="settings-gifs"
             title="GIFs"
-            subtitle={gifKey ? 'Search is on' : 'Add a Tenor key to search GIFs'}
+            subtitle={gifKey ? 'Search is on' : 'Add a KLIPY key to search GIFs'}
             leading={<RowIcon name="happy-outline" tone="green" />}
             trailing={<Chevron />}
             onPress={() => router.push('/settings/gifs')}
