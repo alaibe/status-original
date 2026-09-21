@@ -25,9 +25,9 @@ Built with Expo SDK 57, React Native 0.86 and React 19.2.
   Trezor, Keystone), with optional biometric unlock.
 - Plugins that ship in the binary and switch on per account: a wallet for
   Ethereum, Bitcoin and Solana, price alerts, profile tools, local bot rooms,
-  and a dapp browser that connects sites in the system browser back to the
-  wallet over WalletConnect (Uniswap, CoW Swap, 1inch, Matcha, SushiSwap,
-  Curve).
+  and a browser plugin with bookmarks that connects sites in the system
+  browser back to the wallet over WalletConnect (Uniswap, CoW Swap, 1inch,
+  Matcha, SushiSwap, Curve).
 
 The app has three tabs: Chats, Contacts and Settings. The local Status room
 holds help and plugin commands. In any chat, `/` opens a command picker and
@@ -36,8 +36,8 @@ the same commands.
 
 Some commands worth knowing: `/networks` turns chains on and off and picks the
 default, `/send` and `/request` start on that default unless you pass
-`--chain`, `/scan` reads a WalletConnect code, and `/browse matcha` opens a
-dapp. Sending shows a review step first and signs nothing until you confirm.
+`--chain`, `/scan` reads a WalletConnect code, and `/open matcha` opens a
+bookmark. Sending shows a review step first and signs nothing until you confirm.
 
 ## Architecture
 

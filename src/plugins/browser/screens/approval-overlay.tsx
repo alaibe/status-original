@@ -22,10 +22,10 @@ export function makeApprovalOverlay(context: PluginContext) {
       <Sheet
         visible
         onClose={reject}
-        title={isProposal ? 'Connect to dapp' : (described?.title ?? 'Request')}>
+        title={isProposal ? 'Connect to site' : (described?.title ?? 'Request')}>
         <View className="gap-3">
           <View className="gap-1 rounded-card bg-surface-sunken p-3">
-            <Text className="font-semibold">{isProposal ? metadata?.name : head.dappName}</Text>
+            <Text className="font-semibold">{isProposal ? metadata?.name : head.siteName}</Text>
             {isProposal && metadata?.url ? <Text variant="caption">{metadata.url}</Text> : null}
             {described ? (
               <Text variant="footnote" className="mt-1">
@@ -36,7 +36,7 @@ export function makeApprovalOverlay(context: PluginContext) {
 
           {isProposal ? (
             <View className="gap-1.5">
-              <Text variant="caption">This dapp will be able to:</Text>
+              <Text variant="caption">This site will be able to:</Text>
               <Text variant="footnote">• See your address</Text>
               <Text variant="footnote">• Ask you to sign messages and transactions</Text>
               <Text variant="caption" className="mt-1">

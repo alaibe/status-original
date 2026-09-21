@@ -25,7 +25,7 @@ export const APP_METADATA: {
   },
 };
 
-export interface Dapp {
+export interface Bookmark {
   id: string;
   name: string;
   url: string;
@@ -34,7 +34,7 @@ export interface Dapp {
   custom?: boolean;
 }
 
-export const FEATURED_DAPPS: Dapp[] = [
+export const SUGGESTED_BOOKMARKS: Bookmark[] = [
   {
     id: 'uniswap',
     name: 'Uniswap',

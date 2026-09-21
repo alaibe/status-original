@@ -32,7 +32,7 @@ export type PendingItem =
       method: string;
       params: unknown[];
       chainId: string;
-      dappName: string;
+      siteName: string;
     };
 
 interface WalletConnectState {
@@ -105,7 +105,7 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
               method: event.params.request.method,
               params: event.params.request.params as unknown[],
               chainId: event.params.chainId,
-              dappName: session?.peer.metadata.name ?? 'A dapp',
+              siteName: session?.peer.metadata.name ?? 'A site',
             },
           ],
         }));

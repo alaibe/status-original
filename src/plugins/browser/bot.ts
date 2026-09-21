@@ -2,39 +2,40 @@ import type { Bot, PluginContext } from '@/core/plugins/types';
 import { W } from '@/design/widgets';
 
 import { walletConnectProjectId } from './config';
-import { enabledDapps } from './dapps';
+import { bookmarks } from './bookmarks';
 
+// The room's history is stored under this id; it kept it when the room was renamed.
 export const BROWSER_BOT_ID = 'dapps';
 
 export function makeBrowserBot(context: PluginContext): Bot {
   return {
     id: BROWSER_BOT_ID,
-    name: 'Dapps',
+    name: 'Browser',
     tagline: 'Your wallet, in the browser',
     emoji: '🌐',
 
     greeting: () => [
-      'Dapps open in your own browser and connect back to this wallet over WalletConnect, so your existing sessions and extensions keep working.',
+      'Sites open in your own browser and connect back to this wallet over WalletConnect, so your existing sessions and extensions keep working.',
       {
         kind: 'widget',
-        fallback: '/dapps, /browse, /adddapp, /scan, /connect',
+        fallback: '/bookmarks, /open, /bookmark, /scan, /connect',
         widget: W.card(
           [
             W.list([
               {
-                title: '/dapps',
-                subtitle: 'The sites you can open, and which are switched on',
-                actions: [{ label: 'Show them', command: '/dapps' }],
+                title: '/bookmarks',
+                subtitle: 'The sites you can open',
+                actions: [{ label: 'Show them', command: '/bookmarks' }],
               },
               {
-                title: '/browse uniswap',
-                subtitle: 'Open one by name, or any address',
-                actions: [{ label: 'Try it', command: '/draft /browse ' }],
+                title: '/open uniswap',
+                subtitle: 'Open a bookmark by name, or any address',
+                actions: [{ label: 'Try it', command: '/draft /open ' }],
               },
               {
-                title: '/adddapp',
+                title: '/bookmark',
                 subtitle: 'Add a site of your own',
-                actions: [{ label: 'Add one', command: '/adddapp' }],
+                actions: [{ label: 'Add one', command: '/bookmark' }],
               },
               {
                 title: '/scan',
@@ -53,7 +54,7 @@ export function makeBrowserBot(context: PluginContext): Bot {
                 : 'Connecting is switched off: no WalletConnect project id is configured. Browsing still works; signing does not.'
             ),
           ],
-          { title: 'Dapps', icon: 'compass-outline' }
+          { title: 'Browser', icon: 'compass-outline' }
         ),
       },
     ],
@@ -67,15 +68,15 @@ export function makeBrowserBot(context: PluginContext): Bot {
       }
 
       if (/^https?:\/\//i.test(trimmed)) {
-        await ctx.say(`Open it with /browse ${trimmed}.`);
+        await ctx.say(`Open it with /open ${trimmed}.`);
         return;
       }
 
-      const on = await enabledDapps(context);
+      const saved = await bookmarks(context);
       await ctx.say(
-        on.length === 0
-          ? 'Every dapp is switched off. /dapps turns one back on, or /adddapp adds your own.'
-          : `/dapps lists what is here, /browse ${on[0].id} opens one, and /scan scans its WalletConnect code. Use /connect for a pairing link.`
+        saved.length === 0
+          ? 'No bookmarks yet. /bookmark adds a site, or brings back one you removed.'
+          : `/bookmarks lists what is here, /open ${saved[0].id} opens one, and /scan scans its WalletConnect code. Use /connect for a pairing link.`
       );
     },
   };

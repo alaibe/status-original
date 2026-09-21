@@ -6,24 +6,24 @@ import { makeApprovalOverlay } from './screens/approval-overlay';
 import { makeScanOverlay } from './screens/scan-overlay';
 import { W } from '@/design/widgets';
 
-import type { Dapp } from './config';
-import { addDapp, allDapps, findDapp, hostOf, offIds, removeDapp, setDappEnabled } from './dapps';
+import type { Bookmark } from './config';
+import { addBookmark, bookmarks, findBookmark, hostOf, removeBookmark } from './bookmarks';
 import { useWalletConnectStore } from './walletconnect';
 import { errorMessage } from '@/core/errors';
 
 export const browserPlugin: Plugin = {
   manifest: {
     id: 'browser',
-    name: 'Web3 Browser',
+    name: 'Browser',
     description:
-      'Open dapps in your system browser and connect them to your wallet over WalletConnect.',
+      'Open bookmarked sites in your system browser and connect them to your wallet over WalletConnect.',
     version: '1.0.0',
     icon: 'compass-outline',
     permissions: ['identity.read', 'identity.sign', 'browser.open', 'network', 'storage'],
   },
 
   setup(context) {
-    const views = liveViews(context, { dapps: () => dappsCard(context) });
+    const views = liveViews(context, { bookmarks: () => bookmarksCard(context) });
     return {
       overlays: [
         { id: 'wc-approval', component: makeApprovalOverlay(context) },
@@ -34,10 +34,10 @@ export const browserPlugin: Plugin = {
 
       composerActions: [
         {
-          id: 'dapps',
-          label: 'Dapps',
-          icon: 'compass-outline',
-          command: '/dapps',
+          id: 'bookmarks',
+          label: 'Bookmarks',
+          icon: 'book-outline',
+          command: '/bookmarks',
           showIn: ['channel'],
         },
         {
@@ -48,10 +48,10 @@ export const browserPlugin: Plugin = {
           showIn: ['channel'],
         },
         {
-          id: 'adddapp',
-          label: 'Add dapp',
+          id: 'bookmark',
+          label: 'Add bookmark',
           icon: 'add-circle-outline',
-          command: '/adddapp',
+          command: '/bookmark',
           showIn: ['channel'],
         },
       ],
@@ -60,16 +60,16 @@ export const browserPlugin: Plugin = {
 
       commands: [
         {
-          name: 'browse',
+          name: 'open',
           showIn: ['channel'],
-          aliases: ['open'],
-          description: 'Open a dapp, or any URL, with this wallet ready',
-          usage: '/browse <uniswap | app.aave.com>',
+          aliases: ['browse'],
+          description: 'Open a bookmark, or any URL, with this wallet ready',
+          usage: '/open <uniswap | app.aave.com>',
           async run({ rest, context: ctx, respond }) {
             const target = rest.trim();
-            if (!target) return { type: 'error', message: 'Which site? /browse uniswap' };
+            if (!target) return { type: 'error', message: 'Which site? /open uniswap' };
 
-            const known = await findDapp(context, target);
+            const known = await findBookmark(context, target);
             if (known) {
               await respond(
                 `Opening ${known.name}. Choose Connect → WalletConnect there and the request ` +
@@ -82,7 +82,7 @@ export const browserPlugin: Plugin = {
             if (!/\./.test(target)) {
               return {
                 type: 'error',
-                message: `No dapp called "${target}", and that is not a web address. /dapps lists what is here.`,
+                message: `No bookmark called "${target}", and that is not a web address. /bookmarks lists what is here.`,
               };
             }
 
@@ -92,42 +92,27 @@ export const browserPlugin: Plugin = {
           },
         },
         {
-          name: 'dapps',
+          name: 'bookmarks',
           showIn: ['channel'],
-          description: 'The sites you can open, and which are switched on',
-          usage: '/dapps [name] [off]',
-          async run({ args, respond }) {
-            const [name, verb] = args;
-
-            if (name) {
-              const dapp = await findDapp(context, name);
-              if (!dapp) {
-                return { type: 'error', message: `No dapp called "${name}". /dapps lists them.` };
-              }
-              await setDappEnabled(context, dapp.id, verb !== 'off');
-              return {
-                type: 'notice',
-                tone: 'success',
-                message: `${dapp.name} is ${verb === 'off' ? 'off' : 'on'}`,
-              };
-            }
-
-            await respond(await views.dapps());
+          description: 'The sites you can open',
+          usage: '/bookmarks',
+          async run({ respond }) {
+            await respond(await views.bookmarks());
             return { type: 'handled' };
           },
         },
 
         {
-          name: 'adddapp',
+          name: 'bookmark',
           showIn: ['channel'],
-          description: 'Add a site of your own',
-          usage: '/adddapp <url> [name]',
+          description: 'Add a site of your own, or bring back one you removed',
+          usage: '/bookmark <url> [name]',
           async run({ args, respond }) {
             const [url, ...nameParts] = args;
             if (!url) {
               await respond({
                 kind: 'widget',
-                fallback: 'Add a dapp',
+                fallback: 'Add a bookmark',
                 widget: W.card(
                   [
                     W.form(
@@ -140,7 +125,7 @@ export const browserPlugin: Plugin = {
                           optional: true,
                         },
                       ],
-                      { label: 'Add it', command: '/adddapp {url} {name}' }
+                      { label: 'Add it', command: '/bookmark {url} {name}' }
                     ),
                     W.text(
                       'It opens in your system browser like the rest, and connects back over ' +
@@ -149,37 +134,45 @@ export const browserPlugin: Plugin = {
                         'only add one you trust.'
                     ),
                   ],
-                  { title: 'Add a dapp', icon: 'add-circle-outline' }
+                  { title: 'Add a bookmark', icon: 'add-circle-outline' }
                 ),
               });
               return { type: 'handled' };
             }
 
-            const added = await addDapp(context, url, nameParts.join(' '));
+            const added = await addBookmark(context, url, nameParts.join(' '));
             if ('error' in added) return { type: 'error', message: added.error };
 
-            return { type: 'notice', tone: 'success', message: `Added ${added.dapp.name}` };
+            return {
+              type: 'notice',
+              tone: 'success',
+              message: `${added.restored ? 'Restored' : 'Added'} ${added.bookmark.name}`,
+            };
           },
         },
 
         {
-          name: 'removedapp',
+          name: 'unbookmark',
           showIn: ['channel'],
-          description: 'Remove a site you added',
-          usage: '/removedapp <name>',
+          description: 'Remove a site from the list',
+          usage: '/unbookmark <name>',
           async run({ args }) {
             const [name] = args;
-            if (!name) return { type: 'error', message: 'Which one? /dapps lists them.' };
+            if (!name) return { type: 'error', message: 'Which one? /bookmarks lists them.' };
 
-            const dapp = await findDapp(context, name);
-            if (!dapp) {
-              return { type: 'error', message: `No dapp called "${name}". /dapps lists them.` };
+            const bookmark = await findBookmark(context, name);
+            if (!bookmark) {
+              return { type: 'error', message: `No bookmark called "${name}". /bookmarks lists them.` };
             }
 
-            const removed = await removeDapp(context, dapp.id);
-            if ('error' in removed) return { type: 'error', message: removed.error };
-
-            return { type: 'notice', tone: 'success', message: `Removed ${removed.removed.name}` };
+            await removeBookmark(context, bookmark);
+            return {
+              type: 'notice',
+              tone: 'success',
+              message: bookmark.custom
+                ? `Removed ${bookmark.name}`
+                : `Removed ${bookmark.name}. /bookmark ${bookmark.id} brings it back.`,
+            };
           },
         },
 
@@ -342,69 +335,45 @@ export const browserPlugin: Plugin = {
 };
 
 
-async function dappsCard(context: PluginContext) {
-  const [dapps, off] = await Promise.all([allDapps(context), offIds(context).then((ids) => new Set(ids))]);
-  const on = dapps.filter((d) => !off.has(d.id));
+async function bookmarksCard(context: PluginContext) {
+  const saved = await bookmarks(context);
 
   return {
     kind: 'widget' as const,
-    fallback: on.map((d) => d.name).join(' · ') || 'No dapps switched on',
+    fallback: saved.map((b) => b.name).join(' · ') || 'No bookmarks',
     widget: W.card(
       [
         W.list(
-          dapps.map((dapp: Dapp) => {
-            const enabled = !off.has(dapp.id);
-            return {
-              title: dapp.name,
-              subtitle: dapp.description,
-              icon: dapp.icon,
-              state: enabled ? ('on' as const) : ('off' as const),
-              status: enabled ? hostOf(dapp.url) : undefined,
-              tone: enabled ? ('brand' as const) : undefined,
-              // Opening it is what you came for, so it leads and its glyph is
-              // what the row shows. Switching off and removing sit behind it.
-              actions: enabled
-                ? [
-                    {
-                      label: `Open ${dapp.name}`,
-                      command: `/browse ${dapp.id}`,
-                      icon: 'open-outline' as const,
-                    },
-                    {
-                      label: `Switch ${dapp.name} off`,
-                      command: `/dapps ${dapp.id} off`,
-                      icon: 'power' as const,
-                      tone: 'neutral' as const,
-                    },
-                    ...(dapp.custom
-                      ? [
-                          {
-                            label: `Remove ${dapp.name}`,
-                            command: `/removedapp ${dapp.id}`,
-                            icon: 'trash-outline' as const,
-                            tone: 'danger' as const,
-                          },
-                        ]
-                      : []),
-                  ]
-                :
-                  [
-                    {
-                      label: `Switch ${dapp.name} on`,
-                      command: `/dapps ${dapp.id}`,
-                      icon: 'power' as const,
-                    },
-                  ],
-            };
-          })
+          saved.map((bookmark: Bookmark) => ({
+            title: bookmark.name,
+            subtitle: bookmark.description,
+            icon: bookmark.icon,
+            status: hostOf(bookmark.url),
+            tone: 'brand' as const,
+            // Opening it is what you came for, so it leads and its glyph is
+            // what the row shows. Removing sits behind it.
+            actions: [
+              {
+                label: `Open ${bookmark.name}`,
+                command: `/open ${bookmark.id}`,
+                icon: 'open-outline' as const,
+              },
+              {
+                label: `Remove ${bookmark.name}`,
+                command: `/unbookmark ${bookmark.id}`,
+                icon: 'trash-outline' as const,
+                tone: 'danger' as const,
+              },
+            ],
+          }))
         ),
         W.text(
           'Sites open in your system browser, not inside this app, so your existing sessions ' +
             'keep working and no page ever runs here. To connect one, choose WalletConnect ' +
-            'there and the request comes back for approval. /adddapp adds your own.'
+            'there and the request comes back for approval. /bookmark adds your own.'
         ),
       ],
-      { title: 'Dapps', icon: 'compass-outline' }
+      { title: 'Bookmarks', icon: 'book-outline' }
     ),
   };
 }

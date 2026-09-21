@@ -112,9 +112,9 @@ export function assistantCommands(views: { plugins: PluginView }): SlashCommand[
               W.actions([
                 { label: 'Which plugins are on?', command: '/plugins', tone: 'neutral' as const },
               ]),
-              // A link: `/browse` belongs to the Web3 Browser's own room, so a
-              // button running it from here would answer "that belongs to Web3
-              // Browser". The link opens the site with no plugin switched on.
+              // A link: `/open` belongs to the Browser's own room, so a button
+              // running it from here would answer "that belongs to Browser". The
+              // link opens the site with no plugin switched on.
               W.link(
                 name ? `${name} on ENS` : 'Get a name at app.ens.domains',
                 'https://app.ens.domains'

@@ -28,8 +28,8 @@ Keychain, and `00-onboarding` creates the account required by later flows.
 | `03-plugins` | Enables and disables a plugin and its room. |
 | `04-status` | Persists a unique message in the local Status room. |
 | `05-settings` | Opens settings screens and cancels account erasure. |
-| `06-dapps` | Checks `/commands` discovery and its room-specific list, scrolls the full slash picker to Scan, opens Scan through each entry point, and keeps swap providers in Dapps. |
-| `07-browse` | Opens a dapp with `/browse` in Safari, comes back, and checks the composer is free again. |
+| `06-browser` | Checks `/commands` discovery and its room-specific list, scrolls the full slash picker to Scan, opens Scan through each entry point, and keeps swap providers in the Browser room. |
+| `07-open` | Opens a bookmark with `/open` in Safari, comes back, and checks the composer is free again. |
 
 Shared steps live in `e2e/lib/`: `open-status-room` launches into the Status
 room and `send-command` sends its `TEXT` parameter from the composer. Maestro

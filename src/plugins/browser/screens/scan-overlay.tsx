@@ -10,7 +10,7 @@ import { errorMessage } from '@/core/errors';
 import { useWalletConnectStore } from '../walletconnect';
 
 /**
- * Scanning the QR a dapp shows. The camera is only open while this is on
+ * Scanning the QR a site shows. The camera is only open while this is on
  * screen, and a `wc:` URI is the only thing acted on. Anything else scanned
  * is ignored, because a QR code is an untrusted string a stranger controls.
  */

@@ -21,7 +21,7 @@ appId: com.statusoriginal.app
 - tapOn: "Stop scanning"
 - extendedWaitUntil:
     visible:
-      id: "quick-dapps"
+      id: "quick-bookmarks"
     timeout: 10000
 - tapOn:
     id: "composer-input"
@@ -57,10 +57,10 @@ appId: com.statusoriginal.app
 - tapOn: "Stop scanning"
 - extendedWaitUntil:
     visible:
-      id: "quick-dapps"
+      id: "quick-bookmarks"
     timeout: 10000
 - tapOn:
-    id: "quick-dapps"
+    id: "quick-bookmarks"
 - scrollUntilVisible:
     element: "Matcha,.*"
     direction: UP
@@ -77,5 +77,5 @@ appId: com.statusoriginal.app
 - tapOn: "Stop scanning"
 - extendedWaitUntil:
     visible:
-      id: "quick-dapps"
+      id: "quick-bookmarks"
     timeout: 10000

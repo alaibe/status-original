@@ -1,4 +1,4 @@
-# Opens a dapp in the system browser and comes back with the composer free again.
+# Opens a bookmark in the system browser and comes back with the composer free again.
 appId: com.statusoriginal.app
 ---
 - launchApp
@@ -21,19 +21,19 @@ appId: com.statusoriginal.app
 
 - tapOn:
     id: "composer-input"
-- inputText: "/browse uniswap"
+- inputText: "/open uniswap"
 - tapOn:
     id: "composer-send"
 - runFlow: lib/expect-safari-uniswap.yaml
 - extendedWaitUntil:
     visible: "Opening Uniswap.*"
     timeout: 10000
-- assertNotVisible: "Running /browse.*"
+- assertNotVisible: "Running /open.*"
 
 # The same through a widget row's action sheet, which has to finish closing
 # before anything else can be presented.
 - tapOn:
-    id: "quick-dapps"
+    id: "quick-bookmarks"
 - extendedWaitUntil:
     visible: "Aave.*"
     timeout: 15000
@@ -43,7 +43,7 @@ appId: com.statusoriginal.app
     timeout: 5000
 - tapOn: "Open Aave"
 - runFlow: lib/expect-safari-aave.yaml
-- assertNotVisible: "Running /browse.*"
+- assertNotVisible: "Running /open.*"
 - tapOn:
     id: "composer-input"
 - inputText: "hello"
