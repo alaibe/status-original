@@ -30,8 +30,7 @@ const NODE_SHIMS = {
  * These ship a `browser` field that points at files their `exports` map does
  * not list. Metro applies the redirect, then warns that the redirected path is
  * not exported, then falls back to that very file. Resolving them without
- * package exports lands on the same file without the warning. Web keeps the
- * exports map: `uint8arrays/from-string` only exists through it.
+ * package exports lands on the same file without the warning.
  */
 const BROWSER_FIELD_OVER_EXPORTS = /^(uint8arrays|multiformats|@noble\/hashes)(\/|$)/;
 
@@ -59,7 +58,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && moduleName === 'react/jsx-runtime' && INTEROP_JSX_ON_WEB.test(context.originModulePath)) {
     moduleName = 'react-native-css-interop/jsx-runtime';
   }
-  if (platform !== 'web' && BROWSER_FIELD_OVER_EXPORTS.test(moduleName)) {
+  if (BROWSER_FIELD_OVER_EXPORTS.test(moduleName)) {
     context = { ...context, unstable_enablePackageExports: false };
   }
   return upstream
