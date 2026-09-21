@@ -1,11 +1,6 @@
-import { BlurView } from 'expo-blur';
-import { Modal, Pressable as RNPressable, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { cn } from '../lib/cn';
-import { Enter, Exit } from '../motion';
-import { Text } from './text';
+import { router } from 'expo-router';
+import { useEffect, useId, useRef } from 'react';
+import { create } from 'zustand';
 
 export interface SheetProps {
   visible: boolean;
@@ -15,42 +10,52 @@ export interface SheetProps {
   className?: string;
 }
 
-export function Sheet({ visible, onClose, title, children, className }: SheetProps) {
-  const insets = useSafeAreaInsets();
+interface Presented extends Omit<SheetProps, 'visible'> {
+  id: string;
+}
 
-  return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={Enter.fade()} exiting={Exit.fade()} className="flex-1">
-        {process.env.EXPO_OS === 'web' ? (
-          <View className="absolute inset-0 bg-black/50" />
-        ) : (
-          <BlurView intensity={24} tint="dark" className="absolute inset-0" />
-        )}
+/** What the `/sheet` route renders. One sheet at a time, the way native form sheets work. */
+export const useSheetStore = create<{ current: Presented | null }>(() => ({ current: null }));
 
-        <RNPressable
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          onPress={onClose}
-          className="flex-1"
-        />
+function owns(id: string) {
+  return useSheetStore.getState().current?.id === id;
+}
 
-        <Animated.View
-          entering={Enter.sheet()}
-          exiting={Exit.sheet()}
-          style={{ paddingBottom: insets.bottom + 16 }}
-          className={cn(
-            'rounded-t-[28px] border-t border-line bg-surface-raised px-gutter pt-2',
-            className
-          )}>
-          <View className="mb-3 h-1 w-10 self-center rounded-pill bg-line-strong" />
-          {title ? (
-            <Text variant="title" className="mb-3">
-              {title}
-            </Text>
-          ) : null}
-          {children}
-        </Animated.View>
-      </Animated.View>
-    </Modal>
+/**
+ * Presents `children` in the native form sheet route while `visible`. Renders
+ * nothing where it is declared; the route reads the latest props from the store.
+ */
+export function Sheet({ visible, ...spec }: SheetProps) {
+  const id = useId();
+  const presented = useRef(false);
+
+  useEffect(() => {
+    if (visible === presented.current) return;
+    presented.current = visible;
+    if (visible) {
+      useSheetStore.setState({ current: { id, ...spec } });
+      router.push('/sheet');
+    } else if (owns(id)) {
+      useSheetStore.setState({ current: null });
+      router.back();
+    }
+    // Only the transition matters here; the effect below keeps the content fresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  useEffect(() => {
+    if (presented.current && owns(id)) useSheetStore.setState({ current: { id, ...spec } });
+  });
+
+  useEffect(
+    () => () => {
+      if (presented.current && owns(id)) {
+        useSheetStore.setState({ current: null });
+        router.back();
+      }
+    },
+    [id]
   );
+
+  return null;
 }

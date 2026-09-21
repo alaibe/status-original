@@ -6,8 +6,6 @@ import {
   FadeInUp,
   FadeOut,
   ReduceMotion,
-  SlideInDown,
-  SlideOutDown,
   type WithSpringConfig,
 } from 'react-native-reanimated';
 
@@ -18,14 +16,6 @@ export const Spring = {
     damping: 28,
     stiffness: 320,
     mass: 0.6,
-    overshootClamping: true,
-    reduceMotion: R,
-  } satisfies WithSpringConfig,
-
-  surface: {
-    damping: 30,
-    stiffness: 220,
-    mass: 1,
     overshootClamping: true,
     reduceMotion: R,
   } satisfies WithSpringConfig,
@@ -84,18 +74,10 @@ export const Enter = {
       .easing(EASE_OUT)
       .withInitialValues({ transform: [{ translateY: 16 }] })
       .reduceMotion(R),
-
-  sheet: () =>
-    SlideInDown.springify()
-      .damping(Spring.surface.damping)
-      .stiffness(Spring.surface.stiffness)
-      .mass(Spring.surface.mass)
-      .reduceMotion(R),
 } as const;
 
 export const Exit = {
   fade: () => FadeOut.duration(Duration.fast).reduceMotion(R),
-  sheet: () => SlideOutDown.duration(Duration.base).easing(Easing.in(Easing.cubic)).reduceMotion(R),
 } as const;
 
 export function stagger(index: number, step = 16, max = 120) {

@@ -131,6 +131,15 @@ function AppShell() {
           name="qr"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen
+          name="sheet"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            contentStyle: { backgroundColor: colors['surface-raised'] },
+          }}
+        />
       </Stack>
       <PluginOverlays />
       <ToastHost />
