@@ -4,4 +4,4 @@ appId: com.apple.mobilesafari
 - extendedWaitUntil:
     visible: "Aave.*"
     timeout: 30000
-- openLink: "statusoriginal://chat/local-dapps"
+- openLink: "statusoriginal://chat/local-browser"

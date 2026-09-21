@@ -8,7 +8,7 @@ appId: com.statusoriginal.app
     timeout: 15000
 - waitForAnimationToEnd:
     timeout: 5000
-- openLink: "statusoriginal://chat/local-dapps"
+- openLink: "statusoriginal://chat/local-browser"
 - runFlow:
     when:
       visible: "Open"

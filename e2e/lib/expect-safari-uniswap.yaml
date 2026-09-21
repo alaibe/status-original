@@ -4,4 +4,4 @@ appId: com.apple.mobilesafari
 - extendedWaitUntil:
     visible: "Get started"
     timeout: 30000
-- openLink: "statusoriginal://chat/local-dapps"
+- openLink: "statusoriginal://chat/local-browser"

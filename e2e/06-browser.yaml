@@ -8,9 +8,9 @@ appId: com.statusoriginal.app
 - tapOn: "Back"
 - extendedWaitUntil:
     visible:
-      id: "conversation-local-dapps"
+      id: "conversation-local-browser"
     timeout: 15000
-- openLink: "statusoriginal://chat/local-dapps"
+- openLink: "statusoriginal://chat/local-browser"
 - assertNotVisible:
     id: "quick-swap"
 - tapOn:

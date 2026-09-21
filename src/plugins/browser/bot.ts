@@ -4,8 +4,7 @@ import { W } from '@/design/widgets';
 import { walletConnectProjectId } from './config';
 import { bookmarks } from './bookmarks';
 
-// The room's history is stored under this id; it kept it when the room was renamed.
-export const BROWSER_BOT_ID = 'dapps';
+export const BROWSER_BOT_ID = 'browser';
 
 export function makeBrowserBot(context: PluginContext): Bot {
   return {

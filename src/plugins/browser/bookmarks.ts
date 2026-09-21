@@ -2,9 +2,8 @@ import type { PluginContext } from '@/core/plugins/types';
 
 import { SUGGESTED_BOOKMARKS, type Bookmark } from './config';
 
-// Keys predate the bookmark vocabulary; renaming them would drop what people saved.
-const STORAGE_HIDDEN = 'dapps-off';
-const STORAGE_CUSTOM = 'dapps-custom';
+const STORAGE_HIDDEN = 'bookmarks-hidden';
+const STORAGE_CUSTOM = 'bookmarks-custom';
 
 async function custom(context: PluginContext): Promise<Bookmark[]> {
   const saved = (await context.storage.get<Bookmark[]>(STORAGE_CUSTOM)) ?? [];
