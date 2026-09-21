@@ -8,8 +8,7 @@ appId: com.statusoriginal.app
     env:
       TEXT: "/enable markets"
 
-- tapOn:
-    id: "BackButton"
+- tapOn: "Back"
 - extendedWaitUntil:
     visible:
       id: "conversation-local-markets"
@@ -25,14 +24,12 @@ appId: com.statusoriginal.app
     visible: "alert.*"
     timeout: 15000
 
-- tapOn:
-    id: "BackButton"
+- tapOn: "Back"
 - openLink: "statusoriginal://chat/local-status"
 - runFlow:
     file: lib/send-command.yaml
     env:
       TEXT: "/disable markets"
-- tapOn:
-    id: "BackButton"
+- tapOn: "Back"
 - assertNotVisible:
     id: "conversation-local-markets"

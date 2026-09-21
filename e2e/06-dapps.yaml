@@ -5,8 +5,7 @@ appId: com.statusoriginal.app
     file: lib/send-command.yaml
     env:
       TEXT: "/enable browser"
-- tapOn:
-    id: "BackButton"
+- tapOn: "Back"
 - extendedWaitUntil:
     visible:
       id: "conversation-local-dapps"

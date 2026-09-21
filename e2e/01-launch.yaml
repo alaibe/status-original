@@ -18,7 +18,6 @@ appId: com.statusoriginal.app
     id: "chat-header-local-status"
 - assertVisible:
     id: "composer-input"
-- tapOn:
-    id: "BackButton"
+- tapOn: "Back"
 - assertVisible:
     id: "conversation-local-status"
