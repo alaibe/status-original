@@ -21,6 +21,10 @@ import { useAppBoot, useAppLock, useDeepLinkRouter } from '@/core/app/boot';
 import { useMessageNotifications } from '@/core/app/use-notifications';
 import { PluginProvider, usePluginHost } from '@/core/plugins/host';
 import { LockGate } from '@/features/identity/lock-gate';
+import { AppFrame } from '@/features/navigation/app-frame';
+import { Dialog } from '@/features/navigation/dialog';
+import { DIALOG_ROUTES } from '@/features/navigation/routes';
+import { stackScreenOptions } from '@/features/navigation/stack-options';
 import { ALL_PLUGINS, DEFAULT_ENABLED_PLUGINS } from '@/plugins';
 
 Observe.configure({
@@ -28,6 +32,15 @@ Observe.configure({
     'expo-router': { filteredParams: ['id'] },
   },
 });
+
+/**
+ * On desktop every screen sits on the frame's wallpaper, so the navigator must
+ * not paint its own background behind them.
+ */
+function navigationTheme(theme: typeof DefaultTheme): typeof DefaultTheme {
+  if (process.env.EXPO_OS !== 'web') return theme;
+  return { ...theme, colors: { ...theme.colors, background: 'transparent' } };
+}
 
 function RootLayout() {
   const system = useSystemColorScheme();
@@ -42,7 +55,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={navigationTheme(scheme === 'dark' ? DarkTheme : DefaultTheme)}>
           <PluginProvider plugins={ALL_PLUGINS} defaultEnabled={DEFAULT_ENABLED_PLUGINS}>
             <AppShell />
           </PluginProvider>
@@ -91,6 +104,13 @@ function PluginOverlays() {
   );
 }
 
+const desktop = process.env.EXPO_OS === 'web';
+
+const SHEET_OPTIONS = {
+  presentation: desktop ? 'transparentModal' : 'modal',
+  animation: 'slide_from_bottom',
+} as const;
+
 function AppShell() {
   useAppBoot();
   useDeepLinkRouter();
@@ -107,30 +127,27 @@ function AppShell() {
   return (
     <View className="flex-1 bg-canvas">
       <StatusBar style={colors.scheme === 'dark' ? 'light' : 'dark'} />
+      <AppFrame>
       <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.canvas },
-          animation: 'slide_from_right',
-        }}>
+        screenOptions={{ headerShown: false, ...stackScreenOptions(colors) }}
+        screenLayout={
+          desktop
+            ? ({ route, children }) =>
+                DIALOG_ROUTES.has(route.name) ? <Dialog>{children}</Dialog> : <>{children}</>
+            : undefined
+        }>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="profile/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="profile/[id]"
+          options={{ animation: 'slide_from_right', presentation: desktop ? 'transparentModal' : 'card' }}
+        />
         <Stack.Screen name="recover" options={{ animation: 'fade' }} />
-        <Stack.Screen
-          name="new-chat"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="invite"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="qr"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
+        <Stack.Screen name="new-chat" options={SHEET_OPTIONS} />
+        <Stack.Screen name="invite" options={SHEET_OPTIONS} />
+        <Stack.Screen name="qr" options={SHEET_OPTIONS} />
         <Stack.Screen
           name="sheet"
           options={{
@@ -140,6 +157,7 @@ function AppShell() {
           }}
         />
       </Stack>
+      </AppFrame>
       <PluginOverlays />
       <ToastHost />
 

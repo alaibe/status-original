@@ -18,6 +18,7 @@ export { Glow } from './glow';
 export { ListItem } from './list-item';
 export { Pressable } from './pressable';
 export { Screen } from './screen';
+export { SearchField, type SearchFieldProps } from './search-field';
 export { ScreenTitle } from './screen-title';
 export { Section } from './section';
 export { Sheet } from './sheet';

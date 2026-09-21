@@ -59,4 +59,11 @@
     --color-warning: 240 170 45;
     --color-danger: 248 96 98;
   }
+
+  /* Desktop: the app draws its own focus states. Keyboard focus keeps the ring. */
+  input,
+  textarea,
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
 }

@@ -2,6 +2,8 @@ import { getDocumentAsync } from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
 import { INLINE_LIMIT_BYTES } from '@/core/messaging/attachments';
+
+import { compressPickedImage } from './compress-image';
 import type { MessageContent } from '@/core/messaging/types';
 
 const PHOTO_QUALITY = 0.5;
@@ -41,7 +43,7 @@ export async function pickImage(): Promise<MessageContent | null> {
     exif: false,
   });
   if (result.canceled || !result.assets[0]) return null;
-  return imageFrom(result.assets[0]);
+  return imageFrom(await compressPickedImage(result.assets[0]));
 }
 
 export async function takePhoto(): Promise<MessageContent | null> {
@@ -53,7 +55,7 @@ export async function takePhoto(): Promise<MessageContent | null> {
     exif: false,
   });
   if (result.canceled || !result.assets[0]) return null;
-  return imageFrom(result.assets[0]);
+  return imageFrom(await compressPickedImage(result.assets[0]));
 }
 
 export async function pickFile(): Promise<MessageContent | null> {

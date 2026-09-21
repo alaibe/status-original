@@ -37,3 +37,18 @@ export function u64le(value: bigint): Uint8Array {
   new DataView(out.buffer).setBigUint64(0, value, true);
   return out;
 }
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 4096) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 4096));
+  }
+  return globalThis.btoa(binary);
+}
+
+export function base64ToBytes(value: string): Uint8Array {
+  const binary = globalThis.atob(value);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}

@@ -3,7 +3,6 @@ import { Pressable as RNPressable, View } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
 
-import * as WebBrowser from 'expo-web-browser';
 
 import { cn, Icon, Text, toast, useThemeColors } from '@/design';
 import { usePluginHost } from '@/core/plugins/host';
@@ -17,6 +16,7 @@ import { FileBubble } from './attachments/file-bubble';
 import { ImageBubble } from './attachments/image-bubble';
 import { VoiceBubble } from './attachments/voice-bubble';
 import { formatTimestamp } from '@/core/messaging/preview';
+import { openInBrowser } from '@/lib/open-url';
 
 export interface MessageBubbleProps {
   message: ChatMessage;
@@ -277,10 +277,22 @@ function BubbleShell({
       <RNPressable
         ref={held ? undefined : bubbleRef}
         onLongPress={held || actions.length === 0 ? undefined : open}
+        // The desktop counterpart of the long-press. Spelled out rather than
+        // through `contextMenu()`: react-hooks/refs treats passing `open` to a
+        // call made during render as a ref read during render.
+        {...(process.env.EXPO_OS === 'web' && !held && actions.length > 0
+          ? {
+              onContextMenu: (event: { preventDefault(): void }) => {
+                event.preventDefault();
+                open();
+              },
+            }
+          : undefined)}
         delayLongPress={280}
         accessible={false}
         className={cn(
-          'max-w-[82%]',
+          // A wide window would otherwise stretch a bubble across the pane.
+          process.env.EXPO_OS === 'web' ? 'max-w-[min(82%,560px)]' : 'max-w-[82%]',
           bare
             ? ''
             : cn(
@@ -418,7 +430,7 @@ function copyableText(content: ChatMessage['content']): string | undefined {
 }
 
 const openUrl = (url: string) => {
-  WebBrowser.openBrowserAsync(url).catch(() => {});
+  openInBrowser(url).catch(() => {});
 };
 
 function LiveWidget({

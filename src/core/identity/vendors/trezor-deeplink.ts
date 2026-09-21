@@ -4,6 +4,7 @@ import type { Address, Hex } from 'viem';
 import { stripHex } from '@/lib/bytes';
 
 import { registerVendor, type HardwareSigner } from '../hardware';
+import { canOpenExternal, openExternal } from '@/lib/open-url';
 
 const SUITE_SCHEME = 'trezorsuitelite://';
 
@@ -66,14 +67,14 @@ async function callSuite(method: string, params: Record<string, string>): Promis
       .map(([key, value]) => `&${key}=${encodeURIComponent(value)}`)
       .join('');
 
-  if (!(await Linking.canOpenURL(SUITE_SCHEME))) {
+  if (!(await canOpenExternal(SUITE_SCHEME))) {
     throw new Error('Trezor Suite is not installed on this phone.');
   }
 
   const answer = new Promise<string>((resolve, reject) => {
     pending.set(id, { resolve, reject });
   });
-  await Linking.openURL(url);
+  await openExternal(url);
   return answer;
 }
 

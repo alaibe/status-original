@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 
 import { cn, Icon, Pressable, Text, useThemeColors } from '@/design';
 import { shortAddress } from '@/core/identity/keyring';
 import { SUPPORTED_CHAINS } from '@/lib/evm/chains';
 import { locateTransaction, type TransactionSummary } from '@/lib/evm/transactions';
+import { openInBrowser } from '@/lib/open-url';
 
 export function TransactionPreview({ hash, fromMe }: { hash: `0x${string}`; fromMe: boolean }) {
   const colors = useThemeColors();
@@ -43,7 +43,7 @@ export function TransactionPreview({ hash, fromMe }: { hash: `0x${string}`; from
       accessibilityRole="button"
       accessibilityLabel={`Transaction on ${summary.chainName}`}
       onPress={() => {
-        if (summary.explorerUrl) WebBrowser.openBrowserAsync(summary.explorerUrl).catch(() => {});
+        if (summary.explorerUrl) openInBrowser(summary.explorerUrl).catch(() => {});
       }}
       className={cn(
         'mt-1.5 gap-1 rounded-md border p-2',

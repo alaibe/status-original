@@ -35,14 +35,9 @@ import type {
 } from '@/core/messaging/types';
 import { isParticipantId } from '@/core/messaging/bots';
 import { PLUGIN_AUTHORITY } from './codec';
+import { fallbackFilename, fallbackMimeType, xmtpEnvironment } from './shared';
 
 
-export function xmtpEnvironment(): XMTPEnvironment {
-  const configured = process.env.EXPO_PUBLIC_XMTP_ENV;
-  return configured === 'dev' || configured === 'local' || configured === 'production'
-    ? configured
-    : 'production';
-}
 
 function signerForAccount(account: LocalAccount): Signer {
   return {
@@ -139,7 +134,7 @@ export class XmtpSession implements ChatSession {
     if (!conversation) return [];
 
     const messages = await conversation.messages({ limit: opts?.limit ?? 100 });
-    return messages.map((m) => this.toMessage(m, id)).reverse();
+    return (await Promise.all(messages.map((m) => this.toMessage(m, id)))).reverse();
   }
 
   async resolvePeer(addressOrId: string): Promise<ParticipantId | null> {
@@ -319,7 +314,7 @@ export class XmtpSession implements ChatSession {
     await this.client.conversations.streamAllMessages(
       async (message) => {
         if (this.closed) return;
-        onMessage(this.toMessage(message, message.topic));
+        onMessage(await this.toMessage(message, message.topic));
       },
       'all',
       ['allowed', 'unknown']
@@ -378,11 +373,12 @@ export class XmtpSession implements ChatSession {
       createdAt: raw.createdAt,
       consent: mapConsent(raw.state),
       selfRole,
-      lastMessage: current() && raw.lastMessage ? this.toMessage(raw.lastMessage, raw.id) : undefined,
+      lastMessage:
+        current() && raw.lastMessage ? await this.toMessage(raw.lastMessage, raw.id) : undefined,
     };
   }
 
-  private toMessage(raw: DecodedMessage<any>, conversationId: ConversationId): ChatMessage {
+  private async toMessage(raw: DecodedMessage<any>, conversationId: ConversationId): Promise<ChatMessage> {
     return {
       id: raw.id,
       conversationId,
@@ -390,12 +386,12 @@ export class XmtpSession implements ChatSession {
       sentAt: Math.round(raw.sentNs / 1_000_000),
       fromMe: raw.senderInboxId === this.self.participantId,
       status: raw.deliveryStatus === 'FAILED' ? 'failed' : 'sent',
-      content: this.toContent(raw),
+      content: await this.toContent(raw),
       replyTo: raw.nativeContent?.reply?.reference,
     };
   }
 
-  private toContent(raw: DecodedMessage<any>): MessageContent {
+  private async toContent(raw: DecodedMessage<any>): Promise<MessageContent> {
     const native = raw.nativeContent;
 
     if (typeof native?.text === 'string') {
@@ -408,7 +404,7 @@ export class XmtpSession implements ChatSession {
 
     if (native?.attachment) {
       const { filename, mimeType, data } = native.attachment;
-      const uri = writeInlineAttachment(raw.id, { filename, mimeType, data }, this.accountId);
+      const uri = await writeInlineAttachment(raw.id, { filename, mimeType, data }, this.accountId);
       const kind = classifyAttachment(mimeType, filename);
 
       if (kind === 'image') return { kind: 'image', uri, name: filename, mimeType };
@@ -465,27 +461,6 @@ export class XmtpSession implements ChatSession {
 
 function toXmtpId(id: ConversationId): XmtpConversationId {
   return id as XmtpConversationId;
-}
-
-function fallbackFilename(uri: string, kind: 'image' | 'voice'): string {
-  const fromUri = uri.split('/').pop()?.split('?')[0];
-  if (fromUri && fromUri.includes('.')) return fromUri;
-  return kind === 'image' ? 'photo.jpg' : 'voice.m4a';
-}
-
-function fallbackMimeType(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  const byExt: Record<string, string> = {
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    heic: 'image/heic',
-    webp: 'image/webp',
-    m4a: 'audio/m4a',
-    pdf: 'application/pdf',
-  };
-  return byExt[ext] ?? 'application/octet-stream';
 }
 
 function parseTypeId(contentTypeId: string): string {

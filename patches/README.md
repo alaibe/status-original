@@ -190,6 +190,55 @@ dependents, or when nothing in the tree imports the system `SQLite3` module.
 
 ---
 
+## `nativewind+4.2.6.patch`
+
+Symptom: on web, every `platformSelect()` in `tailwind.config.js` reaches the
+browser as literal CSS:
+
+```
+.font-sans { font-family: platformSelect(ios/System,android/sans-serif,default/var(--font-display)); }
+```
+
+The browser drops the declaration and text renders in Times.
+
+Cause: `nativewind/theme` chooses the native implementation of
+`platformSelect` whenever `NATIVEWIND_OS` is set at all, but NativeWind's own
+Metro plugin sets it to `web` when it builds the web CSS. Its
+`tailwind/common.js` makes the same check correctly (`undefined` or `web`
+means web); `theme.js` does not.
+
+Fix: the same condition in `theme.js`.
+
+When to remove: when `nativewind/dist/theme.js` treats `NATIVEWIND_OS=web`
+as web.
+
+---
+
+## `react-native-reanimated+4.5.1.patch`
+
+Symptom: on web, once an `entering` animation built with `withInitialValues`
+(every `Enter.*` preset in `src/design/motion.ts`) has finished, the element is
+left `position: absolute` at the pixel rectangle it occupied when the animation
+ended. Resize the window and the heading, the buttons and everything else that
+entered stay where they were; the rest of the page reflows around the holes.
+
+Cause: `withInitialValues` makes the animation a custom keyframe, and custom
+keyframes get a cleanup timer. For entering animations that timer pins the
+element to its snapshot with `setElementPosition`. Only the entering path passes
+`shouldSavePosition = true`, so nothing else runs that line. Upstream `main`
+still has it.
+
+Fix: the cleanup no longer repositions the element. The snapshot itself is still
+taken on `animationend`, which is what exiting animations read. The same timer
+also clears the `visibility: hidden` an entering element starts with: the
+animation is what normally clears it, and one that never starts (the window was
+occluded, the tab throttled) used to leave the element hidden for good.
+
+When to remove: when a Reanimated release leaves entering elements in normal
+flow after their custom animation ends.
+
+---
+
 ## Regenerating a patch
 
 The iOS build writes artifacts inside `node_modules/expo-modules-jsi`

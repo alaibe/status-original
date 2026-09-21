@@ -1,8 +1,8 @@
-import * as WebBrowser from 'expo-web-browser';
 import { View } from 'react-native';
 
 import { formatBytes } from './format';
 import { Icon, type IconName, Pressable, Text, useThemeColors } from '@/design';
+import { openInBrowser } from '@/lib/open-url';
 
 export interface FileBubbleProps {
   uri: string;
@@ -32,7 +32,7 @@ export function FileBubble({ uri, name, mimeType, size, fromMe }: FileBubbleProp
       accessibilityRole="button"
       accessibilityLabel={`Open ${name}`}
       onPress={() => {
-        WebBrowser.openBrowserAsync(uri).catch(() => {});
+        openInBrowser(uri).catch(() => {});
       }}
       pressScale={0.99}>
       <View className="min-w-[180px] flex-row items-center gap-3 py-0.5">

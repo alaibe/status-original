@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Linking, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
 
 import { Badge, Button, Card, Field, Screen, Text, toast } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
@@ -15,6 +15,7 @@ import { protocolById } from '@/protocols';
 import { errorMessage } from '@/core/errors';
 import { describeProtocol, toneFor } from '@/features/protocols/presentation';
 import { accountRuntime } from '@/runtime';
+import { openExternal } from '@/lib/open-url';
 
 export default function ProtocolConfigScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -92,7 +93,7 @@ export default function ProtocolConfigScreen() {
                   label={`Read about ${descriptor.label}`}
                   tone="neutral"
                   size="sm"
-                  onPress={() => Linking.openURL(descriptor.docsUrl!).catch(() => {})}
+                  onPress={() => openExternal(descriptor.docsUrl!).catch(() => {})}
                 />
               ) : null}
             </Card>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Merged into the bundle and embedded in development binaries by tauri-build. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Record a voice note to send in a message. Audio is recorded on this device and sent inside the encrypted message.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Scanning a WalletConnect QR code is how a website connects to your wallet. The camera is used for that only, and nothing it sees leaves this device.</string>
+  <key>NSContactsUsageDescription</key>
+  <string>Status Original reads your contacts on this device only, to suggest who to invite. They are never uploaded.</string>
+</dict>
+</plist>

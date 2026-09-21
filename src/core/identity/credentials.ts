@@ -2,18 +2,28 @@ import { accountCredentialsKey, vaultDelete, vaultGet, vaultSet } from '@/storag
 
 export type CredentialId = 'gifs' | 'tokens';
 
+export type Credentials = Partial<Record<CredentialId, string>>;
+
+/** Every optional key of the account in one read; they share a vault entry. */
+export async function readCredentials(accountId: string): Promise<Credentials> {
+  const raw = await vaultGet(accountCredentialsKey(accountId));
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => typeof value === 'string')
+    ) as Credentials;
+  } catch {
+    return {};
+  }
+}
+
 export async function readCredential(
   accountId: string,
   id: CredentialId
 ): Promise<string | null> {
-  const raw = await vaultGet(accountCredentialsKey(accountId));
-  if (!raw) return null;
-  try {
-    const value = (JSON.parse(raw) as Record<string, unknown>)[id];
-    return typeof value === 'string' ? value : null;
-  } catch {
-    return null;
-  }
+  return (await readCredentials(accountId))[id] ?? null;
 }
 
 export async function writeCredential(
@@ -23,14 +33,7 @@ export async function writeCredential(
 ): Promise<void> {
   const entry = accountCredentialsKey(accountId);
   const trimmed = value.trim();
-  const raw = await vaultGet(entry);
-  let credentials: Partial<Record<CredentialId, string>> = {};
-  try {
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      credentials = parsed as Partial<Record<CredentialId, string>>;
-    }
-  } catch {}
+  const credentials = await readCredentials(accountId);
 
   if (trimmed) credentials[id] = trimmed;
   else delete credentials[id];

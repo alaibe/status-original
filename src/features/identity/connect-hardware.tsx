@@ -6,21 +6,33 @@ import { errorMessage } from '@/core/errors';
 import {
   DEFAULT_EVM_PATH,
   hardwareVendors,
+  type HardwareConnection,
   type HardwareVendor,
 } from '@/core/identity/hardware';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import type { IconName } from '@/design';
 
-const ICONS: Record<string, IconName> = {
-  ledger: 'bluetooth-outline',
-  keystone: 'qr-code-outline',
-  trezor: 'phone-portrait-outline',
-};
-
-const HOW: Record<string, string> = {
-  bluetooth: 'Unlock it and open the Ethereum app, then keep it nearby.',
-  qr: 'You will scan a QR code from its screen, and it will scan one from yours.',
-  'companion-app': 'Its own app opens to confirm; you come back here when it is done.',
+const CONNECTION: Record<HardwareConnection, { icon: IconName; searching: string; how: string }> = {
+  bluetooth: {
+    icon: 'bluetooth-outline',
+    searching: 'Looking for nearby wallets…',
+    how: 'Unlock it and open the Ethereum app, then keep it nearby.',
+  },
+  usb: {
+    icon: 'hardware-chip-outline',
+    searching: 'Looking for a plugged-in wallet…',
+    how: 'Plug it in, unlock it and open the Ethereum app.',
+  },
+  qr: {
+    icon: 'qr-code-outline',
+    searching: '',
+    how: 'You will scan a QR code from its screen, and it will scan one from yours.',
+  },
+  'companion-app': {
+    icon: 'phone-portrait-outline',
+    searching: '',
+    how: 'Its own app opens to confirm; you come back here when it is done.',
+  },
 };
 
 export function ConnectHardware({ visible, onClose }: { visible: boolean; onClose(): void }) {
@@ -91,9 +103,9 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
                 key={entry.id}
                 testID={`connect-${entry.id}`}
                 title={entry.label}
-                subtitle={HOW[entry.connection]}
+                subtitle={CONNECTION[entry.connection].how}
                 numberOfLinesSubtitle={2}
-                leading={<RowIcon name={ICONS[entry.id] ?? 'hardware-chip-outline'} tone="grey" />}
+                leading={<RowIcon name={CONNECTION[entry.connection].icon} tone="grey" />}
                 onPress={() => {
                   setError(null);
                   setDevices([]);
@@ -105,17 +117,17 @@ export function ConnectHardware({ visible, onClose }: { visible: boolean; onClos
           </>
         ) : (
           <>
-            <Text variant="footnote">{HOW[vendor.connection]}</Text>
+            <Text variant="footnote">{CONNECTION[vendor.connection].how}</Text>
 
             {devices.length === 0 ? (
-              <Text variant="caption">Looking for nearby wallets…</Text>
+              <Text variant="caption">{CONNECTION[vendor.connection].searching}</Text>
             ) : (
               devices.map((device) => (
                 <ListItem
                   key={device.id}
                   testID={`hardware-device-${device.id}`}
                   title={device.name || 'Unnamed wallet'}
-                  leading={<RowIcon name="bluetooth-outline" tone="blue" />}
+                  leading={<RowIcon name={CONNECTION[vendor.connection].icon} tone="blue" />}
                   onPress={() => void connect(vendor, device.id)}
                 />
               ))

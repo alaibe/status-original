@@ -28,7 +28,7 @@ export interface HardwareSigner {
   signTypedDataHashes?(path: string, domainHash: Hex, messageHash: Hex): Promise<Hex>;
 }
 
-export type HardwareConnection = 'bluetooth' | 'qr' | 'companion-app';
+export type HardwareConnection = 'bluetooth' | 'usb' | 'qr' | 'companion-app';
 
 export interface HardwareVendor {
   id: string;

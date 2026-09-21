@@ -6,6 +6,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import { concatBytes, utf8ToBytes } from '@noble/hashes/utils';
 
 import { randomBytes } from './random';
+import { base64ToBytes, bytesToBase64 } from './bytes';
 
 const VERSION = 2;
 const SALT = utf8ToBytes('nip44-v2');
@@ -123,17 +124,4 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-export function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 4096) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 4096));
-  }
-  return globalThis.btoa(binary);
-}
-
-export function base64ToBytes(value: string): Uint8Array {
-  const binary = globalThis.atob(value);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
-}
+export { base64ToBytes, bytesToBase64 };

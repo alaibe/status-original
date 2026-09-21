@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, ScrollView, type TextInput, View } from 'react-native';
+import { ScrollView, type TextInput, View } from 'react-native';
 
 import { Button, Field, Note, Screen, Section, Text, toast } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import { errorMessage } from '@/core/errors';
+import { openExternal } from '@/lib/open-url';
 
 export interface ApiKeyScreenProps {
   title: string;
@@ -123,7 +124,7 @@ export function ApiKeyScreen({
           <Button
             label={link.label}
             tone="neutral"
-            onPress={() => Linking.openURL(link.url).catch(() => {})}
+            onPress={() => openExternal(link.url).catch(() => {})}
           />
         </Note>
       </ScrollView>

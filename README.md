@@ -1,10 +1,11 @@
 # Status Original
 
-A self-custodial messenger for iOS and Android. Your account is a recovery
-phrase held on the device. There is no email, phone number or application
-backend, and nobody can reset the account for you.
+A self-custodial messenger for iOS, Android and the desktop. Your account is a
+recovery phrase held on the device. There is no email, phone number or
+application backend, and nobody can reset the account for you.
 
-Built with Expo SDK 57, React Native 0.86 and React 19.2.
+Built with Expo SDK 57, React Native 0.86 and React 19.2; the desktop app is
+the same code as a web export inside a Tauri window.
 
 <p align="center">
   <img src="store/screenshots/ios-6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
@@ -55,7 +56,12 @@ src/
   design/       tokens, components, motion and widget rendering
   features/     chat and protocol UI
   plugins/      the bundled plugins
+  desktop/      what the web build swaps in for the desktop window
+src-tauri/      the desktop window: Rust commands for SQLCipher, the vault and Ledger
 ```
+
+A file ending in `.web.tsx` or `.web.ts` is the desktop version of its
+neighbour; `docs/desktop.md` lists them.
 
 `ChatSession` is the messaging contract the app talks to. XMTP implements it
 on the SDK's own encrypted database; Nostr and Waku use `StoreBackedSession`
@@ -76,8 +82,9 @@ before the keys.
 
 ## Setup
 
-Node.js 22.13 or newer, Xcode 26.3 and CocoaPods for iOS. Expo Go does not
-work: the app uses native modules for XMTP, SQLCipher and hardware wallets.
+Node.js 22.13 or newer, Xcode 26.3 and CocoaPods for iOS; Rust for the desktop
+app. Expo Go does not work: the app uses native modules for XMTP, SQLCipher and
+hardware wallets.
 
 ```bash
 npm install
@@ -96,6 +103,10 @@ entered per account inside the app.
 
 Android has not been built or run yet. The native project generates, but
 nothing has been checked on a device or emulator.
+
+`npm run desktop` opens the desktop app with live reload; `npm run
+desktop:build` produces the `.app`. `docs/desktop.md` explains how the desktop
+differs, what the Rust side does and where its data lives.
 
 ## Development
 
@@ -120,6 +131,9 @@ Three kinds of file are generated and should not be edited by hand:
   `brew install librsvg`). A test fails if the SVG or the brand colour drifts
   from the source image.
 - `ios/` and `android/`, from `app.json`, with `npx expo prebuild`.
+- `src-tauri/icons/`, from `assets/images/icon-desktop.png`, also by
+  `npm run brand:build`.
+- `public/xmtp/bindings_wasm_bg.wasm`, copied from `node_modules` on install.
 
 ## Store submission
 
@@ -132,8 +146,9 @@ lists what is done and what only the account holder can do.
 ## Security notes
 
 - Recovery phrases are stored `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; key protection
-  adds biometric authentication. Web storage is a development fallback and is
-  not safe against XSS.
+  adds biometric authentication. On the desktop they sit in an encrypted file
+  whose key is in the operating system's credential store; the web build never
+  keeps secrets in browser storage.
 - Database keys are separate from recovery phrases and from protocol database
   keys.
 - Transactions are signed on the device. Hardware accounts sign on the
