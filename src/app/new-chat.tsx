@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, type TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -23,6 +22,7 @@ import { peersOf } from '@/features/contacts/peers';
 import type { ProtocolId } from '@/core/messaging/namespace';
 import { transportProtocols } from '@/protocols';
 import { useBack } from '@/features/navigation/use-back';
+import { openChatFromSheet } from '@/features/navigation/open';
 import { toneFor } from '@/features/protocols/presentation';
 import { errorMessage } from '@/core/errors';
 
@@ -55,7 +55,6 @@ function groupByInitial(people: { id: string; name: string; conversationId: stri
 }
 
 export default function NewChatScreen() {
-  const router = useRouter();
   const colors = useThemeColors();
   const goBack = useBack('/chats');
 
@@ -150,7 +149,7 @@ export default function NewChatScreen() {
 
   async function start() {
     if (existingDm) {
-      router.dismissTo(`/chat/${existingDm}`);
+      openChatFromSheet(existingDm);
       return;
     }
 
@@ -167,7 +166,7 @@ export default function NewChatScreen() {
       : startDm(active, recipients[0].participantId);
     try {
       const conversation = await starting;
-      router.dismissTo(`/chat/${conversation.id}`);
+      openChatFromSheet(conversation.id);
     } catch (e) {
       setError(errorMessage(e, 'Could not start that conversation'));
     }

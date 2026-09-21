@@ -17,6 +17,7 @@ import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { useDisplayNames } from '@/features/chat/use-display-names';
 import { currentAccess, manageLimitedAccess, type ContactAccess } from '@/features/contacts/device-contacts';
 import { peersOf } from '@/features/contacts/peers';
+import { openChat } from '@/features/navigation/open';
 
 export type ContactSort = 'name' | 'recent';
 
@@ -112,7 +113,7 @@ export function ContactList({
                 subtitle={peer.protocol?.toUpperCase()}
                 leading={<Avatar seed={nameFor(peer.id)} size="md" />}
                 selected={peer.conversationId === selectedConversationId}
-                onPress={() => router.navigate(`/chat/${peer.conversationId}`)}
+                onPress={() => openChat(peer.conversationId)}
               />
             ))
           )}

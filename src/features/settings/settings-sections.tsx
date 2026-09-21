@@ -11,6 +11,7 @@ import { eraseAccount } from '@/core/app/erase-account';
 import { usePluginHost } from '@/core/plugins/host';
 import { errorMessage } from '@/core/errors';
 import { BiometricSection } from '@/features/settings/biometric-section';
+import { openTab } from '@/features/navigation/open';
 
 /** The routes the sections open, so a layout showing both can mark the open one. */
 export const SETTINGS_PAGES = [
@@ -98,7 +99,7 @@ export function SettingsSections({
           leading={<RowIcon name="people-outline" tone="blue" />}
           trailing={chevron}
           selected={selected === 'accounts'}
-          onPress={() => router.navigate('/accounts')}
+          onPress={() => openTab('/accounts')}
         />
         <ListItem
           testID="settings-qr-row"
@@ -117,7 +118,7 @@ export function SettingsSections({
           leading={<RowIcon name="key-outline" tone="orange" />}
           trailing={chevron}
           selected={selected === 'identity'}
-          onPress={() => router.navigate('/settings/identity')}
+          onPress={() => openTab('/settings/identity')}
         />
         <ListItem
           testID="settings-erase-account"
@@ -139,7 +140,7 @@ export function SettingsSections({
           leading={<RowIcon name="color-palette-outline" tone="pink" />}
           trailing={chevron}
           selected={selected === 'appearance'}
-          onPress={() => router.navigate('/settings/appearance')}
+          onPress={() => openTab('/settings/appearance')}
         />
         <ListItem
           testID="settings-privacy"
@@ -149,7 +150,7 @@ export function SettingsSections({
           leading={<RowIcon name="hand-left-outline" tone="grey" />}
           trailing={chevron}
           selected={selected === 'privacy'}
-          onPress={() => router.navigate('/settings/privacy')}
+          onPress={() => openTab('/settings/privacy')}
         />
         <ListItem
           testID="settings-tokens"
@@ -158,7 +159,7 @@ export function SettingsSections({
           leading={<RowIcon name="diamond-outline" tone="teal" />}
           trailing={chevron}
           selected={selected === 'tokens'}
-          onPress={() => router.navigate('/settings/tokens')}
+          onPress={() => openTab('/settings/tokens')}
         />
         <ListItem
           testID="settings-gifs"
@@ -167,7 +168,7 @@ export function SettingsSections({
           leading={<RowIcon name="happy-outline" tone="green" />}
           trailing={chevron}
           selected={selected === 'gifs'}
-          onPress={() => router.navigate('/settings/gifs')}
+          onPress={() => openTab('/settings/gifs')}
         />
         <ListItem
           testID="settings-devices"
@@ -176,7 +177,7 @@ export function SettingsSections({
           leading={<RowIcon name="phone-portrait-outline" tone="orange" />}
           trailing={chevron}
           selected={selected === 'devices'}
-          onPress={() => router.navigate('/settings/devices')}
+          onPress={() => openTab('/settings/devices')}
         />
       </Section>
 
@@ -188,7 +189,7 @@ export function SettingsSections({
           leading={<RowIcon name="extension-puzzle-outline" tone="purple" />}
           trailing={chevron}
           selected={selected === 'plugins'}
-          onPress={() => router.navigate('/settings/plugins')}
+          onPress={() => openTab('/settings/plugins')}
         />
       </Section>
 
@@ -201,7 +202,7 @@ export function SettingsSections({
           leading={<RowIcon name="git-network-outline" tone="blue" />}
           trailing={chevron}
           selected={selected === 'protocols'}
-          onPress={() => router.navigate('/settings/protocols')}
+          onPress={() => openTab('/settings/protocols')}
         />
         <ListItem
           title="XMTP network"

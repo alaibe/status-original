@@ -18,6 +18,11 @@ The desktop Metro takes 8082 so it can run next to the phone's on 8081. Both
 read `metro.config.js` once at start, so restart whichever one predates a
 change to it.
 
+Both commands first run `scripts/fetch-tdlib.sh`, which on a fresh machine
+downloads TDLib (the Telegram client library, about 360 MB once) and turns it
+into `src-tauri/frameworks/libtdjson.dylib`. The phone gets TDLib from the
+`react-native-tdlib` pod instead; that pod has no macOS build.
+
 Do not set `CI=true` when running `tauri dev`: Metro reads it and switches off
 file watching.
 

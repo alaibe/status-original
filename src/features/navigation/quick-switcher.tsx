@@ -17,6 +17,7 @@ import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { orderConversations } from '@/core/messaging/chat-prefs';
 import type { Conversation } from '@/core/messaging/types';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
+import { openChat, openTab } from '@/features/navigation/open';
 
 interface Entry {
   id: string;
@@ -53,10 +54,10 @@ export function QuickSwitcher() {
         router.push('/new-chat');
       } else if (event.key === ',') {
         event.preventDefault();
-        router.navigate('/settings');
+        openTab('/settings');
       } else if (event.key === '1' || event.key === '2' || event.key === '3') {
         event.preventDefault();
-        router.navigate(event.key === '1' ? '/chats' : event.key === '2' ? '/contacts' : '/settings');
+        openTab(event.key === '1' ? '/chats' : event.key === '2' ? '/contacts' : '/settings');
       }
     };
     // Capture phase: react-native-web stops keydown from bubbling out of inputs.
@@ -90,12 +91,12 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
       subtitle: conversation.protocol && conversation.protocol !== 'local' ? conversation.protocol.toUpperCase() : undefined,
       conversation,
       selfId: selfIdOf(conversation),
-      run: () => router.navigate(`/chat/${conversation.id}`),
+      run: () => openChat(conversation.id),
     }));
     const commands: Entry[] = [
       { id: 'new', title: 'New message', subtitle: '⌘N', icon: 'create-outline', run: () => router.push('/new-chat') },
-      { id: 'contacts', title: 'Contacts', subtitle: '⌘2', icon: 'people-outline', run: () => router.navigate('/contacts') },
-      { id: 'settings', title: 'Settings', subtitle: '⌘,', icon: 'hardware-chip-outline', run: () => router.navigate('/settings') },
+      { id: 'contacts', title: 'Contacts', subtitle: '⌘2', icon: 'people-outline', run: () => openTab('/contacts') },
+      { id: 'settings', title: 'Settings', subtitle: '⌘,', icon: 'hardware-chip-outline', run: () => openTab('/settings') },
     ];
 
     const q = query.trim().toLowerCase();

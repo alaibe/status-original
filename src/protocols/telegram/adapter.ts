@@ -12,6 +12,7 @@ import type {
   Unsubscribe,
 } from '@/core/messaging/types';
 import { TdRequestError, type TdApi, type TdObject } from './api';
+import { localFileUri } from './host';
 import type {
   TdAuthorizationState,
   TdBasicGroup,
@@ -916,7 +917,7 @@ export class TelegramSession implements ChatSession {
    * placeholder, and the message is re-emitted once `updateFile` says it is.
    */
   private localUri(raw: TdMessage, file: TdFile, fetchMedia: boolean): string | null {
-    if (file.local.is_downloading_completed && file.local.path) return `file://${file.local.path}`;
+    if (file.local.is_downloading_completed && file.local.path) return localFileUri(file.local.path);
     if (!fetchMedia) return null;
     if (!this.awaitedFiles.has(file.id)) {
       this.awaitedFiles.set(file.id, { chatId: raw.chat_id, messageId: raw.id });

@@ -29,6 +29,7 @@ import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
 import { protocolBadge, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
+import { openChat } from '@/features/navigation/open';
 
 export interface ChatListProps {
   query: string;
@@ -213,7 +214,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
                 showProtocol={showProtocol}
                 pinned={Boolean(prefs?.pinned)}
                 muted={Boolean(prefs?.muted)}
-                onPress={() => router.navigate(`/chat/${item.id}`)}
+                onPress={() => openChat(item.id)}
                 selected={item.id === selectedId}
                 onLongPress={() => setMenu({ conversation: item, anchor: null })}
                 onContextMenu={(anchor) => setMenu({ conversation: item, anchor })}

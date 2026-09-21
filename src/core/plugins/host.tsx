@@ -13,6 +13,7 @@ import type { Plugin, PluginContext, PluginId, PluginLease, PluginPermission } f
 import { toast } from '@/design';
 import { accountRuntime } from '@/runtime';
 import type { AccountStorage } from '@/storage/account';
+import { openChat } from '@/features/navigation/open';
 
 const PLUGIN_PROTOCOL = 'xmtp';
 
@@ -243,7 +244,7 @@ function makePluginContext(
       },
       openConversation(conversationId) {
         active();
-        router.push(`/chat/${conversationId}`);
+        openChat(conversationId);
       },
       openProfile(conversationId, participantId) {
         active();

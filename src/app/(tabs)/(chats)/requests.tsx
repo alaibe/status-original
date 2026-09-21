@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 
 import { FlashList } from '@shopify/flash-list';
 
@@ -8,9 +8,9 @@ import { formatTimestamp, messagePreview } from '@/core/messaging/preview';
 import { decideConsent } from '@/features/chat/consent';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
+import { openChat } from '@/features/navigation/open';
 
 export default function RequestsScreen() {
-  const router = useRouter();
 
   const sessions = useChatStore((s) => s.sessions);
   const conversations = useChatStore((s) => s.conversations);
@@ -57,7 +57,7 @@ export default function RequestsScreen() {
                   subtitle={messagePreview(item.lastMessage)}
                   meta={item.lastMessage ? formatTimestamp(item.lastMessage.sentAt) : undefined}
                   leading={<ConversationAvatar conversation={item} selfId={selfId} size="md" />}
-                  onPress={() => router.push(`/chat/${item.id}`)}
+                  onPress={() => openChat(item.id)}
                 />
               </SwipeableRow>
             );

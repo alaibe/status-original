@@ -1,9 +1,9 @@
 import Constants from 'expo-constants';
-import { Directory, Paths } from 'expo-file-system';
-import { Platform } from 'react-native';
 
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
 import { accountTdlibDatabaseKey } from '@/storage/vault';
+
+import { DEVICE, databaseDirectory, eraseDatabase } from './host';
 
 export const TELEGRAM_PROTOCOL = {
   id: 'telegram',
@@ -63,25 +63,18 @@ export const TELEGRAM_PROTOCOL = {
     return TelegramSession.connect({
       createApi: () => TdClient.create(),
       parameters: {
-        databaseDirectory: databaseDirectory(accountId).uri.replace(/^file:\/\//, ''),
+        databaseDirectory: await databaseDirectory(accountId),
         apiId,
         apiHash: config.apiHash?.trim() ?? '',
         databaseEncryptionKey: await accountTdlibDatabaseKey(accountId),
-        deviceModel: Platform.OS === 'ios' ? 'iPhone' : 'Android',
-        systemVersion: String(Platform.Version),
+        deviceModel: DEVICE.model,
+        systemVersion: DEVICE.systemVersion,
         applicationVersion: Constants.expoConfig?.version ?? '1.0',
       },
     });
   },
   // A live session destroys through TDLib instead; this covers accounts that are not open.
   async eraseLocalData({ accountId }) {
-    const dir = new Directory(Paths.document, 'tdlib', accountId);
-    if (dir.exists) dir.delete();
+    await eraseDatabase(accountId);
   },
 } satisfies ProtocolDescriptor;
-
-function databaseDirectory(accountId: string): Directory {
-  const dir = new Directory(Paths.document, 'tdlib', accountId);
-  if (!dir.exists) dir.create({ intermediates: true });
-  return dir;
-}

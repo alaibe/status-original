@@ -6,6 +6,7 @@ import { DRAG_REGION, Icon, IconButton, type IconName, Pressable, SearchField, T
 import { ChatList } from '@/features/chat/chat-list';
 import { ContactList, type ContactSort } from '@/features/contacts/contact-list';
 import { SettingsProfile, useEnsName } from '@/features/settings/settings-profile';
+import { openTab } from '@/features/navigation/open';
 import {
   SETTINGS_PAGES,
   type SettingsPage,
@@ -134,7 +135,7 @@ export function DesktopSidebar() {
               key={entry.id}
               accessibilityRole="button"
               accessibilityLabel={entry.label}
-              onPress={() => router.navigate(entry.href)}
+              onPress={() => openTab(entry.href)}
               className="flex-1 items-center gap-0.5 py-2">
               <Icon
                 name={entry.icon}

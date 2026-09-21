@@ -22,6 +22,9 @@
       "allow": [
         {
           "path": "$APPDATA/media/**"
+        },
+        {
+          "path": "$APPDATA/tdlib/**"
         }
       ]
     },

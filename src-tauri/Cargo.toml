@@ -29,6 +29,7 @@ getrandom = "0.2"
 base64 = "0.22"
 ledger-transport-hid = "0.11"
 ledger-apdu = "0.11"
+libloading = "0.8"
 
 # SQLCipher from source. macOS gets CommonCrypto; everything else compiles its
 # own OpenSSL so the build has no system dependency.

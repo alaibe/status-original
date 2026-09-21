@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 import { wasProactive } from '@/runtime';
+import { openChat } from '@/features/navigation/open';
 import { isLocalConversation } from '../messaging/bots';
 import { useChatStore, type ChatState } from '../messaging/chat-store';
 import { contentPreview } from '../messaging/preview';
@@ -14,8 +14,6 @@ import {
 } from '../notifications';
 
 export function useMessageNotifications() {
-  const router = useRouter();
-
   useEffect(() => {
     configureNotifications();
   }, []);
@@ -52,7 +50,7 @@ export function useMessageNotifications() {
 
   useEffect(() => {
     return onNotificationTapped((conversationId) => {
-      router.push(`/chat/${conversationId}`);
+      openChat(conversationId);
     });
-  }, [router]);
+  }, []);
 }

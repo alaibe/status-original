@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Clipboard from 'expo-clipboard';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 
@@ -38,6 +38,7 @@ import {
   useDisplayNames,
 } from '@/features/chat/use-display-names';
 import { useBack } from '@/features/navigation/use-back';
+import { openChatFromProfile } from '@/features/navigation/open';
 import { resolveEnsProfile, type EnsProfile } from '@/lib/evm/ens-profile';
 import { protocolSubtitle } from '@/features/protocols/presentation';
 import { openInBrowser } from '@/lib/open-url';
@@ -52,7 +53,6 @@ const TABS: { id: MediaCategory; label: string }[] = [
 
 export default function ProfileScreen() {
   const { id, member } = useLocalSearchParams<{ id: string; member?: string }>();
-  const router = useRouter();
   const goBack = useBack('/chats');
   const { width } = useWindowDimensions();
 
@@ -151,7 +151,7 @@ export default function ProfileScreen() {
           <Action
             icon="chatbubble-outline"
             label="Message"
-            onPress={() => router.replace(`/chat/${id}`)}
+            onPress={() => openChatFromProfile(id)}
           />
           {member ? null : (
             <Action

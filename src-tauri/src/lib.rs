@@ -5,6 +5,7 @@ mod media;
 mod paths;
 #[cfg(debug_assertions)]
 mod probe;
+mod tdlib;
 mod vault;
 
 use tauri::{AppHandle, Manager};
@@ -30,6 +31,7 @@ pub fn run() {
         .manage(db::Databases::default())
         .manage(vault::Vault::default())
         .manage(ledger::Ledger::default())
+        .manage(tdlib::Telegram::default())
         .invoke_handler(tauri::generate_handler![
             db::db_open,
             db::db_exec,
@@ -50,6 +52,12 @@ pub fn run() {
             contacts::contacts_access,
             contacts::contacts_request,
             contacts::contacts_read,
+            tdlib::td_create,
+            tdlib::td_send,
+            tdlib::td_receive,
+            tdlib::td_destroy,
+            tdlib::td_database_directory,
+            tdlib::td_erase,
             set_badge,
         ])
         .setup(|app| {
