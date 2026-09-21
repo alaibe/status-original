@@ -282,6 +282,7 @@ export default function ConversationScreen() {
             ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
             contentContainerStyle={{ paddingTop: insets.top + 62, paddingBottom: 8 }}
             keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
             renderItem={renderItem}
           />
         )}

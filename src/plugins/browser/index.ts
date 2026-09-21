@@ -216,6 +216,15 @@ export const browserPlugin: Plugin = {
                       icon: 'link-outline' as const,
                       state: 'on' as const,
                       actions: [
+                        ...(session.peer.metadata.url
+                          ? [
+                              {
+                                label: `Open ${session.peer.metadata.name || 'it'}`,
+                                command: `/open ${session.peer.metadata.url}`,
+                                icon: 'open-outline' as const,
+                              },
+                            ]
+                          : []),
                         {
                           label: `Disconnect ${session.peer.metadata.name || 'it'}`,
                           command: `/disconnect ${session.topic}`,

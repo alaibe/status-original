@@ -33,7 +33,7 @@ appId: com.statusoriginal.app
 - tapOn:
     id: "composer-send"
 - tapOn:
-    point: "50%,25%"
+    point: "95%,40%"
 - scrollUntilVisible:
     element: "/commands,.*"
     direction: DOWN

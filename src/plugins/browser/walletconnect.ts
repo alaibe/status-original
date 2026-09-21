@@ -1,6 +1,7 @@
 import { Core } from '@walletconnect/core';
 import { WalletKit, type WalletKitTypes } from '@reown/walletkit';
-import { buildApprovedNamespaces, getSdkError } from '@walletconnect/utils';
+import type { SessionTypes } from '@walletconnect/types';
+import { buildApprovedNamespaces, getSdkError, parseUri } from '@walletconnect/utils';
 import { create } from 'zustand';
 
 import type { PluginContext } from '@/core/plugins/types';
@@ -56,6 +57,40 @@ interface WalletConnectState {
 let onProposal: ((p: WalletKitTypes.SessionProposal) => void) | null = null;
 let onRequest: ((e: WalletKitTypes.SessionRequest) => void) | null = null;
 let onDelete: (() => void) | null = null;
+
+function redirectOf(peer: SessionTypes.Struct['peer']['metadata']) {
+  return peer.redirect?.native || peer.redirect?.universal;
+}
+
+async function returnAfterPairing(
+  peer: SessionTypes.Struct['peer']['metadata'],
+  context: PluginContext
+) {
+  const target = redirectOf(peer) || peer.url;
+  if (target) await context.ui.openExternalUrl(target).catch(() => {});
+}
+
+async function returnAfterRequest(
+  peer: SessionTypes.Struct['peer']['metadata'],
+  context: PluginContext
+) {
+  const target = redirectOf(peer);
+  if (target) {
+    context.ui.notify('Approved', 'success');
+    await context.ui.openExternalUrl(target).catch(() => {});
+    return;
+  }
+  context.ui.notify(`Approved. Switch back to ${peer.name || 'the site'} to carry on.`, 'success');
+}
+
+function isPairingUri(uri: string) {
+  try {
+    const { version, topic, symKey, relay } = parseUri(uri);
+    return version === 2 && /^[0-9a-f]{64}$/i.test(topic) && !!symKey && relay.protocol === 'irn';
+  } catch {
+    return false;
+  }
+}
 
 export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
   kit: null,
@@ -126,12 +161,16 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
   async pair(uri) {
     const kit = get().kit;
     if (!kit) throw new Error(get().error ?? 'WalletConnect is still starting up.');
+    if (!isPairingUri(uri)) {
+      throw new Error('That is not a whole pairing link. Copy it again from the site.');
+    }
     try {
       await kit.pair({ uri });
     } catch (error) {
-      if (errorMessage(error, '').includes('Pairing already exists')) {
+      const reason = errorMessage(error, '');
+      if (reason.includes('Pairing already exists') || reason.includes('expired')) {
         throw new Error(
-          'That link was already used once. Ask the site for a fresh code, then scan or paste it again.'
+          'That link is spent. Ask the site for a fresh code, then scan or paste it again.'
         );
       }
       throw error;
@@ -166,8 +205,9 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
           },
         });
 
-        await kit.approveSession({ id: head.id, namespaces });
+        const session = await kit.approveSession({ id: head.id, namespaces });
         context.ui.notify('Connected', 'success');
+        await returnAfterPairing(session.peer.metadata, context);
       } else {
         const { handleSessionRequest } = await import('./rpc');
         const result = await handleSessionRequest(head, context);
@@ -175,7 +215,9 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
           topic: head.topic,
           response: { id: head.id, jsonrpc: '2.0', result },
         });
-        context.ui.notify('Approved', 'success');
+        const session = kit.getActiveSessions()[head.topic];
+        if (session) await returnAfterRequest(session.peer.metadata, context);
+        else context.ui.notify('Approved', 'success');
       }
     } catch (error) {
       const message = errorMessage(error, 'Request failed');

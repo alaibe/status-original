@@ -1,4 +1,4 @@
-# Sends TEXT from the composer, then taps a non-interactive area to dismiss the keyboard.
+# Sends TEXT from the composer, then taps the gutter beside the reply to dismiss the keyboard.
 appId: com.statusoriginal.app
 ---
 - tapOn:
@@ -7,4 +7,4 @@ appId: com.statusoriginal.app
 - tapOn:
     id: "composer-send"
 - tapOn:
-    point: "50%,25%"
+    point: "95%,40%"
