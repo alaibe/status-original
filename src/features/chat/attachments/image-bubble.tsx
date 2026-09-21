@@ -1,7 +1,9 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Modal, Pressable as RNPressable, View, useWindowDimensions } from 'react-native';
-import { Icon, Pressable, Text, useThemeColors } from '@/design';
+import { Icon, Pressable, useThemeColors } from '@/design';
+import { segmentText } from '@/core/messaging/links';
+import { MessageText } from '../message-text';
 
 export interface ImageBubbleProps {
   uri: string;
@@ -40,7 +42,11 @@ export function ImageBubble({ uri, width, height, caption, fromMe }: ImageBubble
       </Pressable>
 
       {caption ? (
-        <Text className={fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on'}>{caption}</Text>
+        <MessageText
+          segments={segmentText(caption)}
+          fromMe={fromMe}
+          className={fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on'}
+        />
       ) : null}
 
       <Modal visible={zoomed} transparent animationType="fade" onRequestClose={() => setZoomed(false)}>

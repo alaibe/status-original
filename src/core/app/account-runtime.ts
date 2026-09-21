@@ -4,6 +4,7 @@ import type { AccountRecord } from '../identity/accounts';
 import { reportError } from './report-error';
 import type { DerivedKey, Keyring } from '../identity/keyring';
 import { useAppearanceStore } from './appearance';
+import { clearLinkPreviewCache, hydrateLinkPreviewCache } from '../messaging/link-preview-cache';
 import { loadProtocolConfig, saveProtocolConfig, type ProtocolConfig } from '../messaging/config';
 import {
   clearChatProjection,
@@ -231,6 +232,7 @@ export class AccountRuntime {
       loadMediaIndex(storage),
       loadPluginPrefs(storage),
       useAppearanceStore.getState().hydrate(storage),
+      hydrateLinkPreviewCache(storage),
     ]);
     if (!this.isCurrent(generation)) return;
     useChatStore.setState({ readAt, chatPrefs, mediaIndex });
@@ -401,6 +403,7 @@ export class AccountRuntime {
     if (status !== 'erasing') {
       clearChatProjection();
       useAppearanceStore.getState().clear();
+      clearLinkPreviewCache();
     }
   }
 
@@ -499,6 +502,7 @@ export class AccountRuntime {
     if (accountId !== (next?.accountId ?? null) || status === 'erasing') {
       clearChatProjection(status);
       useAppearanceStore.getState().clear();
+      clearLinkPreviewCache();
     }
     return this.generation;
   }

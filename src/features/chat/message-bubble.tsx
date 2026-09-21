@@ -9,6 +9,12 @@ import { usePluginHost } from '@/core/plugins/host';
 import type { ChatMessage, WidgetContent } from '@/core/messaging/types';
 import { MessageActions, type MessageAction, type MessageAnchor } from './message-actions';
 import { findTransactionHash } from '@/lib/evm/transactions';
+import { segmentText, type LinkSegment } from '@/core/messaging/links';
+import { parseLocation } from '@/core/messaging/locations';
+import { AddressPreview } from './address-preview';
+import { LinkPreviewCard } from './link-preview-card';
+import { LocationCard } from './location-card';
+import { MessageText } from './message-text';
 import { TransactionPreview } from './transaction-preview';
 import { WidgetView } from '@/design/widgets/widget-view';
 import { useLiveWidget } from './use-live-widget';
@@ -137,7 +143,7 @@ export function MessageBubble({
       break;
 
     case 'text':
-      children = <TextBody message={message} text={content.text} />;
+      children = <TextBody message={message} text={content.text} onCommand={onCommand} />;
       break;
 
     default:
@@ -168,31 +174,60 @@ function TextBody({
   message,
   text,
   unsupported = false,
+  onCommand,
 }: {
   message: ChatMessage;
   text: string;
   unsupported?: boolean;
+  onCommand?: (command: string) => void;
 }) {
   const { fromMe } = message;
-  const transactionHash = unsupported ? null : findTransactionHash(text);
+  const className = cn('text-body', fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on');
+
+  if (unsupported) {
+    return (
+      <>
+        <Text className={cn(className, 'italic opacity-80')}>{text}</Text>
+        <Footer message={message} />
+      </>
+    );
+  }
+
+  const segments = segmentText(text);
+  const transactionHash = findTransactionHash(text);
+  const link = segments.find((s): s is LinkSegment => s.kind === 'url' || s.kind === 'location');
+  const location = link ? parseLocation(link.href) : null;
+  const account = segments.find((s) => s.kind === 'address' || s.kind === 'ens');
 
   return (
     <>
-      <Text
-        className={cn(
-          'text-body',
-          fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on',
-          unsupported && 'italic opacity-80'
-        )}>
-        {text}
-      </Text>
+      <MessageText
+        segments={segments}
+        fromMe={fromMe}
+        className={className}
+        conversationId={message.conversationId}
+        onCommand={onCommand}
+      />
 
       {transactionHash ? <TransactionPreview hash={transactionHash} fromMe={fromMe} /> : null}
+      {location ? (
+        <LocationCard location={location} fromMe={fromMe} />
+      ) : link?.kind === 'url' ? (
+        <LinkPreviewCard url={link.href} fromMe={fromMe} />
+      ) : null}
+      {account ? (
+        <AddressPreview
+          value={account.text}
+          conversationId={message.conversationId}
+          onCommand={onCommand}
+        />
+      ) : null}
 
       <Footer message={message} />
     </>
   );
 }
+
 
 function BubbleShell({
   fromMe,

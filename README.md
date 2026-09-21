@@ -19,8 +19,11 @@ the same code as a web export inside a Tauri window.
 - End-to-end encrypted messaging over XMTP, Nostr and Waku, in one inbox
   that shows which network each conversation is on.
 - Message requests, search, filters, replies, reactions, forwarding, photos,
-  files, GIFs and voice messages. XMTP groups where the protocol supports
-  them.
+  files, GIFs and voice messages. Links unfurl into a card (YouTube with a
+  poster, maps links into a place that opens in Maps); phone numbers, email
+  addresses, wallet addresses and ENS names are tappable, and an address gets
+  the wallet's card with its name and balance. XMTP groups where the protocol
+  supports them.
 - Local encrypted history in a SQLCipher database per account.
 - Several accounts per device, from a phrase or a hardware wallet (Ledger,
   Trezor, Keystone), with optional biometric unlock.

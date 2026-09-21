@@ -12,12 +12,14 @@ interface AppearanceState {
   theme: ThemeChoice;
   wallpaper: ChatPatternName;
   readReceipts: boolean;
+  linkPreviews: boolean;
 
   hydrate(storage: AccountStorage): Promise<void>;
   clear(): void;
   setTheme(theme: ThemeChoice): Promise<void>;
   setWallpaper(wallpaper: ChatPatternName): Promise<void>;
   setReadReceipts(enabled: boolean): Promise<void>;
+  setLinkPreviews(enabled: boolean): Promise<void>;
 }
 
 let projectedStorage: AccountStorage | null = null;
@@ -28,6 +30,7 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
   theme: 'system',
   wallpaper: 'doodles',
   readReceipts: false,
+  linkPreviews: true,
 
   async hydrate(storage) {
     const request = ++hydration;
@@ -36,7 +39,13 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
       const parsed = await storage.get<Partial<AppearanceState>>(KEY);
       if (request !== hydration || projectedStorage !== storage) return;
       if (!parsed) {
-        set({ accountId: storage.accountId, theme: 'system', wallpaper: 'doodles', readReceipts: false });
+        set({
+          accountId: storage.accountId,
+          theme: 'system',
+          wallpaper: 'doodles',
+          readReceipts: false,
+          linkPreviews: true,
+        });
         return;
       }
       set({
@@ -44,6 +53,7 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
         theme: parsed.theme ?? 'system',
         wallpaper: parsed.wallpaper ?? 'doodles',
         readReceipts: parsed.readReceipts ?? false,
+        linkPreviews: parsed.linkPreviews ?? true,
       });
     } catch {
     }
@@ -52,7 +62,13 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
   clear() {
     hydration += 1;
     projectedStorage = null;
-    set({ accountId: null, theme: 'system', wallpaper: 'doodles', readReceipts: false });
+    set({
+      accountId: null,
+      theme: 'system',
+      wallpaper: 'doodles',
+      readReceipts: false,
+      linkPreviews: true,
+    });
   },
 
   async setTheme(theme) {
@@ -69,6 +85,11 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
     set({ readReceipts });
     await persist(get());
   },
+
+  async setLinkPreviews(linkPreviews) {
+    set({ linkPreviews });
+    await persist(get());
+  },
 }));
 
 async function persist(state: AppearanceState): Promise<void> {
@@ -79,6 +100,7 @@ async function persist(state: AppearanceState): Promise<void> {
       theme: state.theme,
       wallpaper: state.wallpaper,
       readReceipts: state.readReceipts,
+      linkPreviews: state.linkPreviews,
     });
   } catch (error) {
     console.warn('[appearance] could not persist settings', error);

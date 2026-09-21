@@ -1,6 +1,7 @@
 import { liveViews } from '@/core/plugins/live';
 import type { Plugin, PluginContext } from '@/core/plugins/types';
 
+import { addressCard } from './address-card';
 import { makeWalletBot } from './bot';
 import { walletCommands } from './commands';
 import { walletContentTypes } from './content-types';
@@ -39,6 +40,7 @@ export const walletPlugin: Plugin = {
 
   setup(context: PluginContext) {
     const views = liveViews(context, {
+      address: ([value, mode]) => addressCard(context, value, { offerSend: mode !== 'no-send' }),
       networks: () => networksCard(context),
       endpoint: ([id]) => {
         const network = networkById(id);

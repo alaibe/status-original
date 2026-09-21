@@ -109,6 +109,29 @@ describe('/send errors and confirmation', () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
+  it('opens the form with the recipient filled in when only an address is given', async () => {
+    let widget: Widget | undefined;
+    const context = {
+      identity: { address: sender, account: () => ({ address: sender }) },
+      storage: { get: async () => null },
+    } as unknown as PluginContext;
+    const result = await walletCommands.find((command) => command.name === 'send')!.run({
+      args: [recipient],
+      rest: recipient,
+      conversationId: 'local-status',
+      context,
+      respond: async (content) => {
+        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+      },
+    });
+
+    expect(result.type).toBe('handled');
+    const form = widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
+    expect(form?.kind === 'form' ? form.fields.find((f) => f.id === 'to')?.value : undefined).toBe(recipient);
+    expect(form?.kind === 'form' ? form.fields.find((f) => f.id === 'amount')?.value : undefined).toBe('');
+    expect(estimate).not.toHaveBeenCalled();
+  });
+
   it('does not imply submission when confirmation fails during its fresh review', async () => {
     estimate.mockRejectedValue(rejection);
 

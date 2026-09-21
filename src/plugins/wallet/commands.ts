@@ -49,6 +49,15 @@ function tokenMismatch(chain: ChainStrategy, token: string | undefined): string 
 
 const withoutConfirm = (rest: string[]) => rest.filter((a) => a !== '--confirm');
 
+/** `/send 0.1 0x…` in full, or just `/send 0x…` to fill the recipient and ask for the rest. */
+function sendPositionals(rest: string[]): { amount?: string; recipient?: string } {
+  const [first, second] = withoutConfirm(rest);
+  if (first !== undefined && second === undefined && !/^\d*\.?\d+$/.test(first)) {
+    return { recipient: first };
+  }
+  return { amount: first, recipient: second };
+}
+
 async function balanceDetail(
   chain: ChainStrategy,
   given: string | undefined,
@@ -184,12 +193,12 @@ export const walletCommands: SlashCommand[] = [
     showIn: ['dm', 'group', 'channel'],
     usage: '/send <amount> <address | name.eth> [--chain bitcoin] [--token USDC]',
     async run({ args, context, respond }) {
-      const picked = await pickSendable(context, args, (rest) => withoutConfirm(rest)[1]);
+      const picked = await pickSendable(context, args, (rest) => sendPositionals(rest).recipient);
       if ('error' in picked) return { type: 'error', message: picked.error };
       const { chain, chains, token, rest } = picked;
 
       const confirmed = rest.includes('--confirm');
-      const [amount, recipient] = withoutConfirm(rest);
+      const { amount, recipient } = sendPositionals(rest);
 
       if (!amount || !recipient) {
         const assets = await Promise.all(

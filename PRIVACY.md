@@ -32,6 +32,16 @@ Prices come from a public market data endpoint with no account and no
 identifier. Token balances use Alchemy and GIF search uses KLIPY, each only if
 you enter your own key for it.
 
+Link previews fetch the page behind a link in a message directly from that
+site, to show its title, description and picture (for YouTube, its small
+oEmbed answer instead of the page). The site then sees your network address
+when the message arrives, not only when you tap the link. Settings → Privacy
+turns this off. Previews are kept on the device for a week so a link is not
+fetched again each time it scrolls into view. Links, phone numbers, email
+addresses, places and wallet addresses are recognised on the device without
+any request; a wallet address in a message is looked up on the blockchain
+endpoint you already use, like `/balance` would.
+
 ## What stays on your device
 
 Your recovery phrase and keys, in the system keychain, optionally behind
@@ -50,4 +60,4 @@ they are for any messenger.
 
 Open an issue at https://github.com/alaibe/status-original/issues.
 
-Last updated 2026-09-20.
+Last updated 2026-09-21.

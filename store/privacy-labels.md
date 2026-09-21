@@ -55,6 +55,7 @@ reader will want to know.
 | Prices | Public market endpoint, no account, no identifier. | `src/plugins/markets/api.ts` |
 | Token balances | Alchemy, only if the user supplies their own key. | `src/lib/evm/tokens.ts` |
 | GIF search | KLIPY, only if the user supplies their own key. | `src/features/chat/attachments/gifs.ts` |
+| Link previews | The page behind a link is fetched straight from the linked site, which sees the device's network address. Off switch under Settings → Privacy; results cached on the device for a week. | `src/core/messaging/link-preview.ts`, `link-preview-cache.ts` |
 | Push notifications | Local notifications only; no push token is registered with a server. | `src/core/app/use-notifications.ts` |
 
 ## Permission strings

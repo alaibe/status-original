@@ -9,6 +9,8 @@ export default function PrivacyScreen() {
 
   const readReceipts = useAppearanceStore((s) => s.readReceipts);
   const setReadReceipts = useAppearanceStore((s) => s.setReadReceipts);
+  const linkPreviews = useAppearanceStore((s) => s.linkPreviews);
+  const setLinkPreviews = useAppearanceStore((s) => s.setLinkPreviews);
 
   return (
     <Screen className="bg-surface px-0" edges={[]}>
@@ -32,6 +34,16 @@ export default function PrivacyScreen() {
           Unread state is otherwise kept on this device only. Nothing tells anyone which
           conversations you have open, which you have pinned, or which you have muted.
         </Text>
+
+        <Section title="Links" surface="card" className="mb-4">
+          <ListItem
+            title="Show link previews"
+            subtitle="Fetches a title, description and picture for links, straight from the linked site. With no server in between, the site sees this device's address as soon as a link arrives, not only when you tap it. Turn this off to keep that to yourself."
+            numberOfLinesSubtitle={6}
+            leading={<Icon name="link-outline" size={20} color={colors['content-muted']} />}
+            trailing={<Switch value={linkPreviews} onValueChange={setLinkPreviews} />}
+          />
+        </Section>
 
         <Section title="Not collected" surface="card" className="mb-4">
           <ListItem
