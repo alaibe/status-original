@@ -28,8 +28,10 @@ export default function CreateIdentity() {
   const router = useRouter();
   const adoptIdentity = useIdentityStore((s) => s.adoptIdentity);
 
-  const phrase = createMnemonic();
-  const preview = keyringFromMnemonic(phrase);
+  const [{ phrase, preview }] = useState(() => {
+    const phrase = createMnemonic();
+    return { phrase, preview: keyringFromMnemonic(phrase) };
+  });
 
   const [revealed, setRevealed] = useState(false);
   const [saving, setSaving] = useState(false);

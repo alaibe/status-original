@@ -268,10 +268,9 @@ function makePluginContext(
 }
 
 export function PluginProvider({ plugins, defaultEnabled, children }: PluginProviderProps) {
-  const registry = new PluginRegistry(plugins, {
-    commands: groupCommands,
-    composerActions: groupComposerActions,
-  });
+  const [registry] = useState(
+    () => new PluginRegistry(plugins, { commands: groupCommands, composerActions: groupComposerActions })
+  );
   const [enabledIds, setEnabledIds] = useState<PluginId[]>([]);
 
   const setEnabled = async (id: PluginId, enabled: boolean) => {
