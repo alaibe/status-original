@@ -1,7 +1,8 @@
 import { Stack, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {
@@ -17,7 +18,6 @@ import {
   SwipeableRow,
   type SwipeAction,
   Text,
-  useTabBarInset,
   useThemeColors,
 } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
@@ -32,7 +32,6 @@ import { protocolBadge } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
 
 export default function ChatsScreen() {
-  const bottomInset = useTabBarInset(16);
   const router = useRouter();
   const colors = useThemeColors();
 
@@ -162,11 +161,10 @@ export default function ChatsScreen() {
           onAction={() => router.push('/new-chat')}
         />
       ) : (
-        <FlatList
+        <FlashList
           data={visible}
           keyExtractor={(c) => c.id}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentInsetAdjustmentBehavior="automatic"
           ListEmptyComponent={
             <EmptyState
               icon={<Icon name="search-outline" size={40} color={colors['content-subtle']} />}

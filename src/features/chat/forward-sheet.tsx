@@ -1,4 +1,5 @@
-import { FlatList, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { View } from 'react-native';
 
 import { ListItem, Sheet, Text, toast } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
@@ -29,7 +30,7 @@ export function ForwardSheet({
         <Text variant="footnote" className="px-gutter pb-2">
           {message ? contentPreview(message.content) : ''}
         </Text>
-        <FlatList
+        <FlashList
           data={conversations.filter((c) => c.id !== from)}
           keyExtractor={(c) => c.id}
           renderItem={({ item }) => {

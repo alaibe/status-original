@@ -13,7 +13,6 @@ import {
   Screen,
   Section,
   Text,
-  useTabBarInset,
   useThemeColors,
 } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
@@ -24,7 +23,6 @@ import { peersOf } from '@/features/contacts/peers';
 export default function ContactsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const bottomInset = useTabBarInset(16);
 
   const conversations = useChatStore((s) => s.conversations);
   const sessions = useChatStore((s) => s.sessions);
@@ -88,9 +86,7 @@ export default function ContactsScreen() {
       />
 
       <Screen className="px-0" edges={[]}>
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: bottomInset }}
-          contentInsetAdjustmentBehavior="never">
+        <ScrollView contentInsetAdjustmentBehavior="automatic">
           {access === 'limited' && process.env.EXPO_OS === 'ios' ? (
             <Card className="mx-gutter mb-4 flex-row items-center gap-3">
               <View className="flex-1">

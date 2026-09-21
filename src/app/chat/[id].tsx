@@ -2,14 +2,9 @@ import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  type ListRenderItemInfo,
-  View,
-  StyleSheet,
-} from 'react-native';
+import { KeyboardAvoidingView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -151,15 +146,13 @@ export default function ConversationScreen() {
     [id, react]
   );
 
-  const reversed = useMemo(() => [...messages].reverse(), [messages]);
-
   const isGroup = conversation?.kind === 'group';
   const botName = conversation?.title ?? 'Bot';
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<ChatMessage>) => (
       <MessageRow
         message={item}
-        previous={reversed[index + 1]}
+        previous={messages[index - 1]}
         replyTarget={item.replyTo ? byId.get(item.replyTo) : undefined}
         senderName={isBot ? botName : nameFor(item.senderId)}
         isGroup={isGroup}
@@ -171,7 +164,7 @@ export default function ConversationScreen() {
         onReactTo={onReactTo}
       />
     ),
-    [reversed, byId, isBot, botName, nameFor, isGroup, previewOf, runCommand, onRetryId, onReactTo]
+    [messages, byId, isBot, botName, nameFor, isGroup, previewOf, runCommand, onRetryId, onReactTo]
   );
 
   const title = conversation
@@ -244,7 +237,7 @@ export default function ConversationScreen() {
       <KeyboardAvoidingView
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
         className="flex-1">
-        {reversed.length === 0 ? (
+        {messages.length === 0 ? (
           <View className="flex-1">
             <HistoryStatus protocol={conversation?.protocol} />
             <EmptyState
@@ -264,12 +257,15 @@ export default function ConversationScreen() {
             />
           </View>
         ) : (
-          <FlatList
-            inverted
-            data={reversed}
+          <FlashList
+            data={messages}
             keyExtractor={(m) => m.id}
-            ListHeaderComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
-            ListFooterComponent={
+            getItemType={(m) => m.content.kind}
+            maintainVisibleContentPosition={{
+              startRenderingFromBottom: true,
+              autoscrollToBottomThreshold: 0.2,
+            }}
+            ListHeaderComponent={
               <View>
                 {messageHistory?.hasOlder ? (
                   <Pressable
@@ -290,7 +286,8 @@ export default function ConversationScreen() {
                 {!isBot && conversation?.protocol ? <HistoryStatus protocol={conversation.protocol} /> : null}
               </View>
             }
-            contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.top + 62 }}
+            ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
+            contentContainerStyle={{ paddingTop: insets.top + 62, paddingBottom: 8 }}
             keyboardDismissMode="interactive"
             renderItem={renderItem}
           />

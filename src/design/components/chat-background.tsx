@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
 import { Image, StyleSheet, View, type ImageURISource } from 'react-native';
 
@@ -39,18 +38,16 @@ export const ChatBackground = memo(function ChatBackground({
 
   return (
     <View style={{ pointerEvents: 'none' }} className="absolute inset-0 overflow-hidden">
-      <LinearGradient
-        colors={
-          isDark
-            ? // `surface-sunken` sits only five values from the canvas, so a
-              // gradient to it reads as a flat black rectangle.
-              [colors.surface, colors.canvas, colors.surface]
-            : [colors['brand-soft'], colors.canvas, colors.surface]
-        }
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={{ position: 'absolute', inset: 0 }}
+      <View
+        style={{
+          position: 'absolute',
+          inset: 0,
+          // `surface-sunken` sits only five values from the canvas in dark, so a
+          // gradient to it reads as a flat black rectangle.
+          experimental_backgroundImage: isDark
+            ? `linear-gradient(141deg, ${colors.surface} 0%, ${colors.canvas} 55%, ${colors.surface} 100%)`
+            : `linear-gradient(141deg, ${colors['brand-soft']} 0%, ${colors.canvas} 55%, ${colors.surface} 100%)`,
+        }}
       />
 
       <Image

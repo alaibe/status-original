@@ -1,14 +1,116 @@
-import { Ionicons } from '@expo/vector-icons';
+import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 
-export type IconName = keyof typeof Ionicons.glyphMap;
+type Glyph = { ios: SFSymbol; android: AndroidSymbol; web: AndroidSymbol };
+
+function glyph(ios: SFSymbol, android: AndroidSymbol): Glyph {
+  return { ios, android, web: android };
+}
+
+const ICONS = {
+  add: glyph('plus', 'add'),
+  'add-circle-outline': glyph('plus.circle', 'add_circle'),
+  'alert-circle': glyph('exclamationmark.circle.fill', 'error'),
+  'archive-outline': glyph('archivebox', 'archive'),
+  'arrow-back': glyph('arrow.left', 'arrow_back'),
+  'arrow-down-circle': glyph('arrow.down.circle.fill', 'arrow_circle_down'),
+  'arrow-down-circle-outline': glyph('arrow.down.circle', 'arrow_circle_down'),
+  'arrow-redo-outline': glyph('arrowshape.turn.up.right', 'redo'),
+  'arrow-undo-outline': glyph('arrowshape.turn.up.left', 'undo'),
+  'arrow-up': glyph('arrow.up', 'arrow_upward'),
+  'arrow-up-circle-outline': glyph('arrow.up.circle', 'arrow_circle_up'),
+  'attach-outline': glyph('paperclip', 'attach_file'),
+  'bluetooth-outline': glyph('dot.radiowaves.left.and.right', 'bluetooth'),
+  'book-outline': glyph('book', 'book'),
+  'chatbubble-outline': glyph('bubble.left', 'chat_bubble'),
+  'chatbubbles-outline': glyph('bubble.left.and.bubble.right', 'forum'),
+  checkmark: glyph('checkmark', 'check'),
+  'checkmark-circle': glyph('checkmark.circle.fill', 'check_circle'),
+  'checkmark-circle-outline': glyph('checkmark.circle', 'check_circle'),
+  'checkmark-done': glyph('checkmark.rectangle.stack.fill', 'done_all'),
+  'checkmark-done-outline': glyph('checkmark.rectangle.stack', 'done_all'),
+  'chevron-back': glyph('chevron.left', 'chevron_left'),
+  'chevron-forward': glyph('chevron.right', 'chevron_right'),
+  close: glyph('xmark', 'close'),
+  'close-circle': glyph('xmark.circle.fill', 'cancel'),
+  'close-circle-outline': glyph('xmark.circle', 'cancel'),
+  'color-palette-outline': glyph('paintpalette', 'palette'),
+  'compass-outline': glyph('safari', 'explore'),
+  'copy-outline': glyph('doc.on.doc', 'content_copy'),
+  create: glyph('square.and.pencil', 'edit_square'),
+  'create-outline': glyph('square.and.pencil', 'edit_square'),
+  'diamond-outline': glyph('diamond', 'diamond'),
+  'document-outline': glyph('doc', 'draft'),
+  'document-text-outline': glyph('doc.text', 'description'),
+  ellipse: glyph('circle.fill', 'circle'),
+  'ellipse-outline': glyph('circle', 'radio_button_unchecked'),
+  'ellipsis-horizontal': glyph('ellipsis', 'more_horiz'),
+  'extension-puzzle-outline': glyph('puzzlepiece.extension', 'extension'),
+  'eye-off-outline': glyph('eye.slash', 'visibility_off'),
+  'eye-outline': glyph('eye', 'visibility'),
+  'file-tray-full-outline': glyph('tray.full', 'inbox'),
+  'finger-print-outline': glyph('touchid', 'fingerprint'),
+  'flash-outline': glyph('bolt', 'bolt'),
+  'git-merge-outline': glyph('arrow.triangle.merge', 'merge'),
+  'git-network-outline': glyph('point.3.connected.trianglepath.dotted', 'hub'),
+  'globe-outline': glyph('globe', 'language'),
+  'hand-left-outline': glyph('hand.raised', 'back_hand'),
+  'happy-outline': glyph('face.smiling', 'mood'),
+  'hardware-chip-outline': glyph('cpu', 'memory'),
+  'heart-outline': glyph('heart', 'favorite'),
+  'images-outline': glyph('photo.on.rectangle', 'photo_library'),
+  'information-circle': glyph('info.circle.fill', 'info'),
+  'information-circle-outline': glyph('info.circle', 'info'),
+  'key-outline': glyph('key', 'key'),
+  'link-outline': glyph('link', 'link'),
+  'lock-closed-outline': glyph('lock', 'lock'),
+  'logo-bitcoin': glyph('bitcoinsign.circle', 'currency_bitcoin'),
+  'mail-unread-outline': glyph('envelope.badge', 'mark_email_unread'),
+  'mic-outline': glyph('mic', 'mic'),
+  'musical-notes-outline': glyph('music.note', 'music_note'),
+  'notifications-outline': glyph('bell', 'notifications'),
+  'open-outline': glyph('arrow.up.right.square', 'open_in_new'),
+  pause: glyph('pause.fill', 'pause'),
+  'people-outline': glyph('person.2', 'group'),
+  'person-add-outline': glyph('person.badge.plus', 'person_add'),
+  'person-circle-outline': glyph('person.circle', 'account_circle'),
+  'person-remove-outline': glyph('person.badge.minus', 'person_remove'),
+  'phone-portrait-outline': glyph('iphone', 'smartphone'),
+  'pie-chart-outline': glyph('chart.pie', 'pie_chart'),
+  pin: glyph('pin.fill', 'push_pin'),
+  play: glyph('play.fill', 'play_arrow'),
+  'pin-outline': glyph('pin', 'push_pin'),
+  power: glyph('power', 'power_settings_new'),
+  'pricetag-outline': glyph('tag', 'sell'),
+  'qr-code-outline': glyph('qrcode', 'qr_code'),
+  'radio-outline': glyph('antenna.radiowaves.left.and.right', 'sensors'),
+  'refresh-outline': glyph('arrow.clockwise', 'refresh'),
+  'search-outline': glyph('magnifyingglass', 'search'),
+  'server-outline': glyph('server.rack', 'dns'),
+  'shapes-outline': glyph('square.on.circle', 'category'),
+  'shield-checkmark-outline': glyph('checkmark.shield', 'verified_user'),
+  'sparkles-outline': glyph('sparkles', 'auto_awesome'),
+  'speedometer-outline': glyph('speedometer', 'speed'),
+  'star-outline': glyph('star', 'star'),
+  'sunny-outline': glyph('sun.max', 'light_mode'),
+  'swap-horizontal-outline': glyph('arrow.left.arrow.right', 'swap_horiz'),
+  'time-outline': glyph('clock', 'schedule'),
+  'trash-outline': glyph('trash', 'delete'),
+  'trending-up-outline': glyph('chart.line.uptrend.xyaxis', 'trending_up'),
+  'triangle-outline': glyph('triangle', 'change_history'),
+  'videocam-outline': glyph('video', 'videocam'),
+  'volume-high-outline': glyph('speaker.wave.2', 'volume_up'),
+  'volume-mute-outline': glyph('speaker.slash', 'volume_off'),
+  'wallet-outline': glyph('wallet.pass', 'account_balance_wallet'),
+} as const;
+
+export type IconName = keyof typeof ICONS;
 
 export interface IconProps {
   name: IconName;
   size?: number;
   color?: string;
-  className?: string;
 }
 
-export function Icon({ name, size = 20, color, className }: IconProps) {
-  return <Ionicons name={name} size={size} color={color} className={className} />;
+export function Icon({ name, size = 20, color }: IconProps) {
+  return <SymbolView name={ICONS[name]} size={size} tintColor={color} />;
 }

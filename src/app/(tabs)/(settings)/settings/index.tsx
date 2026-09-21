@@ -15,7 +15,6 @@ import {
   Section,
   Text,
   toast,
-  useTabBarInset,
 } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import { loadGifKey } from '@/features/chat/attachments/gifs';
@@ -32,7 +31,6 @@ import { errorMessage } from '@/core/errors';
 import { BiometricSection } from '@/features/settings/biometric-section';
 
 export default function SettingsScreen() {
-  const bottomInset = useTabBarInset(16);
   const router = useRouter();
 
   const keyring = useIdentityStore((s) => s.keyring);
@@ -87,7 +85,7 @@ export default function SettingsScreen() {
     <Screen className="bg-surface px-0" edges={[]}>
       <Stack.Screen options={{ title: 'Settings', headerTransparent: false }} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: bottomInset }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic">
         <View className="items-center gap-2 px-gutter pb-6 pt-2">
           <View className="w-full flex-row items-center justify-between">
             <IconButton

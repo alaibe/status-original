@@ -1,7 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 
 import { useMemo } from 'react';
-import { FlatList } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 
 import { EmptyState, ListItem, Screen, SwipeableRow } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
@@ -29,9 +29,10 @@ export default function RequestsScreen() {
       {requests.length === 0 ? (
         <EmptyState title="Nothing waiting" description="New conversations will show up here." />
       ) : (
-        <FlatList
+        <FlashList
           data={requests}
           keyExtractor={(c) => c.id}
+          contentInsetAdjustmentBehavior="automatic"
           renderItem={({ item }) => {
             const selfId = selfIdFor({ sessions }, item.protocol);
             return (
