@@ -2,6 +2,8 @@ import Constants from 'expo-constants';
 
 import type { IconName } from '@/design';
 
+import { METADATA_URL } from './metadata-url';
+
 export function walletConnectProjectId(): string | null {
   const fromExtra = Constants.expoConfig?.extra?.walletConnectProjectId;
   const fromEnv = process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -18,7 +20,7 @@ export const APP_METADATA: {
 } = {
   name: 'Status Original',
   description: 'Encrypted chat with an Ethereum wallet built in.',
-  url: 'https://github.com/alaibe/status-original',
+  url: METADATA_URL,
   icons: ['https://avatars.githubusercontent.com/u/37784886'],
   redirect: {
     native: 'statusoriginal://',

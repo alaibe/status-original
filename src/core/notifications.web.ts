@@ -1,10 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import {
-  isPermissionGranted,
-  onAction,
-  requestPermission,
-  sendNotification,
-} from '@tauri-apps/plugin-notification';
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 import type { MessageNotification } from './notifications';
 
@@ -20,11 +15,7 @@ async function allowed(): Promise<boolean> {
 export async function notifyMessage(notification: MessageNotification): Promise<void> {
   try {
     if (!(await allowed())) return;
-    sendNotification({
-      title: notification.title,
-      body: notification.body,
-      extra: { conversationId: notification.conversationId },
-    });
+    sendNotification({ title: notification.title, body: notification.body });
   } catch (error) {
     console.warn('[notifications] could not post', error);
   }
@@ -41,13 +32,8 @@ export async function setBadgeCount(count: number): Promise<void> {
   } catch {}
 }
 
-export function onNotificationTapped(handler: (conversationId: string) => void): () => void {
-  let active = true;
-  onAction((notification) => {
-    const id = notification.extra?.conversationId;
-    if (active && typeof id === 'string') handler(id);
-  }).catch((error) => console.warn('[notifications] could not listen', error));
-  return () => {
-    active = false;
-  };
+// The desktop plugin only posts: it has no tap event, so a click brings the
+// window forward and no further.
+export function onNotificationTapped(_handler: (conversationId: string) => void): () => void {
+  return () => {};
 }

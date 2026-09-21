@@ -37,7 +37,9 @@ export function springLayout(preset: WithSpringConfig = Spring.layout) {
     .reduceMotion(R);
 }
 
-const EASE_OUT = Easing.out(Easing.cubic);
+// Easing.out(Easing.cubic) as a curve: web layout animations take only named
+// or bezier easings and quietly fall back to linear for anything else.
+const EASE_OUT = Easing.bezier(0.33, 1, 0.68, 1);
 
 export const Duration = {
   fast: 130,
