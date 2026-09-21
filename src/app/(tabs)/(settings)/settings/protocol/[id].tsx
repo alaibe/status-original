@@ -13,6 +13,7 @@ import {
 } from '@/core/messaging/config';
 import { protocolById } from '@/protocols';
 import { errorMessage } from '@/core/errors';
+import { LoginStep, SignedIn } from '@/features/protocols/login';
 import { describeProtocol, toneFor } from '@/features/protocols/presentation';
 import { accountRuntime } from '@/runtime';
 import { openExternal } from '@/lib/open-url';
@@ -23,6 +24,7 @@ export default function ProtocolConfigScreen() {
   const descriptor = protocolById(id);
   const accountId = useIdentityStore((s) => s.activeAccountId);
   const connection = useChatStore((s) => (id ? s.protocols[id] : undefined));
+  const session = useChatStore((s) => (id ? s.sessions[id] : undefined));
 
   const [config, setConfig] = useState<ProtocolConfig | null>(null);
   const [busy, setBusy] = useState(false);
@@ -105,6 +107,12 @@ export default function ProtocolConfigScreen() {
                 </Text>
                 <Text variant="caption">{connection.error}</Text>
               </Card>
+            ) : null}
+
+            {connection?.login ? (
+              <LoginStep key={connection.login.step} login={connection.login} session={session} />
+            ) : session?.subscribeLogin && session.self.address ? (
+              <SignedIn session={session} label={descriptor.label} />
             ) : null}
 
             {config === null ? (

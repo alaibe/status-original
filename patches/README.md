@@ -157,6 +157,34 @@ Architecture" warning `npx expo-doctor` reports for this package.
 
 ---
 
+## `react-native-tdlib+2.3.0.patch`
+
+Not a Swift problem; a missing method. The wrapper's high-level API
+(`startTdLib`) pins TDLib's database to one shared `Documents/tdlib` with no
+encryption key, so `src/protocols/telegram/td-client.ts` drives the raw
+`td_json_client_*` methods instead, with a per-account directory and a key
+from the keychain. In that mode nothing frees the native client once TDLib
+reports `authorizationStateClosed`: the only teardown the wrapper exposes is
+`destroy`, which first sends TDLib's `destroy` request and deletes all local
+data. Switching accounts or reconnecting would then either wipe the Telegram
+database or leave a dead client that `td_json_client_create` refuses to
+replace.
+
+Fix: add `td_json_client_destroy`, which frees the native client and sends
+nothing to TDLib, and list it in `index.js` and `index.d.ts`. Only called
+after TDLib has said it is closed, when no receive is in flight.
+
+Android is not patched: the wrapper's Android side never implemented the raw
+receive path (its `td_json_client_receive` sends a null request instead of
+reading updates), so Telegram is iOS-only until that is fixed upstream or the
+adapter grows a second native backend.
+
+When to remove: when upstream ships a native-only destroy for the raw API.
+Regenerate with
+`npx patch-package react-native-tdlib --include 'ios/TdLibModule\.mm$|^index\.js$|^index\.d\.ts$'`.
+
+---
+
 ## Not a patch: `plugins/with-sqlcipher-sqlite-fix.js`
 
 Same family of problem, fixed a different way because it lives in the build

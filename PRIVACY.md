@@ -24,6 +24,13 @@ are end-to-end encrypted. Relay operators see ciphertext and routing metadata
 (who is talking to whom, roughly when, and from which network address). You
 choose the relays in Settings.
 
+Telegram is different, and only on if you sign in to it. Telegram chats are
+not end-to-end encrypted: Telegram's servers hold and can read them, exactly
+as with the official app. Signing in sends your phone number to Telegram,
+and the app registers itself there under the API ID and hash you supply. The
+Telegram database on this device is encrypted with its own key in the
+keychain and is deleted when you sign out or erase the account.
+
 Blockchain reads and transactions go from your device to a public endpoint
 for that network, or to one you set with `/rpc`. That endpoint sees the
 addresses you look at and the transactions you send.

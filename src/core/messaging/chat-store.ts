@@ -53,6 +53,7 @@ export interface ProtocolConnection {
   status: ConnectionStatus;
   error: string | null;
   history?: import('./history').HistoryState;
+  login?: import('./protocol').LoginState | null;
 }
 
 export interface ChatState {

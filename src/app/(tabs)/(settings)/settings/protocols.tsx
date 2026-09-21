@@ -9,6 +9,7 @@ import {
   Screen,
   Section,
   Text,
+  type IconName,
   type RowIconTone,
 } from '@/design';
 import { useChatStore, type ProtocolConnection } from '@/core/messaging/chat-store';
@@ -58,12 +59,14 @@ const TONE: Record<string, RowIconTone> = {
   xmtp: 'blue',
   nostr: 'purple',
   waku: 'teal',
+  telegram: 'blue',
 };
 
-const ICON: Record<string, 'shield-checkmark-outline' | 'flash-outline' | 'radio-outline'> = {
+const ICON: Record<string, IconName> = {
   xmtp: 'shield-checkmark-outline',
   nostr: 'flash-outline',
   waku: 'radio-outline',
+  telegram: 'paper-plane-outline',
 };
 
 function describeStatus(
@@ -71,6 +74,7 @@ function describeStatus(
   connection: ProtocolConnection | undefined
 ): { label: string; tone: 'neutral' | 'brand' | 'success' | 'warning' | 'danger' } {
   if (!descriptor.connect) return { label: 'Not available', tone: 'neutral' };
+  if (connection?.login) return { label: 'Sign in', tone: 'warning' };
 
   switch (connection?.status) {
     case 'ready':

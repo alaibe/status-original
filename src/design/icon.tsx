@@ -78,6 +78,7 @@ const ICONS = {
   'notifications-outline': glyph('bell', 'notifications'),
   'open-outline': glyph('arrow.up.right.square', 'open_in_new'),
   pause: glyph('pause.fill', 'pause'),
+  'paper-plane-outline': glyph('paperplane', 'send'),
   'people-outline': glyph('person.2', 'group'),
   'person-add-outline': glyph('person.badge.plus', 'person_add'),
   'person-circle-outline': glyph('person.circle', 'account_circle'),

@@ -69,6 +69,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
+    "react-native-tdlib": "^2.3.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1",
     "readable-stream": "^4.7.0",

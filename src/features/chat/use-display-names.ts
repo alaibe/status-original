@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { shortAddress } from '@/core/identity/keyring';
-import { isLocalConversation, isParticipantId } from '@/core/messaging/bots';
+import { isLocalConversation } from '@/core/messaging/bots';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type { Conversation, ParticipantId } from '@/core/messaging/types';
 
@@ -13,6 +13,7 @@ export interface DisplayParticipant {
 export function useDisplayNames(participants: DisplayParticipant[]) {
   const sessions = useChatStore((s) => s.sessions);
   const [addresses, setAddresses] = useState<Record<ParticipantId, string>>({});
+  const [names, setNames] = useState<Record<ParticipantId, string>>({});
 
   const key = [...new Set(participants.map((p) => `${p.protocol ?? ''}:${p.id}`))].sort().join(',');
 
@@ -25,7 +26,7 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
       const at = entry.indexOf(':');
       const protocol = entry.slice(0, at);
       const id = entry.slice(at + 1);
-      if (!protocol || !isParticipantId(id)) continue;
+      if (!protocol || !id) continue;
       byProtocol.set(protocol, [...(byProtocol.get(protocol) ?? []), id]);
     }
 
@@ -39,6 +40,12 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
           if (!cancelled) setAddresses((prev) => ({ ...prev, ...resolved }));
         })
         .catch(() => {});
+      session
+        .resolveNames?.(ids)
+        .then((resolved) => {
+          if (!cancelled) setNames((prev) => ({ ...prev, ...resolved }));
+        })
+        .catch(() => {});
     }
 
     return () => {
@@ -48,6 +55,8 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
 
   return ({
     nameFor(id: ParticipantId): string {
+      const name = names[id];
+      if (name) return name;
       const address = addresses[id];
       return address ? shortAddress(address) : shortAddress(id, 6, 4);
     },

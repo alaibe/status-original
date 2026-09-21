@@ -244,9 +244,11 @@ export function SettingsSections({
 }
 
 function describeConnections(
-  connections: Record<string, { status: string; error: string | null }>,
+  connections: Record<string, { status: string; error: string | null; login?: unknown }>,
 ): string {
-  const connected = transportProtocols().filter((p) => connections[p.id]?.status === 'ready');
+  const connected = transportProtocols().filter(
+    (p) => connections[p.id]?.status === 'ready' && !connections[p.id]?.login,
+  );
   const failed = transportProtocols().filter((p) => connections[p.id]?.status === 'error');
 
   if (connected.length === 0) {

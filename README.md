@@ -18,6 +18,9 @@ the same code as a web export inside a Tauri window.
 
 - End-to-end encrypted messaging over XMTP, Nostr and Waku, in one inbox
   that shows which network each conversation is on.
+- Your Telegram account in the same inbox, as a real client over TDLib:
+  private chats and groups, signed in with your phone number. Telegram is
+  not end-to-end encrypted, and the app says so on the conversation.
 - Message requests, search, filters, replies, reactions, forwarding, photos,
   files, GIFs and voice messages. Links unfurl into a card (YouTube with a
   poster, maps links into a place that opens in Maps); phone numbers, email
@@ -54,7 +57,7 @@ src/
     messaging/  chat domain, persistence sessions, history, projections
     commands/   command parsing and shared group commands
     plugins/    plugin contracts, registry, storage and host
-  protocols/    XMTP, Nostr and Waku descriptors and adapters
+  protocols/    XMTP, Nostr, Waku and Telegram descriptors and adapters
   storage/      account-scoped storage, SQLCipher, vault, media, erase
   design/       tokens, components, motion and widget rendering
   features/     chat and protocol UI
@@ -67,9 +70,11 @@ A file ending in `.web.tsx` or `.web.ts` is the desktop version of its
 neighbour; `docs/desktop.md` lists them.
 
 `ChatSession` is the messaging contract the app talks to. XMTP implements it
-on the SDK's own encrypted database; Nostr and Waku use `StoreBackedSession`
-over the app's `MessageStore`, so transport code stays separate from local
-persistence. `AccountRuntime` owns the active account's storage, plugins,
+on the SDK's own encrypted database, and Telegram on TDLib's; Nostr and Waku
+use `StoreBackedSession` over the app's `MessageStore`, so transport code
+stays separate from local persistence. A session that signs in interactively
+reports the step it is waiting on, and the protocol's settings screen walks
+through it. `AccountRuntime` owns the active account's storage, plugins,
 protocol sessions and local bots. Conversation and message IDs carry their
 protocol before they reach the unified store.
 
@@ -86,8 +91,8 @@ before the keys.
 ## Setup
 
 Node.js 22.13 or newer, Xcode 26.3 and CocoaPods for iOS; Rust for the desktop
-app. Expo Go does not work: the app uses native modules for XMTP, SQLCipher and
-hardware wallets.
+app. Expo Go does not work: the app uses native modules for XMTP, TDLib,
+SQLCipher and hardware wallets.
 
 ```bash
 npm install
@@ -102,10 +107,13 @@ has the details and the crash reports behind that choice.
 
 WalletConnect needs a project ID from Reown Cloud in
 `expo.extra.walletConnectProjectId`. Alchemy and KLIPY keys are optional and
-entered per account inside the app.
+entered per account inside the app, as are the Telegram API ID and hash from
+my.telegram.org: each user registers their own, and nothing is shared.
 
 Android has not been built or run yet. The native project generates, but
-nothing has been checked on a device or emulator.
+nothing has been checked on a device or emulator. Telegram in particular is
+iOS-only for now: `react-native-tdlib`'s Android side does not expose the raw
+`td_json_client` calls `src/protocols/telegram/td-client.ts` relies on.
 
 `npm run desktop` opens the desktop app with live reload; `npm run
 desktop:build` produces the `.app`. `docs/desktop.md` explains how the desktop

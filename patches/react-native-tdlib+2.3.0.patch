@@ -1,0 +1,60 @@
+diff --git a/node_modules/react-native-tdlib/index.d.ts b/node_modules/react-native-tdlib/index.d.ts
+index 610418a..5e1e251 100644
+--- a/node_modules/react-native-tdlib/index.d.ts
++++ b/node_modules/react-native-tdlib/index.d.ts
+@@ -59,6 +59,7 @@ declare module "react-native-tdlib" {
+   export function td_json_client_send(request: Record<string, unknown>): Promise<string>;
+   export function td_json_client_execute(request: Record<string, unknown>): Promise<string>;
+   export function td_json_client_receive(): Promise<string>;
++  export function td_json_client_destroy(): Promise<string>;
+   export function getTextEntities(text: string): Promise<string>;
+ 
+   // ==================== Options ====================
+@@ -228,6 +229,7 @@ declare module "react-native-tdlib" {
+     td_json_client_execute: typeof td_json_client_execute;
+     td_json_client_send: typeof td_json_client_send;
+     td_json_client_receive: typeof td_json_client_receive;
++    td_json_client_destroy: typeof td_json_client_destroy;
+     getTextEntities: typeof getTextEntities;
+ 
+     startTdLib: typeof startTdLib;
+diff --git a/node_modules/react-native-tdlib/index.js b/node_modules/react-native-tdlib/index.js
+index 2058dc7..6fa6f8a 100644
+--- a/node_modules/react-native-tdlib/index.js
++++ b/node_modules/react-native-tdlib/index.js
+@@ -14,6 +14,7 @@ export default {
+   td_json_client_execute: TdLibModule.td_json_client_execute,
+   td_json_client_send: TdLibModule.td_json_client_send,
+   td_json_client_receive: TdLibModule.td_json_client_receive,
++  td_json_client_destroy: TdLibModule.td_json_client_destroy,
+   getTextEntities: TdLibModule.getTextEntities,
+ 
+   // Auth
+diff --git a/node_modules/react-native-tdlib/ios/TdLibModule.mm b/node_modules/react-native-tdlib/ios/TdLibModule.mm
+index a916c8a..835d478 100644
+--- a/node_modules/react-native-tdlib/ios/TdLibModule.mm
++++ b/node_modules/react-native-tdlib/ios/TdLibModule.mm
+@@ -276,6 +276,23 @@ RCT_EXPORT_METHOD(td_json_client_create:(RCTPromiseResolveBlock)resolve rejecter
+     }
+ }
+ 
++/**
++ * Frees the client after TDLib reported authorizationStateClosed. Unlike
++ * `destroy`, this sends nothing to TDLib, so local data is kept.
++ */
++RCT_EXPORT_METHOD(td_json_client_destroy:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
++    [self stopReceiveLoop];
++    [_clientLock lock];
++    void *c = _client;
++    _client = NULL;
++    [_clientLock unlock];
++    [self rejectAllPending:@"CLIENT_DESTROYED" message:@"TDLib client was destroyed"];
++    if (c) {
++        td_json_client_destroy(c);
++    }
++    resolve(@"TDLib client destroyed");
++}
++
+ RCT_EXPORT_METHOD(td_json_client_execute:(NSDictionary *)request
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   rejecter:(RCTPromiseRejectBlock)reject) {

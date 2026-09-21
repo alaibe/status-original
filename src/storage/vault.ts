@@ -14,7 +14,7 @@ export const VaultKey = {
 export type VaultKeyName = (typeof VaultKey)[keyof typeof VaultKey] | AccountScopedKey;
 
 type AccountScopedKey =
-  `account.${string}.${'mnemonic' | 'dbKey' | 'appDbKey' | 'protocols' | 'credentials'}`;
+  `account.${string}.${'mnemonic' | 'dbKey' | 'appDbKey' | 'tdlibDbKey' | 'protocols' | 'credentials'}`;
 
 export function accountMnemonicKey(accountId: string): AccountScopedKey {
   return `account.${accountId}.mnemonic`;
@@ -27,6 +27,11 @@ export function accountDbKeyName(accountId: string): AccountScopedKey {
 // The app database and XMTP database must not share key material.
 export function accountAppDbKeyName(accountId: string): AccountScopedKey {
   return `account.${accountId}.appDbKey`;
+}
+
+// Telegram's TDLib database has its own key, kept apart from the XMTP one.
+export function accountTdlibDbKeyName(accountId: string): AccountScopedKey {
+  return `account.${accountId}.tdlibDbKey`;
 }
 
 export function accountProtocolConfigsKey(accountId: string): AccountScopedKey {
@@ -42,6 +47,7 @@ export function accountScopedKeys(accountId: string): VaultKeyName[] {
     accountMnemonicKey(accountId),
     accountDbKeyName(accountId),
     accountAppDbKeyName(accountId),
+    accountTdlibDbKeyName(accountId),
     accountProtocolConfigsKey(accountId),
     accountCredentialsKey(accountId),
   ];
@@ -96,6 +102,18 @@ export async function accountDatabaseKey(accountId: string): Promise<string> {
   if (existing && /^[0-9a-f]{64}$/.test(existing)) return existing;
 
   const fresh = toHex(Crypto.getRandomBytes(32));
+  await vaultSet(name, fresh);
+  return fresh;
+}
+
+/** Base64, which is how TDLib's JSON interface takes bytes. */
+export async function accountTdlibDatabaseKey(accountId: string): Promise<string> {
+  const name = accountTdlibDbKeyName(accountId);
+
+  const existing = await vaultGet(name);
+  if (existing) return existing;
+
+  const fresh = globalThis.btoa(String.fromCharCode(...Crypto.getRandomBytes(32)));
   await vaultSet(name, fresh);
   return fresh;
 }

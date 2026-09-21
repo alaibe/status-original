@@ -340,6 +340,12 @@ export class AccountRuntime {
             this.setProtocol(protocolId, { ...useChatStore.getState().protocols[protocolId], history });
           }));
         }
+        if (session.subscribeLogin) {
+          this.subscriptions.push(session.subscribeLogin((login) => {
+            if (!live()) return;
+            this.setProtocol(protocolId, { ...useChatStore.getState().protocols[protocolId], login });
+          }));
+        }
         const stopMessages = await session.streamMessages((message) => {
           if (live()) useChatStore.getState().ingestMessage(namespaceMessage(protocolId, message));
         });
