@@ -62,8 +62,7 @@ export const Enter = {
       .delay(delay)
       .reduceMotion(R),
 
-  fade: (delay = 0) =>
-    FadeIn.duration(Duration.base).easing(EASE_OUT).delay(delay).reduceMotion(R),
+  fade: (delay = 0) => FadeIn.duration(Duration.base).easing(EASE_OUT).delay(delay).reduceMotion(R),
 
   fromTop: () =>
     FadeInUp.duration(Duration.base)

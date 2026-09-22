@@ -53,7 +53,9 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   }, [conversations.length, status, markInteractive]);
   const syncing = useChatStore((s) => s.syncing);
   const fetchingHistory = useChatStore((s) =>
-    Object.values(s.protocols).some((p) => p.status === 'connecting' || p.history?.status === 'fetching')
+    Object.values(s.protocols).some(
+      (p) => p.status === 'connecting' || p.history?.status === 'fetching'
+    )
   );
   const sync = useChatStore((s) => s.sync);
   const sessions = useChatStore((s) => s.sessions);
@@ -64,9 +66,13 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   const readAt = useChatStore((s) => s.readAt);
   const chatPrefs = useChatStore((s) => s.chatPrefs);
   const setChatPref = useChatStore((s) => s.setChatPref);
-  const toggle = (id: string, key: keyof ChatPrefs) => setChatPref(id, { [key]: !chatPrefs[id]?.[key] });
+  const toggle = (id: string, key: keyof ChatPrefs) =>
+    setChatPref(id, { [key]: !chatPrefs[id]?.[key] });
 
-  const [menu, setMenu] = useState<{ conversation: Conversation; anchor: MenuAnchor | null } | null>(null);
+  const [menu, setMenu] = useState<{
+    conversation: Conversation;
+    anchor: MenuAnchor | null;
+  } | null>(null);
   const managing = menu?.conversation ?? null;
   const [showArchived, setShowArchived] = useState(false);
   const [chosenFolder, setFolder] = useState<FolderId>('all');
@@ -129,8 +135,20 @@ export function ChatList({ query, selectedId }: ChatListProps) {
           ListEmptyComponent={
             <EmptyState
               icon={<Icon name="search-outline" size={40} color={colors['content-subtle']} />}
-              title={query.trim() ? 'No matching chats' : showArchived ? 'No archived chats' : 'Nothing in this folder'}
-              description={query.trim() ? `No chats match “${query.trim()}”.` : showArchived ? 'Chats you archive will appear here.' : 'Choose another folder to see your other chats.'}
+              title={
+                query.trim()
+                  ? 'No matching chats'
+                  : showArchived
+                    ? 'No archived chats'
+                    : 'Nothing in this folder'
+              }
+              description={
+                query.trim()
+                  ? `No chats match “${query.trim()}”.`
+                  : showArchived
+                    ? 'Chats you archive will appear here.'
+                    : 'Choose another folder to see your other chats.'
+              }
             />
           }
           refreshControl={
@@ -188,18 +206,18 @@ export function ChatList({ query, selectedId }: ChatListProps) {
                 </Pressable>
               ) : null}
               {requests.length > 0 && !showArchived ? (
-              <Pressable
-                testID="open-requests"
-                accessibilityRole="button"
-                onPress={() => router.push('/requests')}
-                className="mx-gutter mb-2 min-h-tap flex-row items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
-                <Icon name="mail-unread-outline" size={20} color={colors.brand} />
-                <View className="min-w-0 flex-1">
-                  <Text className="font-semibold">Message requests</Text>
-                  <Text variant="caption">From people you haven’t replied to</Text>
-                </View>
-                <Badge label={String(requests.length)} tone="brand" />
-              </Pressable>
+                <Pressable
+                  testID="open-requests"
+                  accessibilityRole="button"
+                  onPress={() => router.push('/requests')}
+                  className="mx-gutter mb-2 min-h-tap flex-row items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
+                  <Icon name="mail-unread-outline" size={20} color={colors.brand} />
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-semibold">Message requests</Text>
+                    <Text variant="caption">From people you haven’t replied to</Text>
+                  </View>
+                  <Badge label={String(requests.length)} tone="brand" />
+                </Pressable>
               ) : null}
             </>
           }
@@ -253,9 +271,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
         visible={menu !== null}
         anchor={menu?.anchor}
         onClose={() => setMenu(null)}
-        title={
-          managing ? conversationTitle(managing, selfIdOf(managing), nameFor) : undefined
-        }
+        title={managing ? conversationTitle(managing, selfIdOf(managing), nameFor) : undefined}
         subtitle={managing ? protocolSubtitle(managing.protocol) : undefined}
         leading={
           managing ? (
@@ -320,72 +336,67 @@ function ConversationRow({
   return (
     <View>
       <SwipeableRow left={left} right={right}>
-      <ListItem
-        testID={`conversation-${conversation.id}`}
-        title={title}
-        subtitle={messagePreview(conversation.lastMessage)}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onContextMenu={onContextMenu}
-        selected={selected}
-        unread={unread && !muted}
-        leading={<ConversationAvatar conversation={conversation} selfId={selfId} size="md" />}
-        trailing={
-          <View className="items-end gap-1">
-            {conversation.lastMessage ? (
-              <View className="flex-row items-center gap-1">
-                {conversation.lastMessage.fromMe ? (
-                  <Icon
-                    name={
-                      conversation.lastMessage.status === 'failed'
-                        ? 'alert-circle'
-                        : conversation.lastMessage.status === 'sending'
-                          ? 'time-outline'
-                          : 'checkmark-done'
-                    }
-                    size={14}
-                    color={
-                      conversation.lastMessage.status === 'failed'
-                        ? colors.danger
-                        : conversation.lastMessage.readAt
-                          ? colors.brand
-                          : colors['content-subtle']
-                    }
-                  />
-                ) : null}
-                <Text
-                  variant="caption"
-                  className={unread ? 'font-semibold text-brand' : undefined}>
-                  {formatTimestamp(conversation.lastMessage.sentAt)}
-                </Text>
-              </View>
-            ) : null}
+        <ListItem
+          testID={`conversation-${conversation.id}`}
+          title={title}
+          subtitle={messagePreview(conversation.lastMessage)}
+          onPress={onPress}
+          onLongPress={onLongPress}
+          onContextMenu={onContextMenu}
+          selected={selected}
+          unread={unread && !muted}
+          leading={<ConversationAvatar conversation={conversation} selfId={selfId} size="md" />}
+          trailing={
+            <View className="items-end gap-1">
+              {conversation.lastMessage ? (
+                <View className="flex-row items-center gap-1">
+                  {conversation.lastMessage.fromMe ? (
+                    <Icon
+                      name={
+                        conversation.lastMessage.status === 'failed'
+                          ? 'alert-circle'
+                          : conversation.lastMessage.status === 'sending'
+                            ? 'time-outline'
+                            : 'checkmark-done'
+                      }
+                      size={14}
+                      color={
+                        conversation.lastMessage.status === 'failed'
+                          ? colors.danger
+                          : conversation.lastMessage.readAt
+                            ? colors.brand
+                            : colors['content-subtle']
+                      }
+                    />
+                  ) : null}
+                  <Text
+                    variant="caption"
+                    className={unread ? 'font-semibold text-brand' : undefined}>
+                    {formatTimestamp(conversation.lastMessage.sentAt)}
+                  </Text>
+                </View>
+              ) : null}
 
-            {muted || pinned || badge || unread ? (
-              <View className="flex-row items-center gap-1.5">
-                {muted ? (
-                  <Icon name="volume-mute-outline" size={13} color={colors['content-subtle']} />
-                ) : null}
-                {pinned ? <Icon name="pin" size={13} color={colors['content-subtle']} /> : null}
-                {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
-                {unread ? <UnreadDot /> : null}
-              </View>
-            ) : null}
-          </View>
-        }
-      />
+              {muted || pinned || badge || unread ? (
+                <View className="flex-row items-center gap-1.5">
+                  {muted ? (
+                    <Icon name="volume-mute-outline" size={13} color={colors['content-subtle']} />
+                  ) : null}
+                  {pinned ? <Icon name="pin" size={13} color={colors['content-subtle']} /> : null}
+                  {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
+                  {unread ? <UnreadDot /> : null}
+                </View>
+              ) : null}
+            </View>
+          }
+        />
       </SwipeableRow>
     </View>
   );
 }
 
 function UnreadDot() {
-  return (
-    <View
-      accessibilityLabel="Unread"
-      className="h-2.5 w-2.5 rounded-pill bg-brand"
-    />
-  );
+  return <View accessibilityLabel="Unread" className="h-2.5 w-2.5 rounded-pill bg-brand" />;
 }
 
 function ConnectingState() {

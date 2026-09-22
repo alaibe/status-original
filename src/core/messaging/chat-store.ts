@@ -17,17 +17,8 @@ import {
   splitConversationId,
   type ProtocolId,
 } from './namespace';
-import {
-  saveChatPrefs,
-  withPref,
-  type ChatPrefs,
-  type ChatPrefsMap,
-} from './chat-prefs';
-import {
-  indexMessages,
-  saveMediaIndex,
-  type MediaIndex,
-} from './media-index';
+import { saveChatPrefs, withPref, type ChatPrefs, type ChatPrefsMap } from './chat-prefs';
+import { indexMessages, saveMediaIndex, type MediaIndex } from './media-index';
 import { useAppearanceStore } from '../app/appearance';
 import { writeReadState } from './read-state';
 import { foldReactions, hasReacted } from './reactions';
@@ -76,11 +67,7 @@ export interface ChatState {
   accountStorage: AccountStorage | null;
 
   registerBots(bots: Bot[]): Promise<void>;
-  postLocalMessage(
-    id: ConversationId,
-    content: MessageContent,
-    from: 'me' | 'bot'
-  ): Promise<void>;
+  postLocalMessage(id: ConversationId, content: MessageContent, from: 'me' | 'bot'): Promise<void>;
 
   postPrivateMessage(id: ConversationId, content: MessageContent): Promise<void>;
 
@@ -90,11 +77,7 @@ export interface ChatState {
   sendMessage(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<void>;
   resolvePeer(protocol: ProtocolId, addressOrId: string): Promise<ParticipantId | null>;
   startDm(protocol: ProtocolId, peer: ParticipantId): Promise<Conversation>;
-  startGroup(
-    protocol: ProtocolId,
-    peers: ParticipantId[],
-    title: string
-  ): Promise<Conversation>;
+  startGroup(protocol: ProtocolId, peers: ParticipantId[], title: string): Promise<Conversation>;
   sync(): Promise<void>;
   syncProtocol(protocolId: ProtocolId): Promise<void>;
 
@@ -162,9 +145,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       )
     );
 
-    const remote = results.flatMap((result) =>
-      result.status === 'fulfilled' ? result.value : []
-    );
+    const remote = results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
     if (!sameSessions(get(), accountId, entries)) return;
     const local = get().conversations.filter((c) => isLocalConversation(c.id));
     set({ conversations: sortConversations([...local, ...remote]) });
@@ -340,7 +321,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await Promise.allSettled(sessions.map(([protocolId]) => get().syncProtocol(protocolId)));
     } finally {
-      if (get().accountId === accountId && sessions.every(([id, session]) => get().sessions[id] === session)) {
+      if (
+        get().accountId === accountId &&
+        sessions.every(([id, session]) => get().sessions[id] === session)
+      ) {
         set({ syncing: false });
       }
     }
@@ -362,9 +346,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       );
       if (!current()) return;
       get().ingestConversations(conversations);
-      await Promise.all(conversations.map(({ id }) =>
-        get().messages[id] ? get().loadMessages(id) : undefined
-      ));
+      await Promise.all(
+        conversations.map(({ id }) => (get().messages[id] ? get().loadMessages(id) : undefined))
+      );
       report({ status: 'idle' });
     } catch (error) {
       report(historyFailure(error));
@@ -380,29 +364,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const store = requireMessageStore(get());
     const localConversations = await store.loadConversations(LOCAL_PROTOCOL);
     if (stale()) return;
-    const storedConversations = new Map(localConversations.map((conversation) => [
-      conversation.id,
-      conversation,
-    ]));
+    const storedConversations = new Map(
+      localConversations.map((conversation) => [conversation.id, conversation])
+    );
 
     const fresh = bots.filter((bot) => {
       const id = botConversationId(bot.id);
       return !get().conversations.some((c) => c.id === id);
     });
 
-    const loaded = await Promise.all(fresh.map(async (bot) => {
-      const id = botConversationId(bot.id);
-      const raw = await store.loadMessages(id, HYDRATE_LIMIT);
-      await store.upsertConversation({
-        id,
-        protocolId: LOCAL_PROTOCOL,
-        participants: [bot.id],
-        title: bot.name,
-        createdAt: storedConversations.get(id)?.createdAt ?? raw[0]?.sentAt ?? Date.now(),
-        hidden: false,
-      });
-      return { bot, raw };
-    }));
+    const loaded = await Promise.all(
+      fresh.map(async (bot) => {
+        const id = botConversationId(bot.id);
+        const raw = await store.loadMessages(id, HYDRATE_LIMIT);
+        await store.upsertConversation({
+          id,
+          protocolId: LOCAL_PROTOCOL,
+          participants: [bot.id],
+          title: bot.name,
+          createdAt: storedConversations.get(id)?.createdAt ?? raw[0]?.sentAt ?? Date.now(),
+          hidden: false,
+        });
+        return { bot, raw };
+      })
+    );
     if (stale()) return;
 
     if (loaded.length > 0) {
@@ -518,8 +503,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const route = routeOrNull(get(), id);
     if (!route?.session.sendReadReceipt) return;
-    route.session.sendReadReceipt(route.nativeId).catch(() => {
-    });
+    route.session.sendReadReceipt(route.nativeId).catch(() => {});
   },
 
   async setConsent(id, consent) {
@@ -545,9 +529,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const id = message.conversationId;
       const raw = state.rawMessages[id] ?? state.messages[id];
-      const loaded = raw === undefined
-        ? {}
-        : withRaw(state, id, dedupe([...removeMatchingPending(raw, message), message]));
+      const loaded =
+        raw === undefined
+          ? {}
+          : withRaw(state, id, dedupe([...removeMatchingPending(raw, message), message]));
 
       const touchesPreview = message.content.kind !== 'reaction';
 
@@ -623,11 +608,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   replacePending(conversationId: ConversationId, pendingId: string, status: ChatMessage['status']) {
-    set((state) => withRaw(
-      state,
-      conversationId,
-      rawOf(state, conversationId).map((m) => (m.id === pendingId ? { ...m, status } : m)),
-    ));
+    set((state) =>
+      withRaw(
+        state,
+        conversationId,
+        rawOf(state, conversationId).map((m) => (m.id === pendingId ? { ...m, status } : m))
+      )
+    );
   },
 }));
 
@@ -673,18 +660,19 @@ type Getter = () => ChatState;
 async function afterRoute(
   get: Getter,
   id: ConversationId,
-  op: (route: Route) => Promise<void>,
+  op: (route: Route) => Promise<void>
 ): Promise<void> {
   const accountId = get().accountId;
   const route = requireRoute(get(), id);
   await op(route);
-  if (sameSession(get(), accountId, route.protocol, route.session)) await get().refreshConversations();
+  if (sameSession(get(), accountId, route.protocol, route.session))
+    await get().refreshConversations();
 }
 
 async function startConversation(
   get: Getter,
   protocol: ProtocolId,
-  create: (session: ChatSession) => Promise<Conversation>,
+  create: (session: ChatSession) => Promise<Conversation>
 ): Promise<Conversation> {
   const accountId = get().accountId;
   const session = requireSession(get(), protocol);
@@ -715,7 +703,7 @@ function sameSession(
   state: ChatState,
   accountId: string | null,
   protocol: ProtocolId,
-  session: ChatSession,
+  session: ChatSession
 ): boolean {
   return state.accountId === accountId && state.sessions[protocol] === session;
 }
@@ -723,9 +711,12 @@ function sameSession(
 function sameSessions(
   state: ChatState,
   accountId: string | null,
-  entries: [string, ChatSession][],
+  entries: [string, ChatSession][]
 ): boolean {
-  return state.accountId === accountId && entries.every(([id, session]) => state.sessions[id] === session);
+  return (
+    state.accountId === accountId &&
+    entries.every(([id, session]) => state.sessions[id] === session)
+  );
 }
 
 function requireAccountStorage(state: ChatState): AccountStorage {
@@ -737,7 +728,7 @@ async function loadMessagePage(
   state: ChatState,
   id: ConversationId,
   limit: number,
-  before?: { sentAt: number; id: MessageId },
+  before?: { sentAt: number; id: MessageId }
 ): Promise<ChatMessage[]> {
   const local = requireMessageStore(state).loadMessages(id, limit, before);
   if (isLocalConversation(id)) return local;
@@ -759,7 +750,7 @@ function localReaction(
   targetId: MessageId,
   emoji: string,
   senderId: ParticipantId,
-  action: 'added' | 'removed',
+  action: 'added' | 'removed'
 ): ChatMessage {
   return {
     id: `reaction:${Date.now()}:${Math.random().toString(36).slice(2)}`,
@@ -787,11 +778,12 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
 function removeMatchingPending(messages: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
   if (!incoming.fromMe) return messages;
   const content = JSON.stringify(incoming.content);
-  const index = messages.findIndex((message) =>
-    message.id.startsWith('pending:') &&
-    message.status !== 'failed' &&
-    message.replyTo === incoming.replyTo &&
-    JSON.stringify(message.content) === content
+  const index = messages.findIndex(
+    (message) =>
+      message.id.startsWith('pending:') &&
+      message.status !== 'failed' &&
+      message.replyTo === incoming.replyTo &&
+      JSON.stringify(message.content) === content
   );
   if (index === -1) return messages;
   return [...messages.slice(0, index), ...messages.slice(index + 1)];
@@ -805,13 +797,16 @@ function sortConversations(conversations: Conversation[]): Conversation[] {
   });
 }
 
-export function selfIdFor(state: Pick<ChatState, 'sessions'>, protocol: string | undefined): string {
+export function selfIdFor(
+  state: Pick<ChatState, 'sessions'>,
+  protocol: string | undefined
+): string {
   if (!protocol || protocol === LOCAL_PROTOCOL) return '';
   return state.sessions[protocol]?.self.participantId ?? '';
 }
 
 export function xmtpSessionFor(
-  state: Pick<ChatState, 'sessions'>,
+  state: Pick<ChatState, 'sessions'>
 ): (ChatSession & Partial<XmtpCapabilities>) | null {
   return state.sessions[PRIMARY_PROTOCOL] ?? null;
 }

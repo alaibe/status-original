@@ -1,4 +1,3 @@
-
 export interface ParsedCommand {
   name: string;
   rest: string;

@@ -23,7 +23,6 @@ export default function IdentityScreen() {
 
       <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 140 }}>
         <View className="gap-4 px-gutter">
-
           <Card className="gap-2">
             <Text variant="caption">Address</Text>
             <Pressable
@@ -69,7 +68,6 @@ export default function IdentityScreen() {
           </Text>
         </View>
       </ScrollView>
-
     </Screen>
   );
 }

@@ -445,7 +445,9 @@ fs.writeFileSync(outPath, ts);
 // when tuning the motif; nothing in the app imports this file.
 module.exports = { SIZE, SCALE, PATTERNS, newBuffer };
 
-const report = entries.map(([name, png]) => `${name} ${(png.length / 1024).toFixed(1)}kB`).join(', ');
+const report = entries
+  .map(([name, png]) => `${name} ${(png.length / 1024).toFixed(1)}kB`)
+  .join(', ');
 console.log(
   `pattern: ${SIZE}px @${SCALE}x (${SIZE / SCALE}pt tile): ${report} -> ${path.relative(root, outPath)}`
 );

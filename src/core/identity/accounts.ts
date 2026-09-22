@@ -6,12 +6,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 
 import { normalizeMnemonic } from './keyring';
 import { toHex } from '@/lib/bytes';
-import {
-  VaultKey,
-  vaultDelete,
-  vaultGet,
-  vaultSet,
-} from '@/storage/vault';
+import { VaultKey, vaultDelete, vaultGet, vaultSet } from '@/storage/vault';
 
 export interface AccountRecord {
   id: string;

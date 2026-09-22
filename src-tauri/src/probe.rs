@@ -21,7 +21,10 @@ pub fn watch(app: AppHandle) {
                 continue;
             }
             seen = modified;
-            if let (Ok(js), Some(window)) = (std::fs::read_to_string(&path), app.get_webview_window("main")) {
+            if let (Ok(js), Some(window)) = (
+                std::fs::read_to_string(&path),
+                app.get_webview_window("main"),
+            ) {
                 let _ = window.eval(&js);
             }
         }

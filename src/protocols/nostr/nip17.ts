@@ -58,7 +58,11 @@ export function buildRumor(sender: NostrIdentity, message: DirectMessage): Rumor
   });
 }
 
-export function sealRumor(rumor: Rumor, sender: NostrIdentity, recipientPubkey: string): NostrEvent {
+export function sealRumor(
+  rumor: Rumor,
+  sender: NostrIdentity,
+  recipientPubkey: string
+): NostrEvent {
   return signEvent(
     {
       pubkey: sender.publicKey,
@@ -112,7 +116,10 @@ export function unwrapGiftWrap(wrap: NostrEvent, recipient: NostrIdentity): Rumo
     if (rumor.kind !== KIND_DM) return null;
     if (rumor.pubkey !== seal.pubkey) return null;
     if (withId(rumor).id !== rumor.id) return null;
-    if (rumor.pubkey !== recipient.publicKey && !tagValues(rumor, 'p').includes(recipient.publicKey)) {
+    if (
+      rumor.pubkey !== recipient.publicKey &&
+      !tagValues(rumor, 'p').includes(recipient.publicKey)
+    ) {
       return null;
     }
 

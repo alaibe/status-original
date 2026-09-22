@@ -15,7 +15,11 @@ import {
 } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { useDisplayNames } from '@/features/chat/use-display-names';
-import { currentAccess, manageLimitedAccess, type ContactAccess } from '@/features/contacts/device-contacts';
+import {
+  currentAccess,
+  manageLimitedAccess,
+  type ContactAccess,
+} from '@/features/contacts/device-contacts';
 import { peersOf } from '@/features/contacts/peers';
 import { openChat } from '@/features/navigation/open';
 
@@ -50,7 +54,9 @@ export function ContactList({
   const [access, setAccess] = useState<ContactAccess>('unknown');
 
   const refreshAccess = () => {
-    currentAccess().then(setAccess).catch(() => setAccess('none'));
+    currentAccess()
+      .then(setAccess)
+      .catch(() => setAccess('none'));
   };
 
   useEffect(refreshAccess, [refreshAccess]);

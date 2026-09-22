@@ -62,7 +62,11 @@ function trace(source = SOURCE) {
       votes.set(key, (votes.get(key) ?? 0) + 1);
     }
   }
-  const plate = `#${[...votes.entries()].sort((a, b) => b[1] - a[1])[0][0].toString(16).padStart(6, '0').toUpperCase()}`;
+  const plate = `#${[...votes.entries()]
+    .sort((a, b) => b[1] - a[1])[0][0]
+    .toString(16)
+    .padStart(6, '0')
+    .toUpperCase()}`;
 
   /**
    * How much of the mark's white a pixel holds, 0 to 1, so anti-aliased edges
@@ -91,7 +95,11 @@ function trace(source = SOURCE) {
       const tr = field[y][x + 1];
       const br = field[y + 1][x + 1];
       const bl = field[y + 1][x];
-      const index = (tl >= LEVEL ? 8 : 0) | (tr >= LEVEL ? 4 : 0) | (br >= LEVEL ? 2 : 0) | (bl >= LEVEL ? 1 : 0);
+      const index =
+        (tl >= LEVEL ? 8 : 0) |
+        (tr >= LEVEL ? 4 : 0) |
+        (br >= LEVEL ? 2 : 0) |
+        (bl >= LEVEL ? 1 : 0);
       if (index === 0 || index === 15) continue;
 
       const cx = x + 0.5;
@@ -103,30 +111,60 @@ function trace(source = SOURCE) {
 
       // Each case lists the edges a contour crosses, inside kept on the left.
       switch (index) {
-        case 1: segments.push([left(), bottom()]); break;
-        case 2: segments.push([bottom(), right()]); break;
-        case 3: segments.push([left(), right()]); break;
-        case 4: segments.push([right(), top()]); break;
+        case 1:
+          segments.push([left(), bottom()]);
+          break;
+        case 2:
+          segments.push([bottom(), right()]);
+          break;
+        case 3:
+          segments.push([left(), right()]);
+          break;
+        case 4:
+          segments.push([right(), top()]);
+          break;
         case 5: {
           const inside = (tl + tr + br + bl) / 4 >= LEVEL;
-          if (inside) { segments.push([left(), top()], [right(), bottom()]); }
-          else { segments.push([left(), bottom()], [right(), top()]); }
+          if (inside) {
+            segments.push([left(), top()], [right(), bottom()]);
+          } else {
+            segments.push([left(), bottom()], [right(), top()]);
+          }
           break;
         }
-        case 6: segments.push([bottom(), top()]); break;
-        case 7: segments.push([left(), top()]); break;
-        case 8: segments.push([top(), left()]); break;
-        case 9: segments.push([top(), bottom()]); break;
+        case 6:
+          segments.push([bottom(), top()]);
+          break;
+        case 7:
+          segments.push([left(), top()]);
+          break;
+        case 8:
+          segments.push([top(), left()]);
+          break;
+        case 9:
+          segments.push([top(), bottom()]);
+          break;
         case 10: {
           const inside = (tl + tr + br + bl) / 4 >= LEVEL;
-          if (inside) { segments.push([top(), right()], [bottom(), left()]); }
-          else { segments.push([top(), left()], [bottom(), right()]); }
+          if (inside) {
+            segments.push([top(), right()], [bottom(), left()]);
+          } else {
+            segments.push([top(), left()], [bottom(), right()]);
+          }
           break;
         }
-        case 11: segments.push([top(), right()]); break;
-        case 12: segments.push([right(), left()]); break;
-        case 13: segments.push([right(), bottom()]); break;
-        case 14: segments.push([bottom(), left()]); break;
+        case 11:
+          segments.push([top(), right()]);
+          break;
+        case 12:
+          segments.push([right(), left()]);
+          break;
+        case 13:
+          segments.push([right(), bottom()]);
+          break;
+        case 14:
+          segments.push([bottom(), left()]);
+          break;
       }
     }
   }
@@ -162,7 +200,10 @@ function trace(source = SOURCE) {
   // Into canvas space: the tile's width fills the canvas, the tile's centre is
   // the canvas centre, and the mark keeps its place on it.
   const scale = CANVAS / tileWidth;
-  const toCanvas = ([x, y]) => [(x - centre.x) * scale + CANVAS / 2, (y - centre.y) * scale + CANVAS / 2];
+  const toCanvas = ([x, y]) => [
+    (x - centre.x) * scale + CANVAS / 2,
+    (y - centre.y) * scale + CANVAS / 2,
+  ];
 
   function resample(points, spacing) {
     const out = [];

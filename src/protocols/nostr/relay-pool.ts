@@ -186,7 +186,12 @@ export class RelayPool {
     switch (message[0]) {
       case 'AUTH': {
         const challenge = message[1];
-        if (!this.authenticate || typeof challenge !== 'string' || connection.authChallenge === challenge) return;
+        if (
+          !this.authenticate ||
+          typeof challenge !== 'string' ||
+          connection.authChallenge === challenge
+        )
+          return;
         connection.authChallenge = challenge;
         try {
           const event = this.authenticate(connection.url, challenge);
@@ -201,7 +206,8 @@ export class RelayPool {
       }
       case 'OK': {
         const eventId = message[1];
-        const publication = typeof eventId === 'string' ? this.publications.get(eventId) : undefined;
+        const publication =
+          typeof eventId === 'string' ? this.publications.get(eventId) : undefined;
         if (publication) {
           if (message[2] === true) {
             this.finishPublication(eventId);
@@ -209,8 +215,7 @@ export class RelayPool {
             const reason = String(message[3] || 'Relay rejected the event');
             if (/auth/i.test(reason) && connection.authEventId) {
               publication.authBlocked.add(connection.url);
-            }
-            else this.failPublicationRelay(eventId, connection.url, reason);
+            } else this.failPublicationRelay(eventId, connection.url, reason);
           }
           return;
         }
@@ -226,7 +231,11 @@ export class RelayPool {
           for (const pending of this.publications.values()) {
             if (!pending.authBlocked.delete(connection.url)) continue;
             if (!this.sendTo(connection, ['EVENT', pending.event])) {
-              this.failPublicationRelay(pending.event.id, connection.url, 'Relay write failed after authentication');
+              this.failPublicationRelay(
+                pending.event.id,
+                connection.url,
+                'Relay write failed after authentication'
+              );
             }
           }
         } else {
@@ -297,7 +306,9 @@ export class RelayPool {
       return Promise.reject(new Error(`Event ${event.id} is already awaiting relay acceptance`));
     }
 
-    const open = [...this.connections.values()].filter((connection) => connection.status === 'open');
+    const open = [...this.connections.values()].filter(
+      (connection) => connection.status === 'open'
+    );
     if (open.length === 0) {
       return Promise.reject(new Error('No relay accepted the event because none is connected'));
     }
@@ -382,7 +393,10 @@ export class RelayPool {
   close() {
     this.closed = true;
     for (const eventId of [...this.publications.keys()]) {
-      this.rejectPublication(eventId, new Error('Nostr relay pool closed before acknowledging the event'));
+      this.rejectPublication(
+        eventId,
+        new Error('Nostr relay pool closed before acknowledging the event')
+      );
     }
     this.subscriptions.clear();
     for (const connection of this.connections.values()) this.teardown(connection);
@@ -402,8 +416,7 @@ export class RelayPool {
       socket.onmessage = null;
       try {
         socket.close();
-      } catch {
-      }
+      } catch {}
     }
   }
 

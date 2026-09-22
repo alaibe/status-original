@@ -56,8 +56,7 @@ function watchTargetsOf(
 
   try {
     targets.push({ address: context.identity.address, label: 'You' });
-  } catch {
-  }
+  } catch {}
 
   const seen = new Set(targets.map((t) => t.address.toLowerCase()));
   for (const entry of watched) {

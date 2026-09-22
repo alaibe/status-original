@@ -36,29 +36,34 @@ async function planTransfer(
     return { error: `"${to}" is not a supported Bitcoin recipient. ${RECIPIENT_HINT}` };
   }
   if (!/^\d+(\.\d{1,8})?$/.test(amount)) {
-    return { error: `"${amount}" is not a valid BTC amount. Enter a number greater than 0 using up to 8 decimal places.` };
+    return {
+      error: `"${amount}" is not a valid BTC amount. Enter a number greater than 0 using up to 8 decimal places.`,
+    };
   }
 
   const [whole, fraction = ''] = amount.split('.');
   const sats = BigInt(whole) * 100_000_000n + BigInt(fraction.padEnd(8, '0'));
-  if (sats === 0n) return { error: 'Enter a BTC amount greater than 0, using up to 8 decimal places.' };
+  if (sats === 0n)
+    return { error: 'Enter a BTC amount greater than 0, using up to 8 decimal places.' };
 
   try {
     scriptPubKey(to);
   } catch {
-    return { error: `"${to}" cannot receive a Bitcoin payment from this wallet. ${RECIPIENT_HINT}` };
+    return {
+      error: `"${to}" cannot receive a Bitcoin payment from this wallet. ${RECIPIENT_HINT}`,
+    };
   }
 
   const from = p2wpkhAddress(context.identity.derive(BIP84_ACCOUNT_PATH).publicKey);
-  const [utxos, fees] = await Promise.all([
-    fetchUtxos(from, apiBase()),
-    fetchFeeRates(apiBase()),
-  ]);
+  const [utxos, fees] = await Promise.all([fetchUtxos(from, apiBase()), fetchFeeRates(apiBase())]);
 
   const planned = planSpend(utxos, sats, fees.medium, { sendMax: false });
   if (!planned.ok) {
     if (fees.medium <= 0) {
-      return { error: 'The Bitcoin fee provider returned an invalid fee rate. Check your Bitcoin indexer setting or try reviewing again later.' };
+      return {
+        error:
+          'The Bitcoin fee provider returned an invalid fee rate. Check your Bitcoin indexer setting or try reviewing again later.',
+      };
     }
     const available = utxos.reduce((total, utxo) => total + utxo.value, 0n);
     return {
@@ -86,9 +91,7 @@ export function bitcoinStrategy(context: PluginContext): ChainStrategy {
     // A name's *Bitcoin* record, per ENSIP-9. Reading its Ethereum record
     // instead would send bitcoin to an address nobody holds a key for.
     resolve: (input) =>
-      looksLikeEnsName(input)
-        ? resolveNameForCoin(input, CoinType.bitcoin)
-        : Promise.resolve(null),
+      looksLikeEnsName(input) ? resolveNameForCoin(input, CoinType.bitcoin) : Promise.resolve(null),
     unavailable: derivationUnavailable('Bitcoin'),
 
     async fees() {
@@ -185,7 +188,10 @@ export function bitcoinStrategy(context: PluginContext): ChainStrategy {
           await fetchAddressStats('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', url);
           return { ok: true as const };
         } catch (error) {
-          return { ok: false as const, reason: errorMessage(error, 'That indexer did not answer.') };
+          return {
+            ok: false as const,
+            reason: errorMessage(error, 'That indexer did not answer.'),
+          };
         }
       },
       noun: 'indexer',

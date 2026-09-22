@@ -1,6 +1,6 @@
 import {
   hashDomain,
-    hashStruct,
+  hashStruct,
   parseSignature,
   serializeTransaction,
   type Address,
@@ -12,7 +12,7 @@ import {
 } from 'viem';
 import { toAccount } from 'viem/accounts';
 
-import type { DerivedKey , Keyring } from './keyring';
+import type { DerivedKey, Keyring } from './keyring';
 import type { Ed25519Key } from './slip10';
 
 export interface HardwareSigner {
@@ -90,7 +90,10 @@ export function hardwareAccount(
       const data = typedData as never;
       return signer.signTypedDataHashes(
         path,
-        hashDomain({ domain: (data as { domain: never }).domain, types: (data as { types: never }).types }),
+        hashDomain({
+          domain: (data as { domain: never }).domain,
+          types: (data as { types: never }).types,
+        }),
         hashStruct(data)
       );
     },

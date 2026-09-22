@@ -24,7 +24,7 @@ function input(
   accountId: string,
   registry = new PluginRegistry(),
   createSession?: RuntimeAccount['createSession'],
-  makeContext: RuntimeAccount['makeContext'] = () => ({} as PluginContext),
+  makeContext: RuntimeAccount['makeContext'] = () => ({}) as PluginContext
 ): RuntimeAccount {
   return {
     accountId,
@@ -59,13 +59,19 @@ describe('AccountRuntime', () => {
     const newSession = new InMemoryChatSession();
     let finish!: (session: InMemoryChatSession) => void;
     let entered!: () => void;
-    const creating = new Promise<void>((resolve) => { entered = resolve; });
-    const pending = new Promise<InMemoryChatSession>((resolve) => { finish = resolve; });
+    const creating = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const pending = new Promise<InMemoryChatSession>((resolve) => {
+      finish = resolve;
+    });
 
-    const starting = runtime.synchronize(input('account-a', new PluginRegistry(), async () => {
-      entered();
-      return pending;
-    }));
+    const starting = runtime.synchronize(
+      input('account-a', new PluginRegistry(), async () => {
+        entered();
+        return pending;
+      })
+    );
     await creating;
     expect(useChatStore.getState().accountId).toBe('account-a');
 
@@ -92,12 +98,18 @@ describe('AccountRuntime', () => {
     const lateSession = new InMemoryChatSession();
     let finish!: (session: InMemoryChatSession) => void;
     let entered!: () => void;
-    const creating = new Promise<void>((resolve) => { entered = resolve; });
-    const pending = new Promise<InMemoryChatSession>((resolve) => { finish = resolve; });
-    const starting = runtime.synchronize(input('account-a', new PluginRegistry(), async () => {
-      entered();
-      return pending;
-    }));
+    const creating = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const pending = new Promise<InMemoryChatSession>((resolve) => {
+      finish = resolve;
+    });
+    const starting = runtime.synchronize(
+      input('account-a', new PluginRegistry(), async () => {
+        entered();
+        return pending;
+      })
+    );
     await creating;
 
     const erasing = runtime.erase({
@@ -148,7 +160,9 @@ describe('AccountRuntime', () => {
     const runtime = new AccountRuntime(PROTOCOLS);
     const dispose = jest.fn();
     let finish!: (dispose: () => void) => void;
-    const activated = new Promise<() => void>((resolve) => { finish = resolve; });
+    const activated = new Promise<() => void>((resolve) => {
+      finish = resolve;
+    });
     const plugin: Plugin = {
       manifest: {
         id: 'ticker',
@@ -159,13 +173,15 @@ describe('AccountRuntime', () => {
         permissions: [],
       },
       setup: () => ({
-        bots: [{
-          id: 'ticker',
-          name: 'Ticker',
-          tagline: '',
-          greeting: () => [],
-          activate: async () => activated,
-        }],
+        bots: [
+          {
+            id: 'ticker',
+            name: 'Ticker',
+            tagline: '',
+            greeting: () => [],
+            activate: async () => activated,
+          },
+        ],
       }),
     };
 
@@ -195,33 +211,42 @@ describe('AccountRuntime', () => {
     };
     const registry = new PluginRegistry([plugin]);
     let lease!: PluginLease;
-    await runtime.synchronize(input(
-      'account-a',
-      registry,
-      undefined,
-      (_plugin, _accountId, _keyring, _storage, activeLease) => {
-        lease = activeLease;
-        return {} as PluginContext;
-      },
-    ));
+    await runtime.synchronize(
+      input(
+        'account-a',
+        registry,
+        undefined,
+        (_plugin, _accountId, _keyring, _storage, activeLease) => {
+          lease = activeLease;
+          return {} as PluginContext;
+        }
+      )
+    );
 
     let finish!: (value: string) => void;
-    const work = lease.guard(() => new Promise<string>((resolve) => { finish = resolve; }));
+    const work = lease.guard(
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        })
+    );
     const switching = runtime.synchronize(input('account-b'));
     finish('old account');
 
     await expect(work).rejects.toThrow('no longer active');
     await switching;
 
-    await runtime.synchronize(input(
-      'account-a',
-      registry,
-      undefined,
-      (_plugin, _accountId, _keyring, _storage, activeLease) => {
-        lease = activeLease;
-        return {} as PluginContext;
-      },
-    ));
+    await runtime.synchronize(
+      input(
+        'account-a',
+        registry,
+        undefined,
+        (_plugin, _accountId, _keyring, _storage, activeLease) => {
+          lease = activeLease;
+          return {} as PluginContext;
+        }
+      )
+    );
     await runtime.setPluginEnabled('leased', false);
     expect(() => lease.assertActive()).toThrow('no longer active');
     await runtime.synchronize(null);
@@ -245,11 +270,9 @@ describe('AccountRuntime', () => {
       setup: () => ({}),
     };
 
-    await runtime.synchronize(input(
-      'account-a',
-      new PluginRegistry([plugin]),
-      async () => sessions.shift()!,
-    ));
+    await runtime.synchronize(
+      input('account-a', new PluginRegistry([plugin]), async () => sessions.shift()!)
+    );
     await runtime.setPluginEnabled('codec', false);
 
     expect(first.disconnected).toBe(true);

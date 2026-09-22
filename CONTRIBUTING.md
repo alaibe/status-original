@@ -18,14 +18,17 @@ Native dependencies changed? `npx expo prebuild --platform ios` then
 ## Checks
 
 ```bash
+npm run format      # Biome for TypeScript and JSON, rustfmt for src-tauri
 npm run typecheck
 npm run lint
 npm test            # 93 Jest suites
 npm run test:e2e    # Maestro, needs a booted simulator and Metro
-npm run test:all    # all four in that order
+npm run test:all    # format:check, typecheck, test, test:e2e
 ```
 
-All four pass before a pull request opens. The e2e suite drives a debug build;
+All of them pass before a pull request opens. `biome.json` formats only and
+leaves linting to `expo lint`, so the Expo and React Native rules stay where
+they are; `src-tauri/rustfmt.toml` is the Rust side. The e2e suite drives a debug build;
 [`e2e/README.md`](e2e/README.md) covers its selector rules (`id:`, never the
 child text of a pressable) and what each flow covers. Add a flow when a change
 adds a screen or a command someone reaches by hand.
@@ -138,7 +141,7 @@ Commit what the build wrote, never a hand edit of it.
 | Output | Source | Command |
 | --- | --- | --- |
 | `src/global.css` | `src/design/tokens.ts` | `npm run theme:build` |
-| `assets/brand/mark.svg`, `assets/images/`, `store/play/`, `src-tauri/icons/`, the colour fields in `app.json` | `assets/brand/status-logo-2018.png` | `npm run brand:build` |
+| `assets/brand/mark.svg`, `assets/images/`, `distribution/play/`, `src-tauri/icons/`, the colour fields in `app.json` | `assets/brand/status-logo-2018.png` | `npm run brand:build` |
 | `ios/`, `android/` | `app.json` | `npx expo prebuild` |
 | `src/lib/evm/token-list.json` | tokenlists.org | `npm run tokens:build` |
 | `src/plugins/wallet/solana/token-list.json` | Jupiter | `npm run tokens:build:solana` |
@@ -163,10 +166,10 @@ the diff.
 ## Store artifacts
 
 If a change touches onboarding, the chat list, Settings or `app.json`, the
-screenshots under `store/ios/screenshots/6.9/` are stale. Regenerate them with
+screenshots under `distribution/ios/screenshots/6.9/` are stale. Regenerate them with
 `./scripts/capture-screenshots.sh store` (Metro up), and re-read
-`store/ios/review-notes.md` if the change alters what a reviewer sees.
-[`store/README.md`](store/README.md) says which file feeds which form.
+`distribution/ios/review-notes.md` if the change alters what a reviewer sees.
+[`distribution/README.md`](distribution/README.md) says which file feeds which form.
 
 ## Documentation
 

@@ -52,10 +52,18 @@ const upstream = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const shim = NODE_SHIMS[moduleName];
   if (shim) return { type: 'sourceFile', filePath: shim };
-  if (platform === 'web' && moduleName === '@xmtp/wasm-bindings' && XMTP_SDK.test(context.originModulePath)) {
+  if (
+    platform === 'web' &&
+    moduleName === '@xmtp/wasm-bindings' &&
+    XMTP_SDK.test(context.originModulePath)
+  ) {
     return { type: 'sourceFile', filePath: XMTP_WASM_BINDINGS_ON_WEB };
   }
-  if (platform === 'web' && moduleName === 'react/jsx-runtime' && INTEROP_JSX_ON_WEB.test(context.originModulePath)) {
+  if (
+    platform === 'web' &&
+    moduleName === 'react/jsx-runtime' &&
+    INTEROP_JSX_ON_WEB.test(context.originModulePath)
+  ) {
     moduleName = 'react-native-css-interop/jsx-runtime';
   }
   if (BROWSER_FIELD_OVER_EXPORTS.test(moduleName)) {

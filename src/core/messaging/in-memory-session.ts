@@ -95,12 +95,14 @@ export class InMemoryChatSession implements ChatSession {
 
   async getMessages(
     id: ConversationId,
-    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } },
+    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } }
   ): Promise<ChatMessage[]> {
     const messages = [...(this.messages.get(id) ?? [])]
-      .filter((message) =>
-        !opts?.before || message.sentAt < opts.before.sentAt ||
-        (message.sentAt === opts.before.sentAt && message.id < opts.before.id)
+      .filter(
+        (message) =>
+          !opts?.before ||
+          message.sentAt < opts.before.sentAt ||
+          (message.sentAt === opts.before.sentAt && message.id < opts.before.id)
       )
       .sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id));
     return opts?.limit ? messages.slice(-opts.limit) : messages;
@@ -160,7 +162,10 @@ export class InMemoryChatSession implements ChatSession {
 
   async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
     const conversation = this.requireGroup(id);
-    const next = { ...conversation, memberIds: [...new Set([...conversation.memberIds, ...peers])] };
+    const next = {
+      ...conversation,
+      memberIds: [...new Set([...conversation.memberIds, ...peers])],
+    };
     this.conversations.set(id, next);
     for (const listener of this.conversationListeners) listener(next);
   }

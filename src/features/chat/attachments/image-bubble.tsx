@@ -49,15 +49,15 @@ export function ImageBubble({ uri, width, height, caption, fromMe }: ImageBubble
         />
       ) : null}
 
-      <Modal visible={zoomed} transparent animationType="fade" onRequestClose={() => setZoomed(false)}>
+      <Modal
+        visible={zoomed}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomed(false)}>
         <RNPressable
           className="flex-1 items-center justify-center bg-black"
           onPress={() => setZoomed(false)}>
-          <Image
-            source={{ uri }}
-            style={{ width: '100%', height: '80%' }}
-            contentFit="contain"
-          />
+          <Image source={{ uri }} style={{ width: '100%', height: '80%' }} contentFit="contain" />
           <View className="absolute right-5 top-16">
             <Icon name="close" size={28} color={colors.canvas} />
           </View>

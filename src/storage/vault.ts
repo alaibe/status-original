@@ -13,16 +13,15 @@ export const VaultKey = {
 
 export type VaultKeyName = (typeof VaultKey)[keyof typeof VaultKey] | AccountScopedKey;
 
-type AccountScopedKey =
-  `account.${string}.${
-    | 'mnemonic'
-    | 'dbKey'
-    | 'appDbKey'
-    | 'tdlibDbKey'
-    | 'matrixStoreKey'
-    | 'matrixSession'
-    | 'protocols'
-    | 'credentials'}`;
+type AccountScopedKey = `account.${string}.${
+  | 'mnemonic'
+  | 'dbKey'
+  | 'appDbKey'
+  | 'tdlibDbKey'
+  | 'matrixStoreKey'
+  | 'matrixSession'
+  | 'protocols'
+  | 'credentials'}`;
 
 export function accountMnemonicKey(accountId: string): AccountScopedKey {
   return `account.${accountId}.mnemonic`;
@@ -83,7 +82,7 @@ export type ProtectedRead =
 export async function vaultGetProtected(
   key: VaultKeyName,
   prompt: string,
-  expectExisting: boolean,
+  expectExisting: boolean
 ): Promise<ProtectedRead> {
   try {
     const value = await store.getProtected(key, prompt);
@@ -118,7 +117,7 @@ export function vaultDelete(key: VaultKeyName): Promise<void> {
 async function accountSecret(
   name: AccountScopedKey,
   fresh: () => string,
-  valid: (value: string) => boolean = () => true,
+  valid: (value: string) => boolean = () => true
 ): Promise<string> {
   const existing = await vaultGet(name);
   if (existing && valid(existing)) return existing;
@@ -131,13 +130,15 @@ async function accountSecret(
 const randomHex = () => toHex(Crypto.getRandomBytes(32));
 
 export function accountDatabaseKey(accountId: string): Promise<string> {
-  return accountSecret(accountAppDbKeyName(accountId), randomHex, (value) => /^[0-9a-f]{64}$/.test(value));
+  return accountSecret(accountAppDbKeyName(accountId), randomHex, (value) =>
+    /^[0-9a-f]{64}$/.test(value)
+  );
 }
 
 /** Base64, which is how TDLib's JSON interface takes bytes. */
 export function accountTdlibDatabaseKey(accountId: string): Promise<string> {
   return accountSecret(accountTdlibDbKeyName(accountId), () =>
-    globalThis.btoa(String.fromCharCode(...Crypto.getRandomBytes(32))),
+    globalThis.btoa(String.fromCharCode(...Crypto.getRandomBytes(32)))
   );
 }
 

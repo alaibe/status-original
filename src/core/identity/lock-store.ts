@@ -2,10 +2,7 @@ import { create } from 'zustand';
 
 import { authenticate, isLockEnabled } from './lock';
 
-export type LockStatus =
-  | 'checking'
-  | 'locked'
-  | 'open';
+export type LockStatus = 'checking' | 'locked' | 'open';
 
 export const RELOCK_AFTER_MS = 60_000;
 

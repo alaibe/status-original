@@ -85,10 +85,7 @@ export interface FiredAlert {
   price: number;
 }
 
-export function firedAlerts(
-  alerts: MarketAlert[],
-  prices: Record<string, number>
-): FiredAlert[] {
+export function firedAlerts(alerts: MarketAlert[], prices: Record<string, number>): FiredAlert[] {
   const fired: FiredAlert[] = [];
 
   for (const alert of alerts) {
@@ -108,9 +105,7 @@ function hasFired(alert: MarketAlert, price: number): boolean {
     case 'below':
       return price <= alert.price;
     case 'move':
-      return (
-        alert.from > 0 && (Math.abs(price - alert.from) / alert.from) * 100 >= alert.percent
-      );
+      return alert.from > 0 && (Math.abs(price - alert.from) / alert.from) * 100 >= alert.percent;
   }
 }
 

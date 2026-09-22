@@ -6,7 +6,8 @@ import {
   type Address,
   type Hex,
   type WalletClient,
- LocalAccount } from 'viem';
+  LocalAccount,
+} from 'viem';
 
 import { chainById, publicClientFor, rpcOverrideFor } from './chains';
 

@@ -73,8 +73,14 @@ export class LifiError extends HttpError {
 const NO_ROUTE = 1002;
 const BAD_REQUEST = 1011;
 
-async function get<T>(path: string, params: Record<string, string | number>, key: string | null): Promise<T> {
-  const query = new URLSearchParams(Object.entries(params).map(([name, value]) => [name, String(value)]));
+async function get<T>(
+  path: string,
+  params: Record<string, string | number>,
+  key: string | null
+): Promise<T> {
+  const query = new URLSearchParams(
+    Object.entries(params).map(([name, value]) => [name, String(value)])
+  );
   const response = await fetch(`${BASE}${path}?${query}`, {
     headers: key ? { 'x-lifi-api-key': key } : undefined,
   });
@@ -88,10 +94,16 @@ async function get<T>(path: string, params: Record<string, string | number>, key
     );
   }
   if (response.status === 401 || response.status === 403) {
-    throw new LifiError(response.status, 'That LI.FI key was rejected. Check it under Settings → Trades.');
+    throw new LifiError(
+      response.status,
+      'That LI.FI key was rejected. Check it under Settings → Trades.'
+    );
   }
 
-  const body = (await response.json().catch(() => null)) as { message?: string; code?: number } | null;
+  const body = (await response.json().catch(() => null)) as {
+    message?: string;
+    code?: number;
+  } | null;
   if (body?.code === NO_ROUTE) {
     throw new LifiError(
       response.status,

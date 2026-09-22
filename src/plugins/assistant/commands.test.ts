@@ -30,7 +30,7 @@ function makeContext(
       list: () => plugins,
       setEnabled: async (id: string, enabled: boolean) => {
         await onToggle(id, enabled);
-        plugins = plugins.map((plugin) => plugin.id === id ? { ...plugin, enabled } : plugin);
+        plugins = plugins.map((plugin) => (plugin.id === id ? { ...plugin, enabled } : plugin));
       },
       channelOwner: () => channelOwner,
       commands: () => commands,
@@ -95,17 +95,22 @@ const ETH: PluginSummary = {
 };
 
 describe('/commands', () => {
-  it.each([undefined, 'ethereum'])('lists every current-room command with owner %s', async (owner) => {
-    const { widget } = await run('commands', [], makeContext([ETH], jest.fn(), owner));
+  it.each([undefined, 'ethereum'])(
+    'lists every current-room command with owner %s',
+    async (owner) => {
+      const { widget } = await run('commands', [], makeContext([ETH], jest.fn(), owner));
 
-    expect(itemsOf(widget).map((item) => ({
-      title: item.title,
-      commands: item.actions?.map((action) => action.command),
-    }))).toEqual([
-      { title: '/commands', commands: ['/commands'] },
-      { title: '/balance', commands: ['/balance'] },
-    ]);
-  });
+      expect(
+        itemsOf(widget).map((item) => ({
+          title: item.title,
+          commands: item.actions?.map((action) => action.command),
+        }))
+      ).toEqual([
+        { title: '/commands', commands: ['/commands'] },
+        { title: '/balance', commands: ['/balance'] },
+      ]);
+    }
+  );
 
   it('does not add commands unavailable in the current room', async () => {
     const { widget } = await run(
@@ -244,7 +249,10 @@ describe('/disable', () => {
 
     expect(toggle).toHaveBeenCalledWith('ethereum', false);
     expect(widget).toBeUndefined();
-    expect(result).toMatchObject({ type: 'notice', message: expect.stringMatching(/^Ethereum is off/) });
+    expect(result).toMatchObject({
+      type: 'notice',
+      message: expect.stringMatching(/^Ethereum is off/),
+    });
     expect(rowsOf((await run('plugins', [], context)).widget)).toContainEqual(
       expect.objectContaining({ label: 'Ethereum', state: 'off' })
     );

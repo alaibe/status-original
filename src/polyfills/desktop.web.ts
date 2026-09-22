@@ -16,13 +16,16 @@ document.addEventListener('contextmenu', (event) => {
   if (!editable(event.target)) event.preventDefault();
 });
 
-
 // ⌘R reloads the page during development; the window has no menu item for it.
 if (__DEV__) {
-  document.addEventListener('keydown', (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r') {
-      event.preventDefault();
-      location.reload();
-    }
-  }, true);
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        location.reload();
+      }
+    },
+    true
+  );
 }

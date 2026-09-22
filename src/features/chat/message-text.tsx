@@ -98,7 +98,13 @@ function linkActions(link: LinkSegment, onCommand?: (command: string) => void): 
     onPress: () => openLink(link),
   });
   const send: SheetAction[] = onCommand
-    ? [{ label: 'Send funds', icon: 'arrow-up-circle-outline', onPress: () => onCommand(`/send ${link.text}`) }]
+    ? [
+        {
+          label: 'Send funds',
+          icon: 'arrow-up-circle-outline',
+          onPress: () => onCommand(`/send ${link.text}`),
+        },
+      ]
     : [];
 
   switch (link.kind) {
@@ -113,7 +119,11 @@ function linkActions(link: LinkSegment, onCommand?: (command: string) => void): 
     case 'location':
       return [open('Open in Maps', 'location-outline'), copy('Copy')];
     case 'address':
-      return [open(`View on ${EXPLORERS[link.family].name}`, 'open-outline'), copy('Copy address'), ...send];
+      return [
+        open(`View on ${EXPLORERS[link.family].name}`, 'open-outline'),
+        copy('Copy address'),
+        ...send,
+      ];
     case 'ens':
       return [open('View on ENS', 'open-outline'), copy('Copy name'), ...send];
   }

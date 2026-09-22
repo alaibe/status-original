@@ -61,7 +61,7 @@ export class WakuRestClient {
 
   async history(
     contentTopics: string[],
-    opts: { pageSize?: number; cursor?: string; startTime?: number } = {},
+    opts: { pageSize?: number; cursor?: string; startTime?: number } = {}
   ): Promise<{ messages: WakuRestMessage[]; cursor?: string }> {
     if (contentTopics.length === 0) return { messages: [] };
 

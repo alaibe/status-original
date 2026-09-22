@@ -29,7 +29,7 @@ export interface ChatSession {
   listConversations(): Promise<Conversation[]>;
   getMessages(
     id: ConversationId,
-    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } },
+    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } }
   ): Promise<ChatMessage[]>;
 
   resolvePeer(addressOrId: string): Promise<ParticipantId | null>;

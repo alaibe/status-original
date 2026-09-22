@@ -73,7 +73,11 @@ describe('resolveEnsProfile', () => {
   it('keeps the name when a record lookup fails', async () => {
     mockLookup.mockResolvedValue('alice.eth');
     mockClientFor.mockReturnValue(
-      client({ getEnsAvatar: jest.fn(async () => { throw new Error('gateway down'); }) }) as never
+      client({
+        getEnsAvatar: jest.fn(async () => {
+          throw new Error('gateway down');
+        }),
+      }) as never
     );
 
     const profile = await resolveEnsProfile(ADDRESS);

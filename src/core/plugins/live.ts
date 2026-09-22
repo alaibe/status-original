@@ -3,7 +3,9 @@ import { create } from 'zustand';
 import type { WidgetContent } from '../messaging/types';
 import type { PluginContext, PluginId, PluginView } from './types';
 
-export const useLiveViews = create<{ versions: Record<PluginId, number> }>(() => ({ versions: {} }));
+export const useLiveViews = create<{ versions: Record<PluginId, number> }>(() => ({
+  versions: {},
+}));
 
 const pending = new Set<PluginId>();
 let scheduled = false;
@@ -25,7 +27,9 @@ export function notifyLiveViews(pluginId: PluginId): void {
   }, 0);
 }
 
-type CardBuilder = (args: string[]) => Promise<Omit<WidgetContent, 'live'>> | Omit<WidgetContent, 'live'>;
+type CardBuilder = (
+  args: string[]
+) => Promise<Omit<WidgetContent, 'live'>> | Omit<WidgetContent, 'live'>;
 
 export function liveViews<K extends string>(
   context: PluginContext,

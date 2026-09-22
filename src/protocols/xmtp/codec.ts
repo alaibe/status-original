@@ -19,11 +19,7 @@ export function contentTypeIdFor(typeId: string, major = 1, minor = 0): ContentT
 }
 
 export function createPluginCodec<T>(spec: PluginContentType<T>): JSContentCodec<T> {
-  const contentType = contentTypeIdFor(
-    spec.typeId,
-    spec.versionMajor ?? 1,
-    spec.versionMinor ?? 0
-  );
+  const contentType = contentTypeIdFor(spec.typeId, spec.versionMajor ?? 1, spec.versionMinor ?? 0);
 
   return {
     contentType,

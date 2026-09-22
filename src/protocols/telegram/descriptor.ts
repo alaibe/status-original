@@ -59,7 +59,8 @@ export const TELEGRAM_PROTOCOL = {
       import('./td-client'),
     ]);
     const apiId = Number(config.apiId?.trim());
-    if (!Number.isInteger(apiId) || apiId <= 0) throw new Error('The API ID must be a whole number.');
+    if (!Number.isInteger(apiId) || apiId <= 0)
+      throw new Error('The API ID must be a whole number.');
 
     return TelegramSession.connect({
       createApi: () => TdClient.create(),

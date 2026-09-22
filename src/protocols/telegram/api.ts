@@ -10,7 +10,10 @@ export interface TdError extends TdObject {
 }
 
 export class TdRequestError extends Error {
-  constructor(readonly code: number, message: string) {
+  constructor(
+    readonly code: number,
+    message: string
+  ) {
     super(message);
     this.name = 'TdRequestError';
   }

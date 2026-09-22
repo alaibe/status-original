@@ -60,7 +60,11 @@ describe('subscriptions', () => {
     const factory = fakeRelayFactory();
     const auth = anEvent();
     const authenticate = jest.fn(() => auth);
-    const pool = new RelayPool({ urls: ['wss://a.example'], createSocket: factory.create, authenticate });
+    const pool = new RelayPool({
+      urls: ['wss://a.example'],
+      createSocket: factory.create,
+      authenticate,
+    });
     const relay = factory.relays[0];
     relay.open();
     pool.subscribe({ id: 'dm', filters: [{ kinds: [1059] }], onEvent: () => {} });
@@ -68,7 +72,9 @@ describe('subscriptions', () => {
     relay.onmessage?.({ data: JSON.stringify(['AUTH', 'challenge']) });
     expect(authenticate).toHaveBeenCalledTimes(1);
     relay.onmessage?.({ data: JSON.stringify(['OK', 'unrelated-event', true, '']) });
-    relay.onmessage?.({ data: JSON.stringify(['OK', auth.id, false, 'restricted: subscription required']) });
+    relay.onmessage?.({
+      data: JSON.stringify(['OK', auth.id, false, 'restricted: subscription required']),
+    });
     expect(relay.sent.filter((m) => m[0] === 'REQ')).toHaveLength(1);
     expect(pool.states[0].error).toBe('restricted: subscription required');
     pool.close();
@@ -128,7 +134,12 @@ describe('subscriptions', () => {
     factory.relays[0].open();
 
     const done: string[] = [];
-    pool.subscribe({ id: 'sub1', filters: [{}], onEvent: () => {}, onEose: (url) => done.push(url) });
+    pool.subscribe({
+      id: 'sub1',
+      filters: [{}],
+      onEvent: () => {},
+      onEose: (url) => done.push(url),
+    });
     factory.relays[0].eose('sub1');
 
     expect(done).toEqual(['wss://a.example']);
@@ -189,7 +200,9 @@ describe('publishing', () => {
 
     const event = anEvent();
     let settled = false;
-    const publishing = pool.publish(event).then(() => { settled = true; });
+    const publishing = pool.publish(event).then(() => {
+      settled = true;
+    });
     await Promise.resolve();
     expect(settled).toBe(false);
 

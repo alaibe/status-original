@@ -33,7 +33,7 @@ class DesktopDatabase implements AccountDatabase {
   }
 
   async withExclusiveTransactionAsync(
-    work: (transaction: AccountDatabase) => Promise<void>,
+    work: (transaction: AccountDatabase) => Promise<void>
   ): Promise<void> {
     await this.execAsync('BEGIN EXCLUSIVE');
     try {

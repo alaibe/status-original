@@ -12,7 +12,11 @@ const stored = new Map<string, string>();
 
 const storedKey = (area: string, name: string, accountId: string) => `${accountId}/${area}/${name}`;
 
-async function statMedia(area: string, name: string, accountId: string): Promise<StoredMedia | null> {
+async function statMedia(
+  area: string,
+  name: string,
+  accountId: string
+): Promise<StoredMedia | null> {
   const found = await invoke<[string, number] | null>('media_stat', { accountId, area, name });
   return found ? { uri: convertFileSrc(found[0]), size: found[1] } : null;
 }
@@ -29,7 +33,7 @@ export async function storeMedia(
   area: string,
   name: string,
   accountId: string,
-  base64: string,
+  base64: string
 ): Promise<string> {
   const key = storedKey(area, name, accountId);
   const known = stored.get(key);
@@ -44,7 +48,7 @@ export async function adoptMedia(
   area: string,
   name: string,
   accountId: string,
-  sourceUri: string,
+  sourceUri: string
 ): Promise<string> {
   const existing = await statMedia(area, name, accountId);
   if (existing) return existing.uri;
@@ -69,7 +73,7 @@ export async function downloadMedia(
   area: string,
   name: string,
   accountId: string,
-  url: string,
+  url: string
 ): Promise<StoredMedia> {
   const existing = await statMedia(area, name, accountId);
   if (existing) return existing;

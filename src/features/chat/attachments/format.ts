@@ -18,7 +18,7 @@ export function waveformBars(seed: string, count = 32): number[] {
   const bars: number[] = [];
   for (let i = 0; i < count; i++) {
     hash = (hash * 1103515245 + 12345) & 0x7fffffff;
-    bars.push(0.25 + ((hash >> 8) % 100) / 100 * 0.75);
+    bars.push(0.25 + (((hash >> 8) % 100) / 100) * 0.75);
   }
   return bars;
 }

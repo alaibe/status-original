@@ -77,7 +77,8 @@ export const solanaStrategy: ChainStrategy = {
       } catch {
         return { error: badAmount(amount) };
       }
-      if (lamports === 0n) return { error: 'Enter a SOL amount greater than 0, using up to 9 decimal places.' };
+      if (lamports === 0n)
+        return { error: 'Enter a SOL amount greater than 0, using up to 9 decimal places.' };
 
       const from = solanaAddress(context.identity.deriveEd25519(SOLANA_ACCOUNT_PATH));
       const balance = await getBalance(rpcUrl(), from);

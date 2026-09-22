@@ -42,9 +42,7 @@ export function botChatLossCopy(pluginName: string, loss: BotChatLoss): BotChatL
   const chats = loss.botNames.join(' and ');
   const plural = loss.conversationIds.length === 1 ? 'chat' : 'chats';
   const written =
-    loss.fromYou > 0
-      ? `, ${loss.fromYou} of which ${loss.fromYou === 1 ? 'is' : 'are'} yours`
-      : '';
+    loss.fromYou > 0 ? `, ${loss.fromYou} of which ${loss.fromYou === 1 ? 'is' : 'are'} yours` : '';
 
   return {
     title: `Turn off ${pluginName}?`,

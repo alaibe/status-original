@@ -24,9 +24,7 @@ export function normaliseSymbol(input: string): string {
 }
 
 export function displaySymbol(symbol: string): string {
-  const quote = QUOTE_ASSETS.find(
-    (q) => symbol.endsWith(q) && symbol.length - q.length >= 2
-  );
+  const quote = QUOTE_ASSETS.find((q) => symbol.endsWith(q) && symbol.length - q.length >= 2);
   return quote ? `${symbol.slice(0, -quote.length)}/${quote}` : symbol;
 }
 
@@ -54,9 +52,7 @@ export async function fetchTicker(
   symbol: string,
   apiBase: string = DEFAULT_API_BASE
 ): Promise<Ticker> {
-  const response = await fetch(
-    `${apiBase}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`
-  );
+  const response = await fetch(`${apiBase}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`);
 
   if (!response.ok) {
     throw new Error(

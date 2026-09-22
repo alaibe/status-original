@@ -128,7 +128,9 @@ export default function CreateIdentity() {
           onPress={confirm}
         />
         <Text variant="caption" className="text-center">
-          {revealed ? 'Continuing stores the phrase in this device’s keychain.' : 'Reveal the phrase to continue.'}
+          {revealed
+            ? 'Continuing stores the phrase in this device’s keychain.'
+            : 'Reveal the phrase to continue.'}
         </Text>
       </View>
     </Screen>

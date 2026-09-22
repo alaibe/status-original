@@ -1,4 +1,8 @@
-import { findProtocol, transportProtocols as connectedTransports, validateProtocols } from '@/core/messaging/registry';
+import {
+  findProtocol,
+  transportProtocols as connectedTransports,
+  validateProtocols,
+} from '@/core/messaging/registry';
 import { MATRIX_PROTOCOL } from './matrix/descriptor';
 import { NOSTR_PROTOCOL } from './nostr/descriptor';
 import { TELEGRAM_PROTOCOL } from './telegram/descriptor';

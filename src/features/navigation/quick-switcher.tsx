@@ -88,15 +88,36 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
     const chats: Entry[] = ordered.map((conversation) => ({
       id: conversation.id,
       title: conversationTitle(conversation, selfIdOf(conversation), nameFor),
-      subtitle: conversation.protocol && conversation.protocol !== 'local' ? conversation.protocol.toUpperCase() : undefined,
+      subtitle:
+        conversation.protocol && conversation.protocol !== 'local'
+          ? conversation.protocol.toUpperCase()
+          : undefined,
       conversation,
       selfId: selfIdOf(conversation),
       run: () => openChat(conversation.id),
     }));
     const commands: Entry[] = [
-      { id: 'new', title: 'New message', subtitle: '⌘N', icon: 'create-outline', run: () => router.push('/new-chat') },
-      { id: 'contacts', title: 'Contacts', subtitle: '⌘2', icon: 'people-outline', run: () => openTab('/contacts') },
-      { id: 'settings', title: 'Settings', subtitle: '⌘,', icon: 'hardware-chip-outline', run: () => openTab('/settings') },
+      {
+        id: 'new',
+        title: 'New message',
+        subtitle: '⌘N',
+        icon: 'create-outline',
+        run: () => router.push('/new-chat'),
+      },
+      {
+        id: 'contacts',
+        title: 'Contacts',
+        subtitle: '⌘2',
+        icon: 'people-outline',
+        run: () => openTab('/contacts'),
+      },
+      {
+        id: 'settings',
+        title: 'Settings',
+        subtitle: '⌘,',
+        icon: 'hardware-chip-outline',
+        run: () => openTab('/settings'),
+      },
     ];
 
     const q = query.trim().toLowerCase();
@@ -177,15 +198,36 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
                       accessibilityLabel={entry.title}
                       onPress={() => choose(entry)}
                       onHoverIn={() => setIndex(flat.indexOf(entry))}
-                      className={active ? 'flex-row items-center gap-3 bg-brand px-5 py-2.5' : 'flex-row items-center gap-3 px-5 py-2.5'}>
+                      className={
+                        active
+                          ? 'flex-row items-center gap-3 bg-brand px-5 py-2.5'
+                          : 'flex-row items-center gap-3 px-5 py-2.5'
+                      }>
                       {entry.conversation && entry.selfId !== undefined ? (
-                        <ConversationAvatar conversation={entry.conversation} selfId={entry.selfId} size="sm" />
+                        <ConversationAvatar
+                          conversation={entry.conversation}
+                          selfId={entry.selfId}
+                          size="sm"
+                        />
                       ) : (
-                        <View className={active ? 'h-8 w-8 items-center justify-center rounded-pill bg-brand-on/20' : 'h-8 w-8 items-center justify-center rounded-pill bg-surface-sunken'}>
-                          <Icon name={entry.icon ?? 'sparkles-outline'} size={18} color={active ? colors['brand-on'] : colors['content-muted']} />
+                        <View
+                          className={
+                            active
+                              ? 'h-8 w-8 items-center justify-center rounded-pill bg-brand-on/20'
+                              : 'h-8 w-8 items-center justify-center rounded-pill bg-surface-sunken'
+                          }>
+                          <Icon
+                            name={entry.icon ?? 'sparkles-outline'}
+                            size={18}
+                            color={active ? colors['brand-on'] : colors['content-muted']}
+                          />
                         </View>
                       )}
-                      <Text numberOfLines={1} className={active ? 'flex-1 font-medium text-brand-on' : 'flex-1 font-medium'}>
+                      <Text
+                        numberOfLines={1}
+                        className={
+                          active ? 'flex-1 font-medium text-brand-on' : 'flex-1 font-medium'
+                        }>
                         {entry.title}
                       </Text>
                       {entry.subtitle ? (

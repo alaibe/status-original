@@ -150,8 +150,7 @@ function StateDot({ state }: { state: 'on' | 'off' }) {
 function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) {
   const colors = useThemeColors();
 
-  const tint = (tone: WidgetTone | undefined) =>
-    tone === 'danger' ? colors.danger : colors.brand;
+  const tint = (tone: WidgetTone | undefined) => (tone === 'danger' ? colors.danger : colors.brand);
 
   switch (widget.kind) {
     case 'stat': {
@@ -177,7 +176,9 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
           pressScale={0.99}
           onPress={() =>
             onOffer?.(
-              widget.label ? { title: widget.label, subtitle: widget.value } : { title: widget.value },
+              widget.label
+                ? { title: widget.label, subtitle: widget.value }
+                : { title: widget.value },
               widget.actions ?? []
             )
           }
@@ -227,7 +228,10 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
                 accessibilityHint={affordanceFor(row.actions) ?? undefined}
                 pressScale={0.99}
                 onPress={() =>
-                  onOffer?.({ title: row.label, subtitle: row.value || undefined }, row.actions ?? [])
+                  onOffer?.(
+                    { title: row.label, subtitle: row.value || undefined },
+                    row.actions ?? []
+                  )
                 }
                 className="-mx-1 rounded-field px-1 py-0.5 active:bg-surface-sunken">
                 {content}
@@ -250,7 +254,10 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
                 <View className="min-w-0 grow shrink gap-0.5">
                   <Text
                     numberOfLines={1}
-                    className={cn('text-footnote font-semibold', TEXT_TONE[item.tone ?? 'neutral'])}>
+                    className={cn(
+                      'text-footnote font-semibold',
+                      TEXT_TONE[item.tone ?? 'neutral']
+                    )}>
                     {item.title}
                   </Text>
                   {item.subtitle ? (
@@ -323,14 +330,22 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
 
     case 'card':
       return (
-        <View className={cn('gap-2.5 rounded-bubble border p-3.5', CARD_TONE[widget.tone ?? 'neutral'])}>
+        <View
+          className={cn(
+            'gap-2.5 rounded-bubble border p-3.5',
+            CARD_TONE[widget.tone ?? 'neutral']
+          )}>
           {widget.title ? (
             <View className="flex-row items-center gap-1.5">
               {widget.icon ? (
                 <Icon
                   name={widget.icon}
                   size={15}
-                  color={widget.tone === 'neutral' || !widget.tone ? colors['content-muted'] : colors.brand}
+                  color={
+                    widget.tone === 'neutral' || !widget.tone
+                      ? colors['content-muted']
+                      : colors.brand
+                  }
                 />
               ) : null}
               <Eyebrow>{widget.title}</Eyebrow>
@@ -383,7 +398,9 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
           onPress={() => onOpenUrl?.(widget.url)}
           className="flex-row items-center gap-1.5">
           <Icon name={widget.icon ?? 'open-outline'} size={14} color={colors.brand} />
-          <Text className="min-w-0 flex-1 text-footnote font-medium text-brand">{widget.label}</Text>
+          <Text className="min-w-0 flex-1 text-footnote font-medium text-brand">
+            {widget.label}
+          </Text>
         </Pressable>
       );
   }
@@ -417,7 +434,10 @@ function SelectField({
         style={{ borderCurve: 'continuous' }}
         className={cn(FIELD_BOX, 'flex-row items-center gap-2 border-line')}>
         <Text
-          className={cn('min-w-0 flex-1 text-body', chosen ? 'text-content' : 'text-content-subtle')}>
+          className={cn(
+            'min-w-0 flex-1 text-body',
+            chosen ? 'text-content' : 'text-content-subtle'
+          )}>
           {chosen?.label ?? field.placeholder ?? 'Choose'}
         </Text>
         <Icon name="chevron-down" size={16} color={colors['content-subtle']} />
@@ -464,8 +484,7 @@ function FormWidget({
   return (
     <View className="gap-3" style={{ minWidth: 260 }}>
       {widget.fields.map((field) =>
-        field.options &&
-        (field.select || visibleOptions(field, answers).length >= MANY_OPTIONS) ? (
+        field.options && (field.select || visibleOptions(field, answers).length >= MANY_OPTIONS) ? (
           <SelectField
             key={field.id}
             field={field}
@@ -504,15 +523,15 @@ function FormWidget({
           </View>
         ) : (
           <Field
-          key={field.id}
-          label={fillText(field.label, display)}
-          hint={field.hint ? fillText(field.hint, display) : undefined}
-          placeholder={field.placeholder ? fillText(field.placeholder, display) : undefined}
-          defaultValue={field.value ?? ''}
-          onChangeText={(text) => setValues({ ...answers, [field.id]: text })}
-          autoCorrect={false}
-          autoCapitalize="none"
-          keyboardType={field.keyboard === 'decimal' ? 'decimal-pad' : 'default'}
+            key={field.id}
+            label={fillText(field.label, display)}
+            hint={field.hint ? fillText(field.hint, display) : undefined}
+            placeholder={field.placeholder ? fillText(field.placeholder, display) : undefined}
+            defaultValue={field.value ?? ''}
+            onChangeText={(text) => setValues({ ...answers, [field.id]: text })}
+            autoCorrect={false}
+            autoCapitalize="none"
+            keyboardType={field.keyboard === 'decimal' ? 'decimal-pad' : 'default'}
           />
         )
       )}

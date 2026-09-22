@@ -61,7 +61,10 @@ function pad(plaintext: string): Uint8Array {
 function unpad(padded: Uint8Array): string {
   if (padded.length < 2) throw new Error('Malformed NIP-44 padding');
 
-  const length = new DataView(padded.buffer, padded.byteOffset, padded.byteLength).getUint16(0, false);
+  const length = new DataView(padded.buffer, padded.byteOffset, padded.byteLength).getUint16(
+    0,
+    false
+  );
   const content = padded.subarray(2, 2 + length);
 
   if (

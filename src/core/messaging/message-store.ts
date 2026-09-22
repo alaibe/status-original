@@ -15,20 +15,20 @@ export interface MessageStore {
   loadMessages(
     conversationId: ConversationId,
     limit?: number,
-    before?: { sentAt: number; id: MessageId },
+    before?: { sentAt: number; id: MessageId }
   ): Promise<ChatMessage[]>;
 
   upsertConversation(conversation: StoredConversation): Promise<void>;
   insertMessage(
     message: ChatMessage,
     conversation?: StoredConversation,
-    transportTimestamp?: number,
+    transportTimestamp?: number
   ): Promise<boolean>;
   latestMessages(protocolId: string): Promise<Map<ConversationId, ChatMessage>>;
   newestTransportTimestamp(
     protocolId: string,
     notAfter: number,
-    conversationId?: ConversationId,
+    conversationId?: ConversationId
   ): Promise<number | undefined>;
   clear(protocolId: string): Promise<void>;
 }
@@ -48,14 +48,16 @@ export class InMemoryMessageStore implements MessageStore {
   async loadMessages(
     conversationId: ConversationId,
     limit = HYDRATE_LIMIT,
-    before?: { sentAt: number; id: MessageId },
+    before?: { sentAt: number; id: MessageId }
   ) {
     const byId = this.messages.get(conversationId);
     if (!byId) return [];
     const sorted = [...byId.values()]
-      .filter((message) =>
-        !before || message.sentAt < before.sentAt ||
-        (message.sentAt === before.sentAt && message.id < before.id)
+      .filter(
+        (message) =>
+          !before ||
+          message.sentAt < before.sentAt ||
+          (message.sentAt === before.sentAt && message.id < before.id)
       )
       .sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id));
     return sorted.slice(-limit);
@@ -71,7 +73,7 @@ export class InMemoryMessageStore implements MessageStore {
   async insertMessage(
     message: ChatMessage,
     conversation?: StoredConversation,
-    transportTimestamp?: number,
+    transportTimestamp?: number
   ): Promise<boolean> {
     let byId = this.messages.get(message.conversationId);
     if (!byId) {
@@ -95,13 +97,21 @@ export class InMemoryMessageStore implements MessageStore {
   async newestTransportTimestamp(
     protocolId: string,
     notAfter: number,
-    conversationId?: ConversationId,
+    conversationId?: ConversationId
   ): Promise<number | undefined> {
     let newest: number | undefined;
     for (const conversation of this.conversations.values()) {
-      if (conversation.protocolId !== protocolId || conversationId && conversation.id !== conversationId) continue;
+      if (
+        conversation.protocolId !== protocolId ||
+        (conversationId && conversation.id !== conversationId)
+      )
+        continue;
       const timestamp = this.transportTimestamps.get(conversation.id);
-      if (timestamp !== undefined && timestamp <= notAfter && (newest === undefined || timestamp > newest)) {
+      if (
+        timestamp !== undefined &&
+        timestamp <= notAfter &&
+        (newest === undefined || timestamp > newest)
+      ) {
         newest = timestamp;
       }
     }

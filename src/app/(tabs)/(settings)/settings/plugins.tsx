@@ -30,9 +30,10 @@ export default function PluginsScreen() {
 
   const [detail, setDetail] = useState<Plugin | null>(null);
 
-  const [pendingDisable, setPendingDisable] = useState<{ plugin: Plugin; loss: BotChatLoss } | null>(
-    null
-  );
+  const [pendingDisable, setPendingDisable] = useState<{
+    plugin: Plugin;
+    loss: BotChatLoss;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const apply = async (plugin: Plugin, next: boolean) => {

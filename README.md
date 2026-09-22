@@ -10,10 +10,10 @@ codebase. The desktop app is the web export of that codebase running in a Tauri
 window.
 
 <p align="center">
-  <img src="store/ios/screenshots/6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
-  <img src="store/ios/screenshots/6.9/03-conversation.png" width="196" alt="The Status room, with command chips above the composer">
-  <img src="store/ios/screenshots/6.9/05-message-actions.png" width="196" alt="Long-pressing a message: reactions, reply, copy and forward">
-  <img src="store/ios/screenshots/6.9/06-plugins.png" width="196" alt="Plugins screen: assistant, names, bots, wallet, browser and markets">
+  <img src="distribution/ios/screenshots/6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
+  <img src="distribution/ios/screenshots/6.9/03-conversation.png" width="196" alt="The Status room, with command chips above the composer">
+  <img src="distribution/ios/screenshots/6.9/05-message-actions.png" width="196" alt="Long-pressing a message: reactions, reply, copy and forward">
+  <img src="distribution/ios/screenshots/6.9/06-plugins.png" width="196" alt="Plugins screen: assistant, names, bots, wallet, browser and markets">
 </p>
 
 **[User guide](https://alaibe.github.io/status-original/)** ·
@@ -67,7 +67,7 @@ iOS, macOS, Windows and Linux. Android builds from the same codebase but has no
 Telegram: `react-native-tdlib`'s Android side does not expose the raw
 `td_json_client` calls `src/protocols/telegram/td-client.ts` drives.
 
-One tag releases every platform. [`store/`](store/README.md) has the pipeline,
+One tag releases every platform. [`distribution/`](distribution/README.md) has the pipeline,
 the secrets it reads and the store checklists.
 
 ## Quick start
@@ -123,7 +123,7 @@ refresh them.
 | Reporting a vulnerability | [`SECURITY.md`](SECURITY.md) |
 | What leaves your device | [`PRIVACY.md`](PRIVACY.md) |
 | What the developer is not responsible for | [`DISCLAIMER.md`](DISCLAIMER.md) |
-| Releasing, and what the stores ask for | [`store/`](store/README.md) |
+| Releasing, and what the stores ask for | [`distribution/`](distribution/README.md) |
 | Why each dependency is patched | [`patches/README.md`](patches/README.md) |
 | End-to-end tests | [`e2e/README.md`](e2e/README.md) |
 | Running Nostr and Waku locally | [`local-net/README.md`](local-net/README.md) |

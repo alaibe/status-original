@@ -90,7 +90,10 @@ export interface TdMessage extends TdObject {
   date: number;
   is_outgoing: boolean;
   sending_state?: TdObject | null;
-  reply_to?: { '@type': 'messageReplyToMessage'; chat_id: number; message_id: number } | TdObject | null;
+  reply_to?:
+    | { '@type': 'messageReplyToMessage'; chat_id: number; message_id: number }
+    | TdObject
+    | null;
   forward_info?: TdObject | null;
   interaction_info?: {
     reactions?: { reactions: TdReaction[] } | null;

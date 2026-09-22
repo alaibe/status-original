@@ -3,10 +3,7 @@ import type { ConversationId } from './types';
 
 export type ConversationScope = 'dm' | 'group' | 'channel';
 
-export function conversationScope(
-  id: ConversationId,
-  kind?: 'dm' | 'group'
-): ConversationScope {
+export function conversationScope(id: ConversationId, kind?: 'dm' | 'group'): ConversationScope {
   if (isLocalConversation(id)) return 'channel';
   return kind === 'group' ? 'group' : 'dm';
 }

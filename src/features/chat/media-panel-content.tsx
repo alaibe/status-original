@@ -41,7 +41,13 @@ const GIF_COLUMNS = 3;
 const GIF_GAP = 4;
 const SEARCH_DEBOUNCE_MS = 350;
 
-export function MediaPanelContent({ tab, onTab, onEmoji, onGif, autoFocusSearch }: MediaPanelContentProps) {
+export function MediaPanelContent({
+  tab,
+  onTab,
+  onEmoji,
+  onGif,
+  autoFocusSearch,
+}: MediaPanelContentProps) {
   const [width, setWidth] = useState(0);
 
   return (
@@ -63,8 +69,13 @@ export function MediaPanelContent({ tab, onTab, onEmoji, onGif, autoFocusSearch 
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               onPress={() => onTab(entry)}
-              className={active ? 'rounded-pill bg-surface-sunken px-4 py-1.5' : 'rounded-pill px-4 py-1.5'}>
-              <Text className={active ? 'font-semibold text-content' : 'font-medium text-content-muted'}>
+              className={
+                active ? 'rounded-pill bg-surface-sunken px-4 py-1.5' : 'rounded-pill px-4 py-1.5'
+              }>
+              <Text
+                className={
+                  active ? 'font-semibold text-content' : 'font-medium text-content-muted'
+                }>
                 {entry === 'emoji' ? 'Emoji' : 'GIFs'}
               </Text>
             </Pressable>
@@ -111,17 +122,20 @@ function GifGrid({
     if (!key) return;
     let cancelled = false;
     const trimmed = query.trim();
-    const timer = setTimeout(async () => {
-      setBusy(true);
-      setError(null);
-      try {
-        const found = trimmed ? await searchGifs(key, trimmed) : await featuredGifs(key);
-        if (!cancelled) setResults(found);
-      } catch (e) {
-        if (!cancelled) setError(errorMessage(e, 'Could not load GIFs'));
-      }
-      if (!cancelled) setBusy(false);
-    }, trimmed ? SEARCH_DEBOUNCE_MS : 0);
+    const timer = setTimeout(
+      async () => {
+        setBusy(true);
+        setError(null);
+        try {
+          const found = trimmed ? await searchGifs(key, trimmed) : await featuredGifs(key);
+          if (!cancelled) setResults(found);
+        } catch (e) {
+          if (!cancelled) setError(errorMessage(e, 'Could not load GIFs'));
+        }
+        if (!cancelled) setBusy(false);
+      },
+      trimmed ? SEARCH_DEBOUNCE_MS : 0
+    );
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -132,8 +146,8 @@ function GifGrid({
     return (
       <View className="gap-3 px-4 py-4">
         <Text variant="footnote">
-          GIF search needs a KLIPY key, which you add in Settings. There is no keyless GIF API,
-          and this app does not ship credentials of its own.
+          GIF search needs a KLIPY key, which you add in Settings. There is no keyless GIF API, and
+          this app does not ship credentials of its own.
         </Text>
         <Text variant="footnote">
           You can still send GIFs without one: pick them from your photo library like any other

@@ -98,8 +98,8 @@ function Scanner({ context, onClose }: { context: PluginContext; onClose(): void
       ) : (
         <View className="flex-1 justify-center gap-4 px-gutter">
           <Text variant="bodyMuted">
-            Point the camera at the WalletConnect code a site shows you. It is used for that
-            and nothing else, and no image leaves this device.
+            Point the camera at the WalletConnect code a site shows you. It is used for that and
+            nothing else, and no image leaves this device.
           </Text>
           <Button
             label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow the camera'}

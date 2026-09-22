@@ -132,10 +132,7 @@ export function fillCommand(command: string, values: Record<string, string>): st
   });
 }
 
-export function visibleOptions(
-  field: WidgetField,
-  values: Record<string, string>
-): WidgetOption[] {
+export function visibleOptions(field: WidgetField, values: Record<string, string>): WidgetOption[] {
   return (field.options ?? []).filter(
     (option) =>
       !option.when || Object.entries(option.when).every(([id, value]) => values[id] === value)

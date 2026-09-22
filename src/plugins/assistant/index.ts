@@ -9,8 +9,7 @@ export const assistantPlugin: Plugin = {
   manifest: {
     id: 'assistant',
     name: 'Status Assistant',
-    description:
-      'Your on-device space for notes, commands and discovering features.',
+    description: 'Your on-device space for notes, commands and discovering features.',
     version: '1.0.0',
     icon: 'sparkles-outline',
     permissions: ['identity.read', 'plugins.manage', 'storage'],

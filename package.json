@@ -81,6 +81,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@tauri-apps/cli": "^2.11.5",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
@@ -110,11 +111,13 @@
     "test": "jest",
     "postinstall": "patch-package && node ./scripts/copy-xmtp-wasm.js",
     "test:e2e": "./e2e/run.sh",
-    "test:all": "npm run typecheck && npm test && npm run test:e2e",
+    "test:all": "npm run format:check && npm run typecheck && npm test && npm run test:e2e",
     "setup": "./scripts/setup.sh",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "format": "biome check . --write && cargo fmt --manifest-path src-tauri/Cargo.toml --all",
+    "format:check": "biome ci . && cargo fmt --manifest-path src-tauri/Cargo.toml --all --check"
   },
   "private": true,
   "expo": {

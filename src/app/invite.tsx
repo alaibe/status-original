@@ -115,7 +115,10 @@ export default function InviteScreen() {
   return (
     <Screen className="px-0" edges={['top']}>
       <View className="flex-row items-center justify-between px-gutter pb-4 pt-4">
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          onPress={() => router.back()}>
           <Icon name="close" size={24} color={colors['content-muted']} />
         </Pressable>
         <Text className="text-body font-semibold">Invite friends</Text>
@@ -158,16 +161,16 @@ export default function InviteScreen() {
         ) : access === 'unavailable' ? (
           <Note className="mx-gutter mt-6" icon="lock-closed-outline">
             <Text variant="footnote">
-              Suggestions from your address book are not available on this system. Share the
-              link above, or scan the QR code from a phone that has the app.
+              Suggestions from your address book are not available on this system. Share the link
+              above, or scan the QR code from a phone that has the app.
             </Text>
           </Note>
         ) : access === 'none' || access === 'unknown' ? (
           <Note className="mx-gutter mt-6" icon="lock-closed-outline">
             <Text variant="footnote">
               Your address book can suggest who to invite. It is read on this device only, never
-              uploaded and never matched against a server. That is why this list cannot tell you
-              who is already here.
+              uploaded and never matched against a server. That is why this list cannot tell you who
+              is already here.
             </Text>
             <Button
               label="Allow contacts"
@@ -188,10 +191,7 @@ export default function InviteScreen() {
                   title={<ContactName given={contact.given} family={contact.family} />}
                   subtitle={contact.phone ?? 'No phone number'}
                   leading={
-                    <Avatar
-                      seed={`${contact.given ?? ''}${contact.family ?? ''}`}
-                      size="md"
-                    />
+                    <Avatar seed={`${contact.given ?? ''}${contact.family ?? ''}`} size="md" />
                   }
                   trailing={
                     <Icon
@@ -210,11 +210,7 @@ export default function InviteScreen() {
 
       {selected.size > 0 ? (
         <View className="absolute inset-x-0 bottom-0 border-t border-line bg-surface-raised px-gutter pb-8 pt-3">
-          <Button
-            label={`Invite ${selected.size}`}
-            fullWidth
-            onPress={sendInvites}
-          />
+          <Button label={`Invite ${selected.size}`} fullWidth onPress={sendInvites} />
         </View>
       ) : null}
     </Screen>

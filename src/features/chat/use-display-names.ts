@@ -53,7 +53,7 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
     };
   }, [sessions, key]);
 
-  return ({
+  return {
     nameFor(id: ParticipantId): string {
       const name = names[id];
       if (name) return name;
@@ -63,7 +63,7 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
     addressFor(id: ParticipantId): string | undefined {
       return addresses[id];
     },
-  });
+  };
 }
 
 export function conversationTitle(

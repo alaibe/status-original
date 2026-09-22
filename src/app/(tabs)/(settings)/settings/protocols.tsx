@@ -27,8 +27,8 @@ export default function ProtocolsScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}>
         <View className="gap-1 px-gutter pb-4">
           <Text variant="bodyMuted">
-            Every configured protocol connects at once and shares one inbox. Each conversation
-            stays on the protocol it started on, and they do not offer the same guarantees.
+            Every configured protocol connects at once and shares one inbox. Each conversation stays
+            on the protocol it started on, and they do not offer the same guarantees.
           </Text>
         </View>
 
@@ -42,7 +42,12 @@ export default function ProtocolsScreen() {
                 title={descriptor.label}
                 subtitle={connections[descriptor.id]?.error ?? descriptor.description}
                 numberOfLinesSubtitle={2}
-                leading={<RowIcon name={ICON[descriptor.id] ?? 'git-network-outline'} tone={TONE[descriptor.id] ?? 'grey'} />}
+                leading={
+                  <RowIcon
+                    name={ICON[descriptor.id] ?? 'git-network-outline'}
+                    tone={TONE[descriptor.id] ?? 'grey'}
+                  />
+                }
                 meta={<Badge label={status.label} tone={status.tone} />}
                 trailing={<Chevron />}
                 onPress={() => router.push(`/settings/protocol/${descriptor.id}`)}

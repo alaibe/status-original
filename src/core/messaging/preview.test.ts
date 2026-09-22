@@ -25,7 +25,12 @@ describe('messagePreview', () => {
     expect(
       messagePreview({
         ...base,
-        content: { kind: 'custom', typeId: 'eth.payment.request', data: {}, fallback: 'Wants 1 ETH' },
+        content: {
+          kind: 'custom',
+          typeId: 'eth.payment.request',
+          data: {},
+          fallback: 'Wants 1 ETH',
+        },
       })
     ).toBe('Wants 1 ETH');
   });
@@ -34,7 +39,11 @@ describe('messagePreview', () => {
     expect(
       messagePreview({
         ...base,
-        content: { kind: 'unsupported', typeId: 'eth.payment.request', fallback: 'Payment request' },
+        content: {
+          kind: 'unsupported',
+          typeId: 'eth.payment.request',
+          fallback: 'Payment request',
+        },
       })
     ).toBe('Payment request');
   });

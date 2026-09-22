@@ -23,7 +23,12 @@ function hrpExpand(hrp: string): number[] {
   return out;
 }
 
-function convertBits(data: ArrayLike<number>, from: number, to: number, pad: boolean): number[] | null {
+function convertBits(
+  data: ArrayLike<number>,
+  from: number,
+  to: number,
+  pad: boolean
+): number[] | null {
   let acc = 0;
   let bits = 0;
   const out: number[] = [];

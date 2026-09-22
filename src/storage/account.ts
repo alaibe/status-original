@@ -40,8 +40,8 @@ export function createAccountStorage(accountId: string): AccountStorage {
     plugin(pluginId: string) {
       const pluginKey = (name: string) => `plugin:${pluginId}:${name}`;
       return {
-        get: <T,>(name: string) => storage.get<T>(pluginKey(name)),
-        set: <T,>(name: string, value: T) => storage.set(pluginKey(name), value),
+        get: <T>(name: string) => storage.get<T>(pluginKey(name)),
+        set: <T>(name: string, value: T) => storage.set(pluginKey(name), value),
         remove: (name: string) => storage.remove(pluginKey(name)),
       };
     },

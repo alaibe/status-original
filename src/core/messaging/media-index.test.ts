@@ -59,7 +59,9 @@ describe('entriesFor', () => {
     const [byMime] = entriesFor(
       message('m1', { kind: 'image', uri: 'file://a', mimeType: 'image/gif' })
     );
-    const [byName] = entriesFor(message('m2', { kind: 'image', uri: 'file://b.GIF', name: 'b.GIF' }));
+    const [byName] = entriesFor(
+      message('m2', { kind: 'image', uri: 'file://b.GIF', name: 'b.GIF' })
+    );
 
     expect(byMime.category).toBe('gifs');
     expect(byName.category).toBe('gifs');
@@ -81,9 +83,7 @@ describe('entriesFor', () => {
 
 describe('indexMessages', () => {
   it('adds entries under their conversation', () => {
-    const index = indexMessages({}, 'c1', [
-      message('m1', { kind: 'image', uri: 'file://a.jpg' }),
-    ]);
+    const index = indexMessages({}, 'c1', [message('m1', { kind: 'image', uri: 'file://a.jpg' })]);
     expect(entriesOf(index, 'c1', 'media')).toHaveLength(1);
   });
 

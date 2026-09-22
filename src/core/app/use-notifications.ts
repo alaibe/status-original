@@ -19,7 +19,8 @@ export function useMessageNotifications() {
   }, []);
 
   useEffect(() => {
-    const badge = (state: ChatState) => setBadgeCount(totalUnread(state.conversations, state.readAt));
+    const badge = (state: ChatState) =>
+      setBadgeCount(totalUnread(state.conversations, state.readAt));
     badge(useChatStore.getState());
     const unsubscribe = useChatStore.subscribe((state, previous) => {
       if (state.conversations !== previous.conversations || state.readAt !== previous.readAt) {

@@ -187,7 +187,7 @@ export function textEvent(
   roomId: string,
   sender: string,
   body: string,
-  overrides: Partial<MxEvent> = {},
+  overrides: Partial<MxEvent> = {}
 ): MxEvent {
   return {
     id,
@@ -203,7 +203,14 @@ export function textEvent(
 
 export function imageEvent(id: string, roomId: string, sender: string, name: string): MxEvent {
   return textEvent(id, roomId, sender, '', {
-    content: { kind: 'image', source: `mxc://example.org/${name}`, name, mimeType: 'image/png', width: 10, height: 20 },
+    content: {
+      kind: 'image',
+      source: `mxc://example.org/${name}`,
+      name,
+      mimeType: 'image/png',
+      width: 10,
+      height: 20,
+    },
   });
 }
 

@@ -1,4 +1,3 @@
-
 import { Text } from '@/design';
 export interface ContactNameProps {
   given?: string | null;

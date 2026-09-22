@@ -13,7 +13,13 @@ function message(over: Partial<ChatMessage> & { id: string }): ChatMessage {
   };
 }
 
-function reaction(id: string, targetId: string, emoji: string, action: 'added' | 'removed', by = 'bob') {
+function reaction(
+  id: string,
+  targetId: string,
+  emoji: string,
+  action: 'added' | 'removed',
+  by = 'bob'
+) {
   return message({ id, senderId: by, content: { kind: 'reaction', targetId, emoji, action } });
 }
 

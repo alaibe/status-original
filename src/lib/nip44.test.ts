@@ -115,9 +115,7 @@ describe('tampering', () => {
   it('rejects the wrong key', () => {
     const carol = new Uint8Array(32).fill(9);
     const payload = encrypt('secret', ALICE_SECRET, BOB_PUB);
-    expect(() =>
-      decrypt(payload, carol, ALICE_PUB)
-    ).toThrow(/MAC mismatch/);
+    expect(() => decrypt(payload, carol, ALICE_PUB)).toThrow(/MAC mismatch/);
   });
 
   it('rejects an unknown version', () => {

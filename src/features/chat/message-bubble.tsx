@@ -3,7 +3,6 @@ import { Pressable as RNPressable, View } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
 
-
 import { cn, Icon, Text, toast, useThemeColors } from '@/design';
 import { usePluginHost } from '@/core/plugins/host';
 import type { ChatMessage, WidgetContent } from '@/core/messaging/types';
@@ -93,7 +92,9 @@ export function MessageBubble({
           />
         );
       } else {
-        children = <TextBody message={message} text={content.fallback ?? 'Rich message'} unsupported />;
+        children = (
+          <TextBody message={message} text={content.fallback ?? 'Rich message'} unsupported />
+        );
       }
       break;
     }
@@ -228,7 +229,6 @@ function TextBody({
   );
 }
 
-
 function BubbleShell({
   fromMe,
   grouped,
@@ -302,7 +302,11 @@ function BubbleShell({
 
   const bubble = (held: boolean) => (
     <View
-      className={cn('px-gutter', grouped ? 'pt-0.5' : 'pt-2', fromMe ? 'items-end' : 'items-start')}>
+      className={cn(
+        'px-gutter',
+        grouped ? 'pt-0.5' : 'pt-2',
+        fromMe ? 'items-end' : 'items-start'
+      )}>
       {showSender && !fromMe ? (
         <Text variant="micro" className="mb-0.5 ml-3 font-medium">
           {senderName}
@@ -431,14 +435,7 @@ function Footer({ message }: { message: ChatMessage }) {
                 : 'checkmark-done'
           }
           size={13}
-          color={
-            message.status === 'failed'
-              ? colors.danger
-              :
-                message.readAt
-                ? colors.brand
-                : tint
-          }
+          color={message.status === 'failed' ? colors.danger : message.readAt ? colors.brand : tint}
         />
       ) : null}
     </View>

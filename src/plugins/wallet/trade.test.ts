@@ -3,7 +3,16 @@ import type { Widget } from '@/design/widgets';
 import { publicClientFor } from '@/lib/evm/chains';
 import { walletClientFor } from '@/lib/evm/wallet';
 import { permittedCall, planPermit } from '@/lib/evm/permit';
-import { LIFI_NATIVE, LifiError, lifiPermitTargets, lifiQuote, lifiStatus, lifiToken, type LifiQuote, type LifiToken } from '@/lib/lifi';
+import {
+  LIFI_NATIVE,
+  LifiError,
+  lifiPermitTargets,
+  lifiQuote,
+  lifiStatus,
+  lifiToken,
+  type LifiQuote,
+  type LifiToken,
+} from '@/lib/lifi';
 
 import { EVM_CHAINS, evmStrategy } from './chains/evm';
 import { registerChainStrategy } from './chains/strategy';
@@ -39,8 +48,18 @@ const ROUTER = '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE' as const;
 const HASH = `0x${'ab'.repeat(32)}` as const;
 const APPROVAL = `0x${'cd'.repeat(32)}` as const;
 
-const eth = (chainId: number): LifiToken => ({ address: LIFI_NATIVE, chainId, symbol: 'ETH', decimals: 18 });
-const usdc = (chainId: number, address: `0x${string}`): LifiToken => ({ address, chainId, symbol: 'USDC', decimals: 6 });
+const eth = (chainId: number): LifiToken => ({
+  address: LIFI_NATIVE,
+  chainId,
+  symbol: 'ETH',
+  decimals: 18,
+});
+const usdc = (chainId: number, address: `0x${string}`): LifiToken => ({
+  address,
+  chainId,
+  symbol: 'USDC',
+  decimals: 6,
+});
 
 function quoteFor(from: LifiToken, fromAmount: string): LifiQuote {
   return {
@@ -56,7 +75,12 @@ function quoteFor(from: LifiToken, fromAmount: string): LifiQuote {
       feeCosts: [{ amount: '2500000000000', amountUSD: '0.0068', token: eth(from.chainId) }],
       gasCosts: [{ amount: '2834750000000', amountUSD: '0.0077', token: eth(from.chainId) }],
     },
-    transactionRequest: { to: ROUTER, data: '0x4c279d6b', value: '0x38d7ea4c68000', gasLimit: '0xfe204' },
+    transactionRequest: {
+      to: ROUTER,
+      data: '0x4c279d6b',
+      value: '0x38d7ea4c68000',
+      gasLimit: '0xfe204',
+    },
   };
 }
 
@@ -68,7 +92,11 @@ const plan = jest.mocked(planPermit);
 const permitted = jest.mocked(permittedCall);
 const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as const;
 const PROXY = '0x89c6340B1a1f4b25D36cd8B063D49045caF3f818' as const;
-const reads = { getBalance: jest.fn(), readContract: jest.fn(), waitForTransactionReceipt: jest.fn() };
+const reads = {
+  getBalance: jest.fn(),
+  readContract: jest.fn(),
+  waitForTransactionReceipt: jest.fn(),
+};
 const sendTransaction = jest.fn();
 
 const context = {
@@ -130,11 +158,15 @@ beforeEach(() => {
   reads.readContract.mockResolvedValue(0n);
   reads.waitForTransactionReceipt.mockResolvedValue({ status: 'success' });
   sendTransaction.mockReset().mockResolvedValueOnce(APPROVAL).mockResolvedValueOnce(HASH);
-  token.mockImplementation(async (chainId) => usdc(chainId, chainId === 8453 ? USDC_BASE : USDC_ARB));
+  token.mockImplementation(async (chainId) =>
+    usdc(chainId, chainId === 8453 ? USDC_BASE : USDC_ARB)
+  );
   // A chain with no proxy by default, so each test says which lane it takes.
   targets.mockResolvedValue(null);
   plan.mockResolvedValue(null);
-  quote.mockImplementation(async (params) => quoteFor(eth(params.fromChain), params.fromAmount.toString()));
+  quote.mockImplementation(async (params) =>
+    quoteFor(eth(params.fromChain), params.fromAmount.toString())
+  );
 });
 
 afterEach(() => {
@@ -160,7 +192,9 @@ describe('/trade', () => {
     );
     // Blank means your own address, so the form can be submitted without it.
     expect(field(form, 'recipient')?.optional).toBe(true);
-    expect(links).toContainEqual(expect.objectContaining({ label: 'Powered by LI.FI', url: 'https://li.fi' }));
+    expect(links).toContainEqual(
+      expect.objectContaining({ label: 'Powered by LI.FI', url: 'https://li.fi' })
+    );
     expect(quote).not.toHaveBeenCalled();
   });
 
@@ -183,7 +217,13 @@ describe('/trade', () => {
   });
 
   it('refuses a recipient that is not an address rather than quoting', async () => {
-    const { result, message } = await run(['0.001', 'native', 'usdc', '--recipient', 'not-an-address']);
+    const { result, message } = await run([
+      '0.001',
+      'native',
+      'usdc',
+      '--recipient',
+      'not-an-address',
+    ]);
 
     expect(result.type).toBe('error');
     expect(message).toMatch(/could not be resolved to a Base address/i);
@@ -199,21 +239,41 @@ describe('/trade', () => {
   });
 
   it('refuses a network that is not EVM, and one that is off', async () => {
-    expect((await run(['--from', 'bitcoin'])).message).toMatch(/EVM networks, and Bitcoin is not one/);
+    expect((await run(['--from', 'bitcoin'])).message).toMatch(
+      /EVM networks, and Bitcoin is not one/
+    );
     expect((await run(['--to', 'polygon'])).message).toMatch(/not switched on/);
   });
 
   it('quotes a bridge and offers confirmation without signing anything', async () => {
-    const { result, title, stat, rows, actions, links } = await run(['0.001', 'native', 'USDC', '--from', 'base', '--to', 'arbitrum']);
+    const { result, title, stat, rows, actions, links } = await run([
+      '0.001',
+      'native',
+      'USDC',
+      '--from',
+      'base',
+      '--to',
+      'arbitrum',
+    ]);
 
     expect(result).toEqual({ type: 'handled' });
     expect(token).toHaveBeenCalledTimes(1);
     expect(quote).toHaveBeenCalledWith(
-     expect.objectContaining({ fromChain: 8453, toChain: 42161, fromToken: LIFI_NATIVE, toToken: USDC_ARB, fromAmount: 10n ** 15n, fromAddress: me, toAddress: me }),
+      expect.objectContaining({
+        fromChain: 8453,
+        toChain: 42161,
+        fromToken: LIFI_NATIVE,
+        toToken: USDC_ARB,
+        fromAmount: 10n ** 15n,
+        fromAddress: me,
+        toAddress: me,
+      }),
       null
     );
     expect(title).toBe('Bridge Base → Arbitrum One');
-    expect(stat).toEqual(expect.objectContaining({ value: '≈ 2.716948 USDC', label: 'You receive on Arbitrum One' }));
+    expect(stat).toEqual(
+      expect.objectContaining({ value: '≈ 2.716948 USDC', label: 'You receive on Arbitrum One' })
+    );
     expect(rows).toEqual([
       { label: 'You send', value: '0.001 ETH on Base' },
       { label: 'Route', value: 'Layerswap' },
@@ -223,7 +283,10 @@ describe('/trade', () => {
       { label: 'Value', value: '$2.73 → $2.71' },
     ]);
     expect(actions).toEqual([
-      { label: 'Confirm and bridge', command: '/trade 0.001 native USDC --from base --to arbitrum --confirm' },
+      {
+        label: 'Confirm and bridge',
+        command: '/trade 0.001 native USDC --from base --to arbitrum --confirm',
+      },
     ]);
     expect(links.map((l) => l.label)).toContain('Powered by LI.FI');
     expect(walletClientFor).not.toHaveBeenCalled();
@@ -243,7 +306,16 @@ describe('/trade', () => {
   it('stops before the quote is signed when the balance does not also cover gas', async () => {
     reads.getBalance.mockResolvedValue(10n ** 15n);
 
-    const { message } = await run(['0.001', 'native', 'USDC', '--from', 'base', '--to', 'base', '--confirm']);
+    const { message } = await run([
+      '0.001',
+      'native',
+      'USDC',
+      '--from',
+      'base',
+      '--to',
+      'base',
+      '--confirm',
+    ]);
 
     expect(message).toMatch(/Not enough ETH on Base/);
     expect(message).toMatch(/in fees/);
@@ -252,9 +324,22 @@ describe('/trade', () => {
   });
 
   it('surfaces LI.FI’s own explanation when there is no route', async () => {
-    quote.mockRejectedValue(new LifiError(404, 'LI.FI found no route for this trade. A larger amount or a different pair may have one.'));
+    quote.mockRejectedValue(
+      new LifiError(
+        404,
+        'LI.FI found no route for this trade. A larger amount or a different pair may have one.'
+      )
+    );
 
-    const { message } = await run(['0.001', 'native', 'USDC', '--from', 'base', '--to', 'arbitrum']);
+    const { message } = await run([
+      '0.001',
+      'native',
+      'USDC',
+      '--from',
+      'base',
+      '--to',
+      'arbitrum',
+    ]);
 
     expect(message).toMatch(/no route for this trade/);
     expect(message).toMatch(/Nothing was sent/);
@@ -263,7 +348,15 @@ describe('/trade', () => {
   it('names a token LI.FI does not know', async () => {
     token.mockResolvedValue(null);
 
-    const { message } = await run(['0.001', 'native', 'NOPE', '--from', 'base', '--to', 'arbitrum']);
+    const { message } = await run([
+      '0.001',
+      'native',
+      'NOPE',
+      '--from',
+      'base',
+      '--to',
+      'arbitrum',
+    ]);
 
     expect(message).toMatch(/"NOPE" is not a token LI.FI knows on Arbitrum One/);
     expect(quote).not.toHaveBeenCalled();
@@ -272,16 +365,33 @@ describe('/trade', () => {
   it('sends the quoted transaction on confirm, with no approval for the native coin', async () => {
     sendTransaction.mockReset().mockResolvedValueOnce(HASH);
 
-    const { result, title, actions } = await run(['0.001', 'native', 'USDC', '--from', 'base', '--to', 'arbitrum', '--confirm']);
+    const { result, title, actions } = await run([
+      '0.001',
+      'native',
+      'USDC',
+      '--from',
+      'base',
+      '--to',
+      'arbitrum',
+      '--confirm',
+    ]);
 
     expect(result).toEqual({ type: 'handled' });
     expect(walletClientFor).toHaveBeenCalledWith(expect.objectContaining({ address: me }), 8453);
     expect(sendTransaction).toHaveBeenCalledTimes(1);
     expect(sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ to: ROUTER, data: '0x4c279d6b', value: 0x38d7ea4c68000n, gas: 0xfe204n, chain: null })
+      expect.objectContaining({
+        to: ROUTER,
+        data: '0x4c279d6b',
+        value: 0x38d7ea4c68000n,
+        gas: 0xfe204n,
+        chain: null,
+      })
     );
     expect(title).toBe('Bridge started');
-    expect(actions).toEqual([{ label: 'Check status', command: `/trade --status ${HASH} --from base --to arbitrum` }]);
+    expect(actions).toEqual([
+      { label: 'Check status', command: `/trade --status ${HASH} --from base --to arbitrum` },
+    ]);
   });
 
   it('approves the route contract first when a token allowance is short', async () => {
@@ -290,13 +400,26 @@ describe('/trade', () => {
       functionName === 'balanceOf' ? 12_000_000n : 0n
     );
 
-    const { result, codes } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+    const { result, codes } = await run([
+      '5',
+      USDC_BASE,
+      'native',
+      '--from',
+      'base',
+      '--to',
+      'base',
+      '--confirm',
+    ]);
 
     expect(result).toEqual({ type: 'handled' });
     expect(sendTransaction).toHaveBeenCalledTimes(2);
-    expect(sendTransaction.mock.calls[0][0]).toEqual(expect.objectContaining({ to: USDC_BASE, chain: null }));
+    expect(sendTransaction.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ to: USDC_BASE, chain: null })
+    );
     expect(sendTransaction.mock.calls[0][0].data).toMatch(/^0x095ea7b3/);
-    expect(reads.waitForTransactionReceipt).toHaveBeenCalledWith(expect.objectContaining({ hash: APPROVAL }));
+    expect(reads.waitForTransactionReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ hash: APPROVAL })
+    );
     expect(sendTransaction.mock.calls[1][0]).toEqual(expect.objectContaining({ to: ROUTER }));
     expect(codes).toEqual([APPROVAL, HASH]);
   });
@@ -307,7 +430,16 @@ describe('/trade', () => {
       functionName === 'balanceOf' ? 12_000_000n : 0n
     );
 
-    const { titles } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+    const { titles } = await run([
+      '5',
+      USDC_BASE,
+      'native',
+      '--from',
+      'base',
+      '--to',
+      'base',
+      '--confirm',
+    ]);
 
     expect(titles).toEqual(['Approval sent', 'Swapped']);
   });
@@ -319,7 +451,16 @@ describe('/trade', () => {
     );
     reads.waitForTransactionReceipt.mockRejectedValueOnce(new Error('timed out'));
 
-    const { result, message } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+    const { result, message } = await run([
+      '5',
+      USDC_BASE,
+      'native',
+      '--from',
+      'base',
+      '--to',
+      'base',
+      '--confirm',
+    ]);
 
     expect(result.type).toBe('error');
     expect(message).toMatch(/still waiting to confirm.*nothing was traded/i);
@@ -337,12 +478,23 @@ describe('/trade', () => {
     permitted.mockResolvedValue({ to: PROXY, data: '0xfeed' });
     sendTransaction.mockReset().mockResolvedValueOnce(HASH);
 
-    const { result, texts } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+    const { result, texts } = await run([
+      '5',
+      USDC_BASE,
+      'native',
+      '--from',
+      'base',
+      '--to',
+      'base',
+      '--confirm',
+    ]);
 
     expect(result).toEqual({ type: 'handled' });
     // One transaction, to the proxy, carrying the signature.
     expect(sendTransaction).toHaveBeenCalledTimes(1);
-    expect(sendTransaction.mock.calls[0][0]).toEqual(expect.objectContaining({ to: PROXY, data: '0xfeed' }));
+    expect(sendTransaction.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ to: PROXY, data: '0xfeed' })
+    );
     expect(permitted).toHaveBeenCalledWith(
       8453,
       expect.anything(),
@@ -359,7 +511,10 @@ describe('/trade', () => {
       functionName === 'balanceOf' ? 12_000_000n : 0n
     );
     targets.mockResolvedValue({ permit2: PERMIT2, proxy: PROXY });
-    plan.mockResolvedValue({ kind: 'permit2', approve: { spender: PERMIT2, amount: 2n ** 256n - 1n } });
+    plan.mockResolvedValue({
+      kind: 'permit2',
+      approve: { spender: PERMIT2, amount: 2n ** 256n - 1n },
+    });
     permitted.mockResolvedValue({ to: PROXY, data: '0xfeed' });
 
     const { texts } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base']);
@@ -415,15 +570,30 @@ describe('/trade', () => {
       status: 'DONE',
       substatusMessage: 'The transfer is complete.',
       sending: { txHash: HASH, chainId: 8453, amount: '1000000000000000', token: eth(8453) },
-      receiving: { txHash: HASH, txLink: `https://arbiscan.io/tx/${HASH}`, chainId: 42161, amount: '2716948', token: usdc(42161, USDC_ARB) },
+      receiving: {
+        txHash: HASH,
+        txLink: `https://arbiscan.io/tx/${HASH}`,
+        chainId: 42161,
+        amount: '2716948',
+        token: usdc(42161, USDC_ARB),
+      },
       lifiExplorerLink: `https://scan.li.fi/tx/${HASH}`,
     });
 
-    const { result, stat, rows, actions } = await run(['--status', HASH, '--from', 'base', '--to', 'arbitrum']);
+    const { result, stat, rows, actions } = await run([
+      '--status',
+      HASH,
+      '--from',
+      'base',
+      '--to',
+      'arbitrum',
+    ]);
 
     expect(result).toEqual({ type: 'handled' });
     expect(status).toHaveBeenCalledWith({ txHash: HASH, fromChain: 8453, toChain: 42161 }, null);
-    expect(stat).toEqual(expect.objectContaining({ value: 'Done', caption: 'The transfer is complete.' }));
+    expect(stat).toEqual(
+      expect.objectContaining({ value: 'Done', caption: 'The transfer is complete.' })
+    );
     expect(rows).toEqual([
       { label: 'Sent', value: '0.001 ETH on Base' },
       { label: 'Received', value: '2.716948 USDC on Arbitrum One' },

@@ -35,7 +35,9 @@ type KnownRow =
   | { kind: 'header'; letter: string }
   | { kind: 'person'; id: string; name: string; conversationId: string };
 
-function groupByInitial(people: { id: string; name: string; conversationId: string }[]): KnownRow[] {
+function groupByInitial(
+  people: { id: string; name: string; conversationId: string }[]
+): KnownRow[] {
   const out: KnownRow[] = [];
   let letter = '';
   for (const person of people) {

@@ -46,9 +46,7 @@ async function run(
   context: PluginContext,
   conversationId = 'conv-1'
 ) {
-  const command = commandsFor(context).find(
-    (c) => c.name === name || c.aliases?.includes(name)
-  )!;
+  const command = commandsFor(context).find((c) => c.name === name || c.aliases?.includes(name))!;
   const said: string[] = [];
   const result = await command.run({
     rest: args.join(' '),
@@ -69,7 +67,10 @@ describe('/addbot', () => {
     const { result, said } = await run('addbot', ['pricebot.eth', 'Prices'], context);
 
     expect(said).toBe('');
-    expect(result).toMatchObject({ type: 'notice', message: expect.stringContaining('Prices added') });
+    expect(result).toMatchObject({
+      type: 'notice',
+      message: expect.stringContaining('Prices added'),
+    });
     expect(store['known-bots']).toEqual([
       expect.objectContaining({ address: 'pricebot.eth', name: 'Prices', inboxId: 'inbox-1' }),
     ]);

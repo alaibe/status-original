@@ -61,7 +61,9 @@ sqlite3changegroup_delete sqlite3changegroup_new sqlite3changegroup_output
 sqlite3changegroup_output_strm sqlite3changegroup_schema sqlite3pager_error
 sqlite3pager_is_sj_pgno sqlite3pager_reset sqlite3rebaser_configure
 sqlite3rebaser_create sqlite3rebaser_delete sqlite3rebaser_rebase sqlite3rebaser_rebase_strm
-`.trim().split(/\s+/);
+`
+  .trim()
+  .split(/\s+/);
 
 module.exports = function withSqlcipherSqliteFix(config) {
   config = withPodfileProperties(config, (modConfig) => {

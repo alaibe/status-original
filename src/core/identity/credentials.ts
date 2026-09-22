@@ -19,10 +19,7 @@ export async function readCredentials(accountId: string): Promise<Credentials> {
   }
 }
 
-export async function readCredential(
-  accountId: string,
-  id: CredentialId
-): Promise<string | null> {
+export async function readCredential(accountId: string, id: CredentialId): Promise<string | null> {
   return (await readCredentials(accountId))[id] ?? null;
 }
 

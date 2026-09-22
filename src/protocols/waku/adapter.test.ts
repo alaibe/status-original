@@ -30,7 +30,7 @@ function deriveFor(secret: Uint8Array) {
 async function connect(
   node = new FakeWakuNode(),
   secret = ALICE,
-  store: MessageStore = new InMemoryMessageStore(),
+  store: MessageStore = new InMemoryMessageStore()
 ) {
   const session = await WakuSession.connect({
     derive: deriveFor(secret),
@@ -331,13 +331,16 @@ describe('sending and receiving', () => {
     await session.pollOnce();
 
     expect((await session.getMessages(conversation.id))[0].sentAt).toBeGreaterThan(now);
-    await expect(store.newestTransportTimestamp('waku', now, conversation.id)).resolves.toBe(outerTimestamp);
+    await expect(store.newestTransportTimestamp('waku', now, conversation.id)).resolves.toBe(
+      outerTimestamp
+    );
     await session.disconnect();
 
     await connect(node, ALICE, store);
     await settle();
-    expect(node.historyQueries.at(-1)?.searchParams.get('startTime'))
-      .toBe(String((outerTimestamp - 1_000) * 1_000_000));
+    expect(node.historyQueries.at(-1)?.searchParams.get('startTime')).toBe(
+      String((outerTimestamp - 1_000) * 1_000_000)
+    );
   });
 
   it('still works against a node with no store protocol', async () => {
@@ -381,11 +384,15 @@ describe('sending and receiving', () => {
     const conversation = await session.createDm(bobPub);
     await settle();
 
-    await expect(session.send(conversation.id, { kind: 'text', text: 'once each' })).rejects.toThrow();
+    await expect(
+      session.send(conversation.id, { kind: 'text', text: 'once each' })
+    ).rejects.toThrow();
     expect(node.published).toHaveLength(1);
     const firstPayload = node.published[0].payload;
 
-    await expect(session.send(conversation.id, { kind: 'text', text: 'once each' })).resolves.toBeTruthy();
+    await expect(
+      session.send(conversation.id, { kind: 'text', text: 'once each' })
+    ).resolves.toBeTruthy();
     expect(node.published).toHaveLength(2);
     expect(node.published.filter((message) => message.payload === firstPayload)).toHaveLength(1);
   });

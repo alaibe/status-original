@@ -115,7 +115,9 @@ export function SettingsSections({
         <ListItem
           testID="settings-erase-account"
           title="Erase this account"
-          subtitle={hint('Removes its keys and every message kept here. Only the recovery phrase brings it back.')}
+          subtitle={hint(
+            'Removes its keys and every message kept here. Only the recovery phrase brings it back.'
+          )}
           numberOfLinesSubtitle={2}
           leading={<RowIcon name="trash-outline" tone="red" />}
           onPress={() => setConfirmErase(true)}
@@ -147,7 +149,9 @@ export function SettingsSections({
         <ListItem
           testID="settings-trades"
           title="Trades"
-          subtitle={hint(keys.trades ? 'Swaps and bridges use your LI.FI key' : 'Swap and bridge through LI.FI')}
+          subtitle={hint(
+            keys.trades ? 'Swaps and bridges use your LI.FI key' : 'Swap and bridge through LI.FI'
+          )}
           leading={<RowIcon name="swap-horizontal-outline" tone="blue" />}
           trailing={chevron}
           selected={selected === 'trades'}
@@ -198,7 +202,11 @@ export function SettingsSections({
         />
         <ListItem
           title="XMTP network"
-          subtitle={compact ? xmtpEnvironment() : `${xmtpEnvironment()}, reachable only from clients on the same network`}
+          subtitle={
+            compact
+              ? xmtpEnvironment()
+              : `${xmtpEnvironment()}, reachable only from clients on the same network`
+          }
           numberOfLinesSubtitle={2}
           leading={<RowIcon name="globe-outline" tone="teal" />}
         />
@@ -237,10 +245,10 @@ export function SettingsSections({
 }
 
 function describeConnections(
-  connections: Record<string, { status: string; error: string | null; login?: unknown }>,
+  connections: Record<string, { status: string; error: string | null; login?: unknown }>
 ): string {
   const connected = transportProtocols().filter(
-    (p) => connections[p.id]?.status === 'ready' && !connections[p.id]?.login,
+    (p) => connections[p.id]?.status === 'ready' && !connections[p.id]?.login
   );
   const failed = transportProtocols().filter((p) => connections[p.id]?.status === 'error');
 

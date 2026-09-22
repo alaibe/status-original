@@ -15,7 +15,11 @@ export function SearchField({ className, onClear, value, ...input }: SearchField
   const colors = useThemeColors();
 
   return (
-    <View className={cn('h-9 flex-row items-center gap-2 rounded-pill bg-surface-sunken px-3', className)}>
+    <View
+      className={cn(
+        'h-9 flex-row items-center gap-2 rounded-pill bg-surface-sunken px-3',
+        className
+      )}>
       <Icon name="search-outline" size={16} color={colors['content-subtle']} />
       <TextInput
         placeholderTextColor={colors['content-subtle']}

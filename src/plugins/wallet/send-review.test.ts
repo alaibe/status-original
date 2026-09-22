@@ -18,8 +18,12 @@ jest.mock('./chains/watcher', () => ({ checkBalances: jest.fn() }));
 
 jest.mock('@/lib/evm/wallet', () => ({
   estimateTransfer: jest.fn(),
-  sendNative: jest.fn(() => { throw new Error('Broadcast forbidden in review'); }),
-  walletClientFor: jest.fn(() => { throw new Error('Signing forbidden in review'); }),
+  sendNative: jest.fn(() => {
+    throw new Error('Broadcast forbidden in review');
+  }),
+  walletClientFor: jest.fn(() => {
+    throw new Error('Signing forbidden in review');
+  }),
 }));
 
 // Balances are read from the chain now, so a form listing assets needs one.
@@ -33,11 +37,13 @@ const sender = '0x0000000000000000000000000000000000000002';
 const estimate = jest.mocked(estimateTransfer);
 
 const rejection = new EstimateGasExecutionError(
-  new TransactionRejectedRpcError(new RpcRequestError({
-    body: { method: 'eth_estimateGas', params: [{ from: sender, to: recipient, value: '0x1' }] },
-    error: { code: -32003, message: 'EVM error: OutOfFunds' },
-    url: 'https://rpc.example.invalid/private-endpoint',
-  })),
+  new TransactionRejectedRpcError(
+    new RpcRequestError({
+      body: { method: 'eth_estimateGas', params: [{ from: sender, to: recipient, value: '0x1' }] },
+      error: { code: -32003, message: 'EVM error: OutOfFunds' },
+      url: 'https://rpc.example.invalid/private-endpoint',
+    })
+  ),
   { to: recipient, value: 1n }
 );
 
@@ -48,18 +54,20 @@ async function runSend(
   let widget: Widget | undefined;
   const args = ['0.00000001', options.to ?? recipient, '--chain', chainId];
   if (options.confirmed) args.push('--confirm');
-  const result = await walletCommands.find((command) => command.name === 'send')!.run({
-    args,
-    rest: args.join(' '),
-    conversationId: 'local-status',
-    context: {
-      identity: { address: sender, account: () => ({ address: sender }) },
-    } as unknown as PluginContext,
-    respond: async (content) => {
-      if (options.responseError) throw options.responseError;
-      if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
-    },
-  });
+  const result = await walletCommands
+    .find((command) => command.name === 'send')!
+    .run({
+      args,
+      rest: args.join(' '),
+      conversationId: 'local-status',
+      context: {
+        identity: { address: sender, account: () => ({ address: sender }) },
+      } as unknown as PluginContext,
+      respond: async (content) => {
+        if (options.responseError) throw options.responseError;
+        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+      },
+    });
   return { result, widget };
 }
 
@@ -78,7 +86,9 @@ describe('/send errors and confirmation', () => {
       formatted: { value: '0.00000001', balance: '1', fee: '0.000000000000021' },
     });
     chain = evmStrategy(EVM_CHAINS.find((spec) => spec.id === 'ethereum')!);
-    commit = jest.fn(() => { throw new Error('Commit forbidden in review'); });
+    commit = jest.fn(() => {
+      throw new Error('Commit forbidden in review');
+    });
     chain.transfer!.commit = commit;
     dispose = registerChainStrategy(chain);
   });
@@ -90,24 +100,26 @@ describe('/send errors and confirmation', () => {
   it('starts the recipient on your own address, which is the one it knows', async () => {
     let widget: Widget | undefined;
     const args = ['--chain', 'ethereum'];
-    await walletCommands.find((command) => command.name === 'send')!.run({
-      args,
-      rest: args.join(' '),
-      conversationId: 'local-status',
-      context: {
-        identity: { address: sender, account: () => ({ address: sender }) },
-      } as unknown as PluginContext,
-      respond: async (content) => {
-        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
-      },
-    });
+    await walletCommands
+      .find((command) => command.name === 'send')!
+      .run({
+        args,
+        rest: args.join(' '),
+        conversationId: 'local-status',
+        context: {
+          identity: { address: sender, account: () => ({ address: sender }) },
+        } as unknown as PluginContext,
+        respond: async (content) => {
+          if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+        },
+      });
 
-    const form = widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
+    const form =
+      widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
     const to = form?.kind === 'form' ? form.fields.find((f) => f.id === 'to') : undefined;
 
     expect(to?.value).toBe(sender);
   });
-
 
   it('explains the observed OutOfFunds rejection in the selected native currency', async () => {
     estimate.mockRejectedValue(rejection);
@@ -123,7 +135,6 @@ describe('/send errors and confirmation', () => {
     expect(widget).toBeUndefined();
     expect(commit).not.toHaveBeenCalled();
   });
-
 
   it('explains malformed recipients before estimation or signing', async () => {
     const { result, widget } = await runSend('ethereum', { to: '0x00' });
@@ -144,20 +155,27 @@ describe('/send errors and confirmation', () => {
       identity: { address: sender, account: () => ({ address: sender }) },
       storage: { get: async () => null },
     } as unknown as PluginContext;
-    const result = await walletCommands.find((command) => command.name === 'send')!.run({
-      args: [recipient],
-      rest: recipient,
-      conversationId: 'local-status',
-      context,
-      respond: async (content) => {
-        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
-      },
-    });
+    const result = await walletCommands
+      .find((command) => command.name === 'send')!
+      .run({
+        args: [recipient],
+        rest: recipient,
+        conversationId: 'local-status',
+        context,
+        respond: async (content) => {
+          if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+        },
+      });
 
     expect(result.type).toBe('handled');
-    const form = widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
-    expect(form?.kind === 'form' ? form.fields.find((f) => f.id === 'to')?.value : undefined).toBe(recipient);
-    expect(form?.kind === 'form' ? form.fields.find((f) => f.id === 'amount')?.value : undefined).toBe('');
+    const form =
+      widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
+    expect(form?.kind === 'form' ? form.fields.find((f) => f.id === 'to')?.value : undefined).toBe(
+      recipient
+    );
+    expect(
+      form?.kind === 'form' ? form.fields.find((f) => f.id === 'amount')?.value : undefined
+    ).toBe('');
     expect(estimate).not.toHaveBeenCalled();
   });
 
@@ -200,11 +218,11 @@ describe('/send errors and confirmation', () => {
   });
 
   it('shows a confirmation action after a successful quote without committing', async () => {
-
     const { result, widget } = await runSend();
-    const actions = widget?.kind === 'card'
-      ? widget.children.find((child) => child.kind === 'actions')
-      : undefined;
+    const actions =
+      widget?.kind === 'card'
+        ? widget.children.find((child) => child.kind === 'actions')
+        : undefined;
 
     expect(result).toEqual({ type: 'handled' });
     expect(actions?.kind === 'actions' ? actions.actions : undefined).toEqual([
@@ -225,11 +243,13 @@ it('rejects a missing selected token instead of sending native currency', async 
     identity: { address: sender, account: () => ({ address: sender }) },
   } as unknown as PluginContext;
 
-  await expect(transfer.commit(context, {
-    amount: '1',
-    to: recipient,
-    asset: `0x${'cd'.repeat(20)}`,
-  })).rejects.toThrow(/selected token.*Ethereum/i);
+  await expect(
+    transfer.commit(context, {
+      amount: '1',
+      to: recipient,
+      asset: `0x${'cd'.repeat(20)}`,
+    })
+  ).rejects.toThrow(/selected token.*Ethereum/i);
   expect(sendNative).not.toHaveBeenCalled();
   expect(walletClientFor).not.toHaveBeenCalled();
 });

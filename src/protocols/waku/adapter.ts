@@ -48,11 +48,14 @@ class WakuTransport implements ChatTransport {
   private sink: TransportSink | null = null;
   private readonly openTopics = new Set<string>();
   private readonly topicParticipants = new Map<string, Set<string>>();
-  private readonly pendingSends = new Map<string, {
-    content: string;
-    messageId: string;
-    remaining: { recipient: string; message: WakuRestMessage }[];
-  }>();
+  private readonly pendingSends = new Map<
+    string,
+    {
+      content: string;
+      messageId: string;
+      remaining: { recipient: string; message: WakuRestMessage }[];
+    }
+  >();
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly pendingPolls = new Map<string, WakuRestMessage[]>();
   private polling: Promise<void> | null = null;
@@ -64,7 +67,7 @@ class WakuTransport implements ChatTransport {
   constructor(
     private readonly secretKey: Uint8Array,
     private readonly publicKey: string,
-    private readonly client: WakuRestClient,
+    private readonly client: WakuRestClient
   ) {
     this.self = {
       participantId: publicKey,
@@ -142,9 +145,8 @@ class WakuTransport implements ChatTransport {
       sentAt: opened.sentAt,
       content: { kind: 'text', text: opened.plaintext },
       fromMe: opened.sender === this.publicKey,
-      transportTimestamp: raw.timestamp === undefined
-        ? undefined
-        : Math.round(raw.timestamp / 1_000_000),
+      transportTimestamp:
+        raw.timestamp === undefined ? undefined : Math.round(raw.timestamp / 1_000_000),
     });
   }
 
@@ -169,7 +171,7 @@ class WakuTransport implements ChatTransport {
    */
   async openConversation(
     conversation: StoredConversation,
-    opts?: { since?: number },
+    opts?: { since?: number }
   ): Promise<void> {
     const topic = conversation.routingKey;
     if (!topic || this.stopped) return;
@@ -191,7 +193,9 @@ class WakuTransport implements ChatTransport {
 
         if (!result.cursor) break;
         if (seenCursors.has(result.cursor)) {
-          throw new PartialHistoryError('Waku history pagination stopped making progress; retry catch-up');
+          throw new PartialHistoryError(
+            'Waku history pagination stopped making progress; retry catch-up'
+          );
         }
         seenCursors.add(result.cursor);
         cursor = result.cursor;
@@ -223,25 +227,29 @@ class WakuTransport implements ChatTransport {
 
     let pending = this.pendingSends.get(conversation.id);
     if (pending && pending.content !== content.text) {
-      throw new Error('Finish retrying the partially published Waku message before sending another');
+      throw new Error(
+        'Finish retrying the partially published Waku message before sending another'
+      );
     }
     if (!pending) {
       let messageId = '';
-      const remaining = [...new Set([...conversation.participants, this.publicKey])].map((recipient) => {
-        const envelope = sealEnvelope(content.text, this.secretKey, recipient);
-        if (recipient === this.publicKey) {
-          messageId = messageIdFor(envelope.from, envelope.ts, envelope.sig);
+      const remaining = [...new Set([...conversation.participants, this.publicKey])].map(
+        (recipient) => {
+          const envelope = sealEnvelope(content.text, this.secretKey, recipient);
+          if (recipient === this.publicKey) {
+            messageId = messageIdFor(envelope.from, envelope.ts, envelope.sig);
+          }
+          return {
+            recipient,
+            message: {
+              payload: encodeEnvelope(envelope),
+              contentTopic: topic,
+              version: 0,
+              timestamp: Date.now() * 1_000_000,
+            },
+          };
         }
-        return {
-          recipient,
-          message: {
-            payload: encodeEnvelope(envelope),
-            contentTopic: topic,
-            version: 0,
-            timestamp: Date.now() * 1_000_000,
-          },
-        };
-      });
+      );
       pending = { content: content.text, messageId, remaining };
       this.pendingSends.set(conversation.id, pending);
     }
@@ -283,7 +291,7 @@ class WakuTransport implements ChatTransport {
 export class WakuSession extends StoreBackedSession implements ChatSession {
   private constructor(
     private readonly waku: WakuTransport,
-    store: MessageStore,
+    store: MessageStore
   ) {
     super(waku, store);
     waku.attach(this);
@@ -303,7 +311,7 @@ export class WakuSession extends StoreBackedSession implements ChatSession {
     const transport = new WakuTransport(
       secretKey,
       bytesToHex(schnorr.getPublicKey(secretKey)),
-      client,
+      client
     );
 
     const session = new WakuSession(transport, options.store);

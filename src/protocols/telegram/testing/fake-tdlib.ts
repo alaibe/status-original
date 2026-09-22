@@ -19,7 +19,9 @@ export class FakeTdlib implements TdApi {
     const handler = this.handlers.get(request['@type']);
     const response = handler ? handler(request) : { '@type': 'ok' };
     if (response['@type'] === 'error') {
-      return Promise.reject(new TdRequestError(response.code as number, response.message as string));
+      return Promise.reject(
+        new TdRequestError(response.code as number, response.message as string)
+      );
     }
     return Promise.resolve(response as T);
   }
@@ -83,7 +85,11 @@ export function privateChat(userId: number, title: string, positions = [MAIN_POS
   };
 }
 
-export function groupChat(basicGroupId: number, title: string, positions = [MAIN_POSITION]): TdChat {
+export function groupChat(
+  basicGroupId: number,
+  title: string,
+  positions = [MAIN_POSITION]
+): TdChat {
   return {
     '@type': 'chat',
     id: -basicGroupId,
@@ -110,7 +116,7 @@ export function textMessage(
   id: number,
   senderUserId: number,
   text: string,
-  opts: { outgoing?: boolean; date?: number; pending?: boolean; replyTo?: number } = {},
+  opts: { outgoing?: boolean; date?: number; pending?: boolean; replyTo?: number } = {}
 ): TdMessage {
   return {
     '@type': 'message',
@@ -121,7 +127,9 @@ export function textMessage(
     is_outgoing: opts.outgoing ?? false,
     ...(opts.pending ? { sending_state: { '@type': 'messageSendingStatePending' } } : {}),
     ...(opts.replyTo
-      ? { reply_to: { '@type': 'messageReplyToMessage', chat_id: chatId, message_id: opts.replyTo } }
+      ? {
+          reply_to: { '@type': 'messageReplyToMessage', chat_id: chatId, message_id: opts.replyTo },
+        }
       : {}),
     content: { '@type': 'messageText', text: { '@type': 'formattedText', text, entities: [] } },
   };
@@ -132,7 +140,7 @@ export function photoMessage(
   id: number,
   senderUserId: number,
   file: { id: number; path: string; downloaded: boolean },
-  caption = '',
+  caption = ''
 ): TdMessage {
   return {
     ...textMessage(chatId, id, senderUserId, ''),

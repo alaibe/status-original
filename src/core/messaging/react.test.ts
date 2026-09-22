@@ -55,11 +55,9 @@ describe('react', () => {
   it('works in a thread that never touches the network', async () => {
     const session = new InMemoryChatSession({ participantId: SELF });
     await connectFake(session);
-    await useChatStore.getState().postLocalMessage(
-      STATUS_LOCAL_ID,
-      { kind: 'text', text: 'remember this' },
-      'me'
-    );
+    await useChatStore
+      .getState()
+      .postLocalMessage(STATUS_LOCAL_ID, { kind: 'text', text: 'remember this' }, 'me');
     const messageId = useChatStore.getState().messages[STATUS_LOCAL_ID][0].id;
 
     await useChatStore.getState().react(STATUS_LOCAL_ID, messageId, '👍');
@@ -70,11 +68,9 @@ describe('react', () => {
   it('toggles off when you tap the same emoji again', async () => {
     const session = new InMemoryChatSession({ participantId: SELF });
     await connectFake(session);
-    await useChatStore.getState().postLocalMessage(
-      STATUS_LOCAL_ID,
-      { kind: 'text', text: 'remember this' },
-      'me'
-    );
+    await useChatStore
+      .getState()
+      .postLocalMessage(STATUS_LOCAL_ID, { kind: 'text', text: 'remember this' }, 'me');
     const messageId = useChatStore.getState().messages[STATUS_LOCAL_ID][0].id;
 
     await useChatStore.getState().react(STATUS_LOCAL_ID, messageId, '👍');
@@ -86,11 +82,9 @@ describe('react', () => {
   it('restores a local reaction from message history', async () => {
     const store = new InMemoryMessageStore();
     projectTestAccount('reaction-test', store);
-    await useChatStore.getState().postLocalMessage(
-      STATUS_LOCAL_ID,
-      { kind: 'text', text: 'remember this' },
-      'me',
-    );
+    await useChatStore
+      .getState()
+      .postLocalMessage(STATUS_LOCAL_ID, { kind: 'text', text: 'remember this' }, 'me');
     const messageId = useChatStore.getState().messages[STATUS_LOCAL_ID][0].id;
     await useChatStore.getState().react(STATUS_LOCAL_ID, messageId, '👍');
 

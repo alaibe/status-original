@@ -1,7 +1,12 @@
 import type { LocalAccount } from 'viem';
 
 import type { DerivedKey } from '../identity/keyring';
-import { missingFields, withDefaults, type ProtocolConfig, type ProtocolConfigSchema } from './config';
+import {
+  missingFields,
+  withDefaults,
+  type ProtocolConfig,
+  type ProtocolConfigSchema,
+} from './config';
 import { PROTOCOL_ID, type ProtocolId } from './namespace';
 import type { ChatProtocolMeta, ChatSession, CustomContentType } from './protocol';
 import type { AccountStorage } from '@/storage/account';
@@ -47,7 +52,9 @@ export function validateProtocols(protocols: readonly ProtocolDescriptor[]): voi
   const ids = new Set<string>();
   for (const descriptor of protocols) {
     if (!PROTOCOL_ID.test(descriptor.id)) {
-      throw new Error(`Protocol id "${descriptor.id}" must be lowercase alphanumeric with no hyphen`);
+      throw new Error(
+        `Protocol id "${descriptor.id}" must be lowercase alphanumeric with no hyphen`
+      );
     }
     if (ids.has(descriptor.id)) throw new Error(`Duplicate protocol id "${descriptor.id}"`);
     ids.add(descriptor.id);
@@ -56,14 +63,12 @@ export function validateProtocols(protocols: readonly ProtocolDescriptor[]): voi
 
 export function findProtocol(
   protocols: readonly ProtocolDescriptor[],
-  id: ProtocolId,
+  id: ProtocolId
 ): ProtocolDescriptor | undefined {
   return protocols.find((protocol) => protocol.id === id);
 }
 
-export function transportProtocols(
-  protocols: readonly ProtocolDescriptor[],
-): ProtocolDescriptor[] {
+export function transportProtocols(protocols: readonly ProtocolDescriptor[]): ProtocolDescriptor[] {
   return protocols.filter((protocol) => protocol.connect);
 }
 
@@ -73,7 +78,7 @@ export function isConfigured(descriptor: ProtocolDescriptor, config: ProtocolCon
 
 export function effectiveConfig(
   descriptor: ProtocolDescriptor,
-  config: ProtocolConfig,
+  config: ProtocolConfig
 ): ProtocolConfig {
   return withDefaults(descriptor.configSchema, config);
 }

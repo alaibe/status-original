@@ -1,9 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {
-  clearScope,
-  scopePrefix,
-} from './scope';
+import { clearScope, scopePrefix } from './scope';
 import { createAccountStorage } from './account';
 
 beforeEach(async () => {

@@ -3,7 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { botConversationId, isLocalConversation, type Bot } from './bots';
 import { useChatStore } from './chat-store';
 import { InMemoryChatSession } from './in-memory-session';
-import { connectFake, disconnectFake, ns, projectTestAccount, resetChatStore } from './testing/store';
+import {
+  connectFake,
+  disconnectFake,
+  ns,
+  projectTestAccount,
+  resetChatStore,
+} from './testing/store';
 import { deleteAccountDatabase } from '@/storage/database';
 
 jest.mock('../identity/keyring', () => ({

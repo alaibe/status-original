@@ -20,10 +20,7 @@
       "bundleIdentifier": "com.statusoriginal.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": true,
-        "LSApplicationQueriesSchemes": [
-          "wc",
-          "ethereum"
-        ],
+        "LSApplicationQueriesSchemes": ["wc", "ethereum"],
         "NSMicrophoneUsageDescription": "Record a voice note to send in a message. Audio is recorded on this device and sent inside the encrypted message.",
         "NSBluetoothAlwaysUsageDescription": "Connect to a hardware wallet over Bluetooth to confirm transactions on it. No data is collected and nothing is sent anywhere."
       },
@@ -32,21 +29,15 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": [
-              "CA92.1"
-            ]
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "NSPrivacyAccessedAPITypeReasons": [
-              "C617.1"
-            ]
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
-            "NSPrivacyAccessedAPITypeReasons": [
-              "E174.1"
-            ]
+            "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
           }
         ],
         "NSPrivacyCollectedDataTypes": [
@@ -167,9 +158,7 @@
         {
           "isBackgroundEnabled": false,
           "neverForLocation": true,
-          "modes": [
-            "central"
-          ],
+          "modes": ["central"],
           "bluetoothAlwaysPermission": "Connect to a hardware wallet over Bluetooth to confirm transactions on it."
         }
       ],

@@ -7,7 +7,7 @@ export interface TransportSink {
   deliverToParticipants(
     participants: ParticipantId[],
     message: IncomingMessage,
-    meta?: { title?: string; createdAt?: number },
+    meta?: { title?: string; createdAt?: number }
   ): Promise<void>;
 }
 

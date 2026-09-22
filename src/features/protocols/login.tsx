@@ -55,11 +55,23 @@ export function LoginStep({
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus
-        keyboardType={login.step === 'password' ? 'default' : login.step === 'phone' ? 'phone-pad' : 'number-pad'}
+        keyboardType={
+          login.step === 'password'
+            ? 'default'
+            : login.step === 'phone'
+              ? 'phone-pad'
+              : 'number-pad'
+        }
         secureTextEntry={login.step === 'password'}
-        autoComplete={login.step === 'phone' ? 'tel' : login.step === 'code' ? 'one-time-code' : 'password'}
+        autoComplete={
+          login.step === 'phone' ? 'tel' : login.step === 'code' ? 'one-time-code' : 'password'
+        }
         textContentType={
-          login.step === 'phone' ? 'telephoneNumber' : login.step === 'code' ? 'oneTimeCode' : 'password'
+          login.step === 'phone'
+            ? 'telephoneNumber'
+            : login.step === 'code'
+              ? 'oneTimeCode'
+              : 'password'
         }
       />
       <Button

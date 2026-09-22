@@ -12,7 +12,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       setFocusCount((n) => n + 1);
-    }, []),
+    }, [])
   );
   const keys = useSettingsKeys(focusCount);
   const ensName = useEnsName(focusCount);

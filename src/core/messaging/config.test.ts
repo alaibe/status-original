@@ -1,9 +1,4 @@
-import {
-  accountProtocolConfigsKey,
-  accountScopedKeys,
-  vaultGet,
-  vaultSet,
-} from '@/storage/vault';
+import { accountProtocolConfigsKey, accountScopedKeys, vaultGet, vaultSet } from '@/storage/vault';
 import {
   configLines,
   loadProtocolConfig,
@@ -34,9 +29,7 @@ describe('storage', () => {
 
   it('lives in the keychain, not AsyncStorage, because these are real credentials', async () => {
     await saveProtocolConfig('acct-a', 'waku', { nodeUrl: 'secret-value' });
-    expect(await vaultGet(accountProtocolConfigsKey('acct-a'))).toContain(
-      'secret-value'
-    );
+    expect(await vaultGet(accountProtocolConfigsKey('acct-a'))).toContain('secret-value');
   });
 
   it('uses one account key, so wiping does not need to know protocol ids', () => {

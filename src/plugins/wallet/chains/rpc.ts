@@ -40,7 +40,8 @@ export async function checkRpcUrl(chainId: number, url: string): Promise<RpcChec
   } catch (error) {
     return {
       ok: false,
-      reason: error instanceof Error ? `Could not reach it: ${error.message}` : 'Could not reach it.',
+      reason:
+        error instanceof Error ? `Could not reach it: ${error.message}` : 'Could not reach it.',
     };
   }
 }

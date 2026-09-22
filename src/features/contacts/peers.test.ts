@@ -35,10 +35,7 @@ describe('the people behind a list of conversations', () => {
   });
 
   it('keeps the most recent thread, which is the one tapping opens', () => {
-    const peers = peersOf(
-      [dm({ id: 'nostr-newest' }), dm({ id: 'nostr-older' })],
-      self
-    );
+    const peers = peersOf([dm({ id: 'nostr-newest' }), dm({ id: 'nostr-older' })], self);
 
     expect(peers[0].conversationId).toBe('nostr-newest');
   });
@@ -49,10 +46,7 @@ describe('the people behind a list of conversations', () => {
    */
   it('keeps the same name on two protocols apart', () => {
     const peers = peersOf(
-      [
-        dm({ id: 'nostr-1', protocol: 'nostr' }),
-        dm({ id: 'xmtp-1', protocol: 'xmtp' }),
-      ],
+      [dm({ id: 'nostr-1', protocol: 'nostr' }), dm({ id: 'xmtp-1', protocol: 'xmtp' })],
       self
     );
 

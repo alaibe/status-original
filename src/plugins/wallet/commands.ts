@@ -167,9 +167,7 @@ async function balanceOverview(
 
   await respond({
     kind: 'widget',
-    fallback: readings
-      .map((r) => `${r.chain.name} ${r.amount ?? 'unavailable'}`)
-      .join(' · '),
+    fallback: readings.map((r) => `${r.chain.name} ${r.amount ?? 'unavailable'}`).join(' · '),
     widget: W.card(
       [
         W.rows(
@@ -208,7 +206,6 @@ async function balanceOverview(
 }
 
 export const walletCommands: SlashCommand[] = [
-
   {
     name: 'balance',
     aliases: ['bal'],
@@ -231,7 +228,7 @@ export const walletCommands: SlashCommand[] = [
   {
     name: 'send',
     aliases: ['pay'],
-    description: "Send a coin or a token to an address",
+    description: 'Send a coin or a token to an address',
     showIn: ['dm', 'group', 'channel'],
     usage: '/send <amount> <address | name.eth> [--chain bitcoin] [--token USDC]',
     async run({ args, context, respond }) {
@@ -523,5 +520,4 @@ export const walletCommands: SlashCommand[] = [
       return { type: 'handled' };
     },
   },
-
 ];

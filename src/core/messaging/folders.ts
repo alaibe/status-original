@@ -36,10 +36,7 @@ export function matchesFolder(
   }
 }
 
-export function availableFolders(
-  conversations: Conversation[],
-  context: FolderContext
-): Folder[] {
+export function availableFolders(conversations: Conversation[], context: FolderContext): Folder[] {
   const folders: Folder[] = [{ id: 'all', label: 'All' }];
 
   const has = (id: FolderId) => conversations.some((c) => matchesFolder(c, id, context));
@@ -50,9 +47,7 @@ export function availableFolders(
 
   const protocols = [
     ...new Set(
-      conversations
-        .map((c) => c.protocol)
-        .filter((p): p is string => Boolean(p) && p !== 'local')
+      conversations.map((c) => c.protocol).filter((p): p is string => Boolean(p) && p !== 'local')
     ),
   ].sort();
 

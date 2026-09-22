@@ -5,7 +5,14 @@ import type { Plugin, PluginContext } from './types';
 
 function stubContext(): PluginContext {
   return {
-    manifest: { id: 'x', name: 'x', description: '', version: '1', icon: 'ellipse', permissions: [] },
+    manifest: {
+      id: 'x',
+      name: 'x',
+      description: '',
+      version: '1',
+      icon: 'ellipse',
+      permissions: [],
+    },
     storage: { get: async () => null, set: async () => {}, remove: async () => {} },
     identity: {
       accountId: 'test-account',
@@ -29,7 +36,7 @@ function stubContext(): PluginContext {
       send: async () => {},
       sendText: async () => {},
       sendCustom: async () => {},
-    members: async () => [],
+      members: async () => [],
     },
     ui: {
       notify: () => {},
@@ -198,7 +205,9 @@ describe('PluginRegistry', () => {
   it('disposes startup that finishes after deactivation', async () => {
     const dispose = jest.fn();
     let finish!: (dispose: () => void) => void;
-    const started = new Promise<() => void>((resolve) => { finish = resolve; });
+    const started = new Promise<() => void>((resolve) => {
+      finish = resolve;
+    });
     const registry = new PluginRegistry([makePlugin('a', { start: () => started })]);
 
     const activating = activate(registry, 'a');
@@ -215,10 +224,12 @@ describe('PluginRegistry', () => {
     const oldDispose = jest.fn();
     const newDispose = jest.fn();
     let finish!: (dispose: () => void) => void;
-    const oldStart = new Promise<() => void>((resolve) => { finish = resolve; });
+    const oldStart = new Promise<() => void>((resolve) => {
+      finish = resolve;
+    });
     let starts = 0;
     const registry = new PluginRegistry([
-      makePlugin('a', { start: () => starts++ === 0 ? oldStart : Promise.resolve(newDispose) }),
+      makePlugin('a', { start: () => (starts++ === 0 ? oldStart : Promise.resolve(newDispose)) }),
     ]);
 
     const oldActivation = activate(registry, 'a');
@@ -280,7 +291,13 @@ describe('channel scoping', () => {
           },
         ],
         composerActions: [
-          { id: 'chip-commands', label: 'Commands', icon: 'ellipse', command: '/commands', global: true },
+          {
+            id: 'chip-commands',
+            label: 'Commands',
+            icon: 'ellipse',
+            command: '/commands',
+            global: true,
+          },
         ],
       }),
     ]);
@@ -395,8 +412,12 @@ describe('channel scoping', () => {
     expect(registry.channelOwner('local-ethereum')).toBeUndefined();
   });
 
-  it('exposes a plugin\'s views only while it is on', async () => {
-    const view = async () => ({ kind: 'widget' as const, widget: { kind: 'text' as const, text: 'now' }, fallback: 'now' });
+  it("exposes a plugin's views only while it is on", async () => {
+    const view = async () => ({
+      kind: 'widget' as const,
+      widget: { kind: 'text' as const, text: 'now' },
+      fallback: 'now',
+    });
     const registry = new PluginRegistry([makePlugin('a', { views: { list: view } })]);
 
     expect(registry.view('a', 'list')).toBeUndefined();

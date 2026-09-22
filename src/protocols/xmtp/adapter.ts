@@ -37,8 +37,6 @@ import { isParticipantId } from '@/core/messaging/bots';
 import { PLUGIN_AUTHORITY } from './codec';
 import { fallbackFilename, fallbackMimeType, xmtpEnvironment } from './shared';
 
-
-
 function signerForAccount(account: LocalAccount): Signer {
   return {
     getIdentifier: async () => new PublicIdentity(account.address, 'ETHEREUM'),
@@ -67,13 +65,10 @@ export interface XmtpEraseOptions {
 }
 
 export async function eraseXmtpLocalDatabase(options: XmtpEraseOptions): Promise<void> {
-  const client = await Client.build(
-    new PublicIdentity(options.address, 'ETHEREUM'),
-    {
-      env: options.env ?? xmtpEnvironment(),
-      dbEncryptionKey: options.dbEncryptionKey,
-    },
-  );
+  const client = await Client.build(new PublicIdentity(options.address, 'ETHEREUM'), {
+    env: options.env ?? xmtpEnvironment(),
+    dbEncryptionKey: options.dbEncryptionKey,
+  });
   await client.deleteLocalDatabase();
 }
 
@@ -218,11 +213,7 @@ export class XmtpSession implements ChatSession {
     await (await this.requireGroup(id)).leaveGroup();
   }
 
-  async send(
-    id: ConversationId,
-    content: MessageContent,
-    replyTo?: MessageId
-  ): Promise<MessageId> {
+  async send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId> {
     const conversation = await this.client.conversations.findConversation(toXmtpId(id));
     if (!conversation) throw new Error(`Conversation ${id} not found`);
 
@@ -378,7 +369,10 @@ export class XmtpSession implements ChatSession {
     };
   }
 
-  private async toMessage(raw: DecodedMessage<any>, conversationId: ConversationId): Promise<ChatMessage> {
+  private async toMessage(
+    raw: DecodedMessage<any>,
+    conversationId: ConversationId
+  ): Promise<ChatMessage> {
     return {
       id: raw.id,
       conversationId,

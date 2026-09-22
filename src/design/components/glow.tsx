@@ -11,14 +11,7 @@ export interface GlowProps {
   style?: ViewStyle;
 }
 
-export function Glow({
-  size,
-  color,
-  layers = 16,
-  intensity = 0.028,
-  className,
-  style,
-}: GlowProps) {
+export function Glow({ size, color, layers = 16, intensity = 0.028, className, style }: GlowProps) {
   return (
     <View
       style={[{ width: size, height: size, pointerEvents: 'none' }, style]}

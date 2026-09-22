@@ -98,9 +98,9 @@ describe('list', () => {
   });
 
   it('survives nesting inside a card', () => {
-    expect(
-      summariseWidget(W.card([W.list([{ title: '/send' }])], { title: 'Ethereum' }))
-    ).toBe('Ethereum · /send');
+    expect(summariseWidget(W.card([W.list([{ title: '/send' }])], { title: 'Ethereum' }))).toBe(
+      'Ethereum · /send'
+    );
   });
 });
 
@@ -140,7 +140,6 @@ describe('form', () => {
     expect(fillCommand('/send {amount}', { amount: '  0.01  ' })).toBe('/send 0.01');
   });
 });
-
 
 /**
  * Forms whose later questions depend on their earlier ones.
@@ -213,9 +212,9 @@ describe('dependent fields', () => {
   });
 
   it('still submits the value, not the label', () => {
-    expect(fillCommand('/send {amount} --chain {chain}', { amount: '0.01', chain: 'bitcoin' })).toBe(
-      '/send 0.01 --chain bitcoin'
-    );
+    expect(
+      fillCommand('/send {amount} --chain {chain}', { amount: '0.01', chain: 'bitcoin' })
+    ).toBe('/send 0.01 --chain bitcoin');
   });
 
   it('moves a stale choice onto the chain that is now selected', () => {
@@ -234,7 +233,6 @@ describe('dependent fields', () => {
     expect(resolveValues(fields, values)).toBe(values);
   });
 });
-
 
 /**
  * What the end of a tappable row promises: say what the tap does. A chevron
@@ -303,8 +301,9 @@ describe('what a row says a tap will do', () => {
    * destination, and a sheet of the actions the row already has is not one.
    */
   it('promises only options when several actions have no icon', () => {
-    expect(
-      affordanceFor([{ label: 'Open' }, { label: 'Switch off' }])
-    ).toEqual({ kind: 'text', label: 'Options' });
+    expect(affordanceFor([{ label: 'Open' }, { label: 'Switch off' }])).toEqual({
+      kind: 'text',
+      label: 'Options',
+    });
   });
 });

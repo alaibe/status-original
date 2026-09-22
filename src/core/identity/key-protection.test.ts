@@ -152,7 +152,6 @@ describe('a refused prompt', () => {
     expect(await useIdentityStore.getState().retryUnlock()).toBe(true);
     expect(useIdentityStore.getState().status).toBe('ready');
   });
-
 });
 
 describe('erasing', () => {

@@ -27,9 +27,7 @@ export async function writeWatched(
 
 const STORAGE_SEEN_BALANCES = 'bot-seen-balances';
 
-export async function readSeenBalances(
-  context: PluginContext
-): Promise<Record<string, string>> {
+export async function readSeenBalances(context: PluginContext): Promise<Record<string, string>> {
   return (await context.storage.get<Record<string, string>>(STORAGE_SEEN_BALANCES)) ?? {};
 }
 
@@ -39,4 +37,3 @@ export async function writeSeenBalances(
 ): Promise<void> {
   await context.storage.set(STORAGE_SEEN_BALANCES, seen);
 }
-

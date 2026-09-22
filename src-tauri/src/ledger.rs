@@ -32,7 +32,9 @@ fn describe(device: &ledger_transport_hid::hidapi::DeviceInfo) -> LedgerDevice {
 #[tauri::command]
 pub async fn ledger_list() -> Result<Vec<LedgerDevice>, String> {
     let api = api()?;
-    Ok(TransportNativeHID::list_ledgers(&api).map(describe).collect())
+    Ok(TransportNativeHID::list_ledgers(&api)
+        .map(describe)
+        .collect())
 }
 
 #[tauri::command]
@@ -65,7 +67,9 @@ pub async fn ledger_exchange(ledger: State<'_, Ledger>, apdu: Vec<u8>) -> Result
     // The device waits for a button press, so this can block for a long time.
     tauri::async_runtime::spawn_blocking(move || {
         let guard = shared.lock().map_err(|e| e.to_string())?;
-        let transport = guard.as_ref().ok_or_else(|| "No Ledger is connected.".to_string())?;
+        let transport = guard
+            .as_ref()
+            .ok_or_else(|| "No Ledger is connected.".to_string())?;
         let answer = transport.exchange(&command).map_err(|e| e.to_string())?;
         let mut out = answer.apdu_data().to_vec();
         out.extend_from_slice(&answer.retcode().to_be_bytes());

@@ -49,7 +49,6 @@ export default function AccountsScreen() {
       <Stack.Screen options={{ title: 'Accounts' }} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
-
         <Text variant="footnote" className="px-gutter pb-4">
           Each account has its own keys, its own message database and its own plugin settings.
           Nothing is shared between them. Tap one to switch to it, hold to rename or erase it.
@@ -68,38 +67,38 @@ export default function AccountsScreen() {
                   onPress: () => setConfirmWipe(account.id),
                 },
               ]}>
-            <ListItem
-              key={account.id}
-              testID={`account-${account.id}`}
-              title={account.label}
-              subtitle={
-                account.kind === 'hardware'
-                  ? `${shortAddress(account.address, 8, 6)} · ${describeKind('hardware')}`
-                  : shortAddress(account.address, 10, 8)
-              }
-              numberOfLinesSubtitle={2}
-              leading={<Avatar seed={account.address} size="md" />}
-              // Only state on the right: tapping switches, holding manages, swiping erases.
-              trailing={
-                account.id === activeAccountId ? (
-                  <Icon name="checkmark-circle" size={20} color={colors.brand} />
-                ) : undefined
-              }
-              onLongPress={() => setManaging(account.id)}
-              onContextMenu={() => setManaging(account.id)}
-              onPress={async () => {
-                if (account.id === activeAccountId) {
-                  setManaging(account.id);
-                  return;
+              <ListItem
+                key={account.id}
+                testID={`account-${account.id}`}
+                title={account.label}
+                subtitle={
+                  account.kind === 'hardware'
+                    ? `${shortAddress(account.address, 8, 6)} · ${describeKind('hardware')}`
+                    : shortAddress(account.address, 10, 8)
                 }
-                try {
-                  await selectAccount(account.id);
-                  router.replace('/chats');
-                } catch (error) {
-                  toast.error(errorMessage(error, 'Could not open that account'));
+                numberOfLinesSubtitle={2}
+                leading={<Avatar seed={account.address} size="md" />}
+                // Only state on the right: tapping switches, holding manages, swiping erases.
+                trailing={
+                  account.id === activeAccountId ? (
+                    <Icon name="checkmark-circle" size={20} color={colors.brand} />
+                  ) : undefined
                 }
-              }}
-            />
+                onLongPress={() => setManaging(account.id)}
+                onContextMenu={() => setManaging(account.id)}
+                onPress={async () => {
+                  if (account.id === activeAccountId) {
+                    setManaging(account.id);
+                    return;
+                  }
+                  try {
+                    await selectAccount(account.id);
+                    router.replace('/chats');
+                  } catch (error) {
+                    toast.error(errorMessage(error, 'Could not open that account'));
+                  }
+                }}
+              />
             </SwipeableRow>
           ))}
         </Section>

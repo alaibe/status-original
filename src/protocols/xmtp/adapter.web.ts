@@ -48,10 +48,14 @@ import type {
 import { isParticipantId } from '@/core/messaging/bots';
 import { base64ToBytes, bytesToBase64 } from '@/lib/bytes';
 import { PLUGIN_AUTHORITY } from './codec';
-import { fallbackFilename, fallbackMimeType, xmtpEnvironment, type XmtpEnvironment } from './shared';
+import {
+  fallbackFilename,
+  fallbackMimeType,
+  xmtpEnvironment,
+  type XmtpEnvironment,
+} from './shared';
 
 const VISIBLE = [ConsentState.Allowed, ConsentState.Unknown];
-
 
 function identifierFor(address: string): Identifier {
   return { identifier: address.toLowerCase(), identifierKind: IdentifierKind.Ethereum };
@@ -105,7 +109,7 @@ export class XmtpSession implements ChatSession {
     private readonly client: Client<any>,
     private readonly codecsByTypeId: Map<string, ContentCodec<any>>,
     private readonly account: LocalAccount,
-    private readonly accountId: string,
+    private readonly accountId: string
   ) {
     this.self = {
       participantId: requireValue(client.inboxId, 'inbox id'),
@@ -127,7 +131,7 @@ export class XmtpSession implements ChatSession {
     // `build` needs no signature, so a registered account never touches its
     // key. Anything else registers through `create`.
     let client = await Client.build(identifierFor(opts.account.address), options).catch(
-      () => undefined,
+      () => undefined
     );
     if (!client || !(await client.isRegistered())) {
       client?.close();
@@ -188,7 +192,7 @@ export class XmtpSession implements ChatSession {
         const states = await this.client.preferences.fetchInboxStates(missing);
         for (const state of states) {
           const address = state.accountIdentifiers.find(
-            (i) => i.identifierKind === IdentifierKind.Ethereum,
+            (i) => i.identifierKind === IdentifierKind.Ethereum
           )?.identifier;
           if (!address) continue;
           this.addressCache.set(state.inboxId, address);
@@ -242,16 +246,15 @@ export class XmtpSession implements ChatSession {
     await (await this.requireGroup(id)).requestRemoval();
   }
 
-  async send(
-    id: ConversationId,
-    content: MessageContent,
-    replyTo?: MessageId,
-  ): Promise<MessageId> {
+  async send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId> {
     const conversation = await this.client.conversations.getConversationById(id);
     if (!conversation) throw new Error(`Conversation ${id} not found`);
 
     if (replyTo && content.kind === 'text') {
-      return conversation.sendReply({ reference: replyTo, content: await encodeText(content.text) });
+      return conversation.sendReply({
+        reference: replyTo,
+        content: await encodeText(content.text),
+      });
     }
 
     if (content.kind === 'text') {
@@ -262,13 +265,13 @@ export class XmtpSession implements ChatSession {
       const codec = this.codecsByTypeId.get(content.typeId);
       if (!codec) {
         throw new Error(
-          `No codec registered for "${content.typeId}". Is the owning plugin enabled?`,
+          `No codec registered for "${content.typeId}". Is the owning plugin enabled?`
         );
       }
       const encoded = codec.encode(content.data);
       return conversation.send(
         { ...encoded, fallback: codec.fallback(content.data) },
-        { shouldPush: codec.shouldPush(content.data) },
+        { shouldPush: codec.shouldPush(content.data) }
       );
     }
 
@@ -305,7 +308,7 @@ export class XmtpSession implements ChatSession {
     const conversation = await this.client.conversations.getConversationById(id);
     if (!conversation) return;
     await conversation.updateConsentState(
-      consent === 'allowed' ? ConsentState.Allowed : ConsentState.Denied,
+      consent === 'allowed' ? ConsentState.Allowed : ConsentState.Denied
     );
   }
 
@@ -334,7 +337,7 @@ export class XmtpSession implements ChatSession {
       signerForAccount(this.account),
       this.self.participantId,
       ids.map((id) => hexToBytes(id.startsWith('0x') ? (id as `0x${string}`) : `0x${id}`)),
-      xmtpEnvironment(),
+      xmtpEnvironment()
     );
   }
 
@@ -368,7 +371,7 @@ export class XmtpSession implements ChatSession {
    */
   private consume<T>(
     stream: AsyncIterable<T> & { end(): Promise<unknown> },
-    handle: (value: T) => void | Promise<void>,
+    handle: (value: T) => void | Promise<void>
   ): Unsubscribe {
     this.streams.add(stream);
     void (async () => {
@@ -407,7 +410,7 @@ export class XmtpSession implements ChatSession {
 
   private async toConversation(
     raw: Group<any> | Dm<any>,
-    current: () => boolean = () => true,
+    current: () => boolean = () => true
   ): Promise<Conversation> {
     const isGroup = raw instanceof Group;
 
@@ -420,7 +423,7 @@ export class XmtpSession implements ChatSession {
       title = raw.name?.trim() || 'Untitled group';
       memberIds = members.map((m) => m.inboxId);
       selfRole = mapRole(
-        members.find((m) => m.inboxId === this.self.participantId)?.permissionLevel,
+        members.find((m) => m.inboxId === this.self.participantId)?.permissionLevel
       );
     } else {
       const peer = await (raw as Dm<any>).peerInboxId();
@@ -446,7 +449,10 @@ export class XmtpSession implements ChatSession {
     };
   }
 
-  private async toMessage(raw: DecodedMessage<any>, conversationId: ConversationId): Promise<ChatMessage> {
+  private async toMessage(
+    raw: DecodedMessage<any>,
+    conversationId: ConversationId
+  ): Promise<ChatMessage> {
     return {
       id: raw.id,
       conversationId,
@@ -486,7 +492,7 @@ export class XmtpSession implements ChatSession {
       const uri = await writeInlineAttachment(
         raw.id,
         { filename, mimeType, data: bytesToBase64(attachment.content) },
-        this.accountId,
+        this.accountId
       );
       const kind = classifyAttachment(mimeType, filename);
 
@@ -528,7 +534,6 @@ function requireValue<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`XMTP client has no ${what}.`);
   return value;
 }
-
 
 function mapRole(level: PermissionLevel | undefined): GroupRole {
   if (level === PermissionLevel.SuperAdmin) return 'owner';

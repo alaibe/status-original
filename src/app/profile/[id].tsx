@@ -101,7 +101,8 @@ export default function ProfileScreen() {
     );
   }
 
-  const title = ens?.name ?? (member ? nameFor(member) : conversationTitle(conversation, selfId, nameFor));
+  const title =
+    ens?.name ?? (member ? nameFor(member) : conversationTitle(conversation, selfId, nameFor));
   const canRemove =
     Boolean(member) &&
     member !== selfId &&
@@ -136,9 +137,7 @@ export default function ProfileScreen() {
             {ens?.name ? (
               <Badge
                 label={
-                  ens.paidUntil
-                    ? `ENS · held through ${ens.paidUntil.getFullYear()}`
-                    : 'ENS name'
+                  ens.paidUntil ? `ENS · held through ${ens.paidUntil.getFullYear()}` : 'ENS name'
                 }
                 tone="success"
               />
@@ -211,62 +210,64 @@ export default function ProfileScreen() {
         ) : null}
 
         {member ? null : (
-        <>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2 px-gutter pb-3">
-          {TABS.map((entry) => {
-            const active = entry.id === tab;
-            return (
-              <Pressable
-                key={entry.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${entry.label}, ${counts[entry.id]}`}
-                onPress={() => setTab(entry.id)}
-                className={
-                  active
-                    ? 'flex-row items-center gap-1.5 rounded-pill bg-brand px-3 py-1.5'
-                    : 'flex-row items-center gap-1.5 rounded-pill bg-surface-sunken px-3 py-1.5'
-                }>
-                <Text
-                  variant="caption"
-                  className={active ? 'font-semibold text-brand-on' : 'font-medium text-content'}>
-                  {entry.label}
-                </Text>
-                <Text
-                  variant="micro"
-                  className={active ? 'text-brand-on/80' : 'text-content-subtle'}>
-                  {counts[entry.id]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerClassName="gap-2 px-gutter pb-3">
+              {TABS.map((entry) => {
+                const active = entry.id === tab;
+                return (
+                  <Pressable
+                    key={entry.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${entry.label}, ${counts[entry.id]}`}
+                    onPress={() => setTab(entry.id)}
+                    className={
+                      active
+                        ? 'flex-row items-center gap-1.5 rounded-pill bg-brand px-3 py-1.5'
+                        : 'flex-row items-center gap-1.5 rounded-pill bg-surface-sunken px-3 py-1.5'
+                    }>
+                    <Text
+                      variant="caption"
+                      className={
+                        active ? 'font-semibold text-brand-on' : 'font-medium text-content'
+                      }>
+                      {entry.label}
+                    </Text>
+                    <Text
+                      variant="micro"
+                      className={active ? 'text-brand-on/80' : 'text-content-subtle'}>
+                      {counts[entry.id]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
-        {entries.length === 0 ? (
-          <Text variant="footnote" className="px-gutter py-6">
-            {isLocalConversation(id)
-              ? 'Bot conversations do not share files.'
-              : `Nothing shared in this conversation yet.`}
-          </Text>
-        ) : tab === 'media' || tab === 'gifs' ? (
-          <View className="flex-row flex-wrap gap-0.5 px-1">
-            {entries.map((entry) => (
-              <Image
-                key={`${entry.messageId}-${entry.uri}`}
-                source={{ uri: entry.uri }}
-                style={{ width: cell, height: cell }}
-                contentFit="cover"
-              />
-            ))}
-          </View>
-        ) : (
-          entries.map((entry) => (
-            <MediaRow key={`${entry.messageId}-${entry.uri}`} entry={entry} category={tab} />
-          ))
-        )}
-        </>
+            {entries.length === 0 ? (
+              <Text variant="footnote" className="px-gutter py-6">
+                {isLocalConversation(id)
+                  ? 'Bot conversations do not share files.'
+                  : `Nothing shared in this conversation yet.`}
+              </Text>
+            ) : tab === 'media' || tab === 'gifs' ? (
+              <View className="flex-row flex-wrap gap-0.5 px-1">
+                {entries.map((entry) => (
+                  <Image
+                    key={`${entry.messageId}-${entry.uri}`}
+                    source={{ uri: entry.uri }}
+                    style={{ width: cell, height: cell }}
+                    contentFit="cover"
+                  />
+                ))}
+              </View>
+            ) : (
+              entries.map((entry) => (
+                <MediaRow key={`${entry.messageId}-${entry.uri}`} entry={entry} category={tab} />
+              ))
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -299,15 +300,7 @@ export default function ProfileScreen() {
   );
 }
 
-function Action({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-}) {
+function Action({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const colors = useThemeColors();
   return (
     <Pressable

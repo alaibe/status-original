@@ -27,7 +27,10 @@ export default function QrScreen() {
   return (
     <Screen className="justify-between px-gutter py-4" edges={['top', 'bottom']}>
       <View className="flex-row justify-end">
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          onPress={() => router.back()}>
           <Icon name="close" size={26} color={colors['content-muted']} />
         </Pressable>
       </View>

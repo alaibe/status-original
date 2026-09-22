@@ -194,17 +194,19 @@ export class TelegramSession implements ChatSession {
         return;
       case 'authorizationStateWaitRegistration':
         await this.abandonLogin(
-          'There is no Telegram account for that number. Create one in the Telegram app first.',
+          'There is no Telegram account for that number. Create one in the Telegram app first.'
         );
         return;
       case 'authorizationStateWaitEmailAddress':
       case 'authorizationStateWaitEmailCode':
         await this.abandonLogin(
-          'Telegram wants to verify this sign-in by email. Sign in once with the official app, then try again here.',
+          'Telegram wants to verify this sign-in by email. Sign in once with the official app, then try again here.'
         );
         return;
       case 'authorizationStateWaitOtherDeviceConfirmation':
-        await this.abandonLogin('Telegram asked for a QR sign-in, which this app does not do. Try again.');
+        await this.abandonLogin(
+          'Telegram asked for a QR sign-in, which this app does not do. Try again.'
+        );
         return;
       default:
         return;
@@ -221,18 +223,21 @@ export class TelegramSession implements ChatSession {
     this.me = await this.api.send<TdUser>({ '@type': 'getMe' });
     this.users.set(this.me.id, this.me);
     this.setLogin(null);
-    await this.api.send({
-      '@type': 'setOption',
-      name: 'online',
-      value: { '@type': 'optionValueBoolean', value: true },
-    }).catch(() => {});
+    await this.api
+      .send({
+        '@type': 'setOption',
+        name: 'online',
+        value: { '@type': 'optionValueBoolean', value: true },
+      })
+      .catch(() => {});
     this.chatsLoaded = null;
     await this.ensureChatsLoaded().catch(() => {});
   }
 
   /** TDLib closed on its own (sign-out); start over so the next sign-in can happen. */
   private async onClosed(): Promise<void> {
-    for (const pending of this.pendingSends.values()) pending.reject(new Error('Signed out of Telegram'));
+    for (const pending of this.pendingSends.values())
+      pending.reject(new Error('Signed out of Telegram'));
     this.pendingSends.clear();
     this.awaitedFiles.clear();
     this.chats.clear();
@@ -321,7 +326,9 @@ export class TelegramSession implements ChatSession {
       case 'updateMessageSendFailed': {
         const oldId = update.old_message_id as number;
         const error = update.error as { message?: string } | undefined;
-        this.pendingSends.get(oldId)?.reject(new Error(error?.message ?? 'Telegram did not accept the message'));
+        this.pendingSends
+          .get(oldId)
+          ?.reject(new Error(error?.message ?? 'Telegram did not accept the message'));
         this.pendingSends.delete(oldId);
         return;
       }
@@ -381,7 +388,7 @@ export class TelegramSession implements ChatSession {
 
   async getMessages(
     id: ConversationId,
-    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } },
+    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } }
   ): Promise<ChatMessage[]> {
     if (!this.me) return [];
     const chatId = Number(id);
@@ -402,7 +409,7 @@ export class TelegramSession implements ChatSession {
         only_local: false,
       });
       const page = messages.filter(
-        (m): m is TdMessage => m !== null && (boundary === 0 || m.id < boundary),
+        (m): m is TdMessage => m !== null && (boundary === 0 || m.id < boundary)
       );
       if (page.length === 0) break;
       collected.push(...page);
@@ -484,7 +491,8 @@ export class TelegramSession implements ChatSession {
       user_ids: peers.map(Number),
       title,
     });
-    const chatId = created['@type'] === 'chat' ? (created as TdChat).id : (created.chat_id as number);
+    const chatId =
+      created['@type'] === 'chat' ? (created as TdChat).id : (created.chat_id as number);
     return this.toConversation(await this.requireChat(chatId));
   }
 
@@ -493,7 +501,11 @@ export class TelegramSession implements ChatSession {
   }
 
   async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
-    await this.api.send({ '@type': 'addChatMembers', chat_id: Number(id), user_ids: peers.map(Number) });
+    await this.api.send({
+      '@type': 'addChatMembers',
+      chat_id: Number(id),
+      user_ids: peers.map(Number),
+    });
     this.members.delete(Number(id));
   }
 
@@ -537,7 +549,7 @@ export class TelegramSession implements ChatSession {
               chat_id: chatId,
               message_id: tdMessageId(content.targetId),
               reaction_type: reaction,
-            },
+            }
       );
       return `${content.targetId}_reaction`;
     }
@@ -548,7 +560,10 @@ export class TelegramSession implements ChatSession {
       input_message_content: inputContent(content),
     };
     if (replyTo) {
-      request.reply_to = { '@type': 'inputMessageReplyToMessage', message_id: tdMessageId(replyTo) };
+      request.reply_to = {
+        '@type': 'inputMessageReplyToMessage',
+        message_id: tdMessageId(replyTo),
+      };
     }
     const sent = await this.api.send<TdMessage>(request);
     const final = await this.awaitSent(sent);
@@ -683,7 +698,9 @@ export class TelegramSession implements ChatSession {
     if (!/^\d+$/.test(id)) return null;
     const cached = this.users.get(Number(id));
     if (cached) return cached;
-    const user = await this.api.send<TdUser>({ '@type': 'getUser', user_id: Number(id) }).catch(() => null);
+    const user = await this.api
+      .send<TdUser>({ '@type': 'getUser', user_id: Number(id) })
+      .catch(() => null);
     if (user?.['@type'] !== 'user') return null;
     this.users.set(user.id, user);
     return user;
@@ -722,7 +739,9 @@ export class TelegramSession implements ChatSession {
   private membersOf(chat: TdChat): Promise<GroupMember[]> {
     let pending = this.members.get(chat.id);
     if (!pending) {
-      pending = this.fetchMembers(chat).catch(() => [{ id: this.self.participantId, role: 'member' as const }]);
+      pending = this.fetchMembers(chat).catch(() => [
+        { id: this.self.participantId, role: 'member' as const },
+      ]);
       this.members.set(chat.id, pending);
     }
     return pending;
@@ -754,8 +773,14 @@ export class TelegramSession implements ChatSession {
       return [];
     }
     return raw
-      .filter((member) => !['chatMemberStatusLeft', 'chatMemberStatusBanned'].includes(member.status['@type']))
-      .map((member) => ({ id: senderIdOf(member.member_id), role: mapRole(member.status['@type']) }));
+      .filter(
+        (member) =>
+          !['chatMemberStatusLeft', 'chatMemberStatusBanned'].includes(member.status['@type'])
+      )
+      .map((member) => ({
+        id: senderIdOf(member.member_id),
+        role: mapRole(member.status['@type']),
+      }));
   }
 
   private toMessage(raw: TdMessage, fetchMedia: boolean): ChatMessage {
@@ -808,10 +833,13 @@ export class TelegramSession implements ChatSession {
         return { kind: 'text', text: (content.text as { text: string }).text };
 
       case 'messagePhoto': {
-        const sizes = (content.photo as { sizes: { photo: TdFile; width: number; height: number }[] }).sizes;
+        const sizes = (
+          content.photo as { sizes: { photo: TdFile; width: number; height: number }[] }
+        ).sizes;
         const size = sizes[sizes.length - 1];
         const uri = size ? this.localUri(raw, size.photo, fetchMedia) : null;
-        if (!uri) return { kind: 'unsupported', typeId: 'photo', fallback: withCaption('📷 Photo') };
+        if (!uri)
+          return { kind: 'unsupported', typeId: 'photo', fallback: withCaption('📷 Photo') };
         return {
           kind: 'image',
           uri,
@@ -823,10 +851,18 @@ export class TelegramSession implements ChatSession {
       }
 
       case 'messageDocument': {
-        const document = content.document as { document: TdFile; file_name: string; mime_type: string };
+        const document = content.document as {
+          document: TdFile;
+          file_name: string;
+          mime_type: string;
+        };
         const uri = this.localUri(raw, document.document, fetchMedia);
         if (!uri) {
-          return { kind: 'unsupported', typeId: 'document', fallback: withCaption(`📎 ${document.file_name}`) };
+          return {
+            kind: 'unsupported',
+            typeId: 'document',
+            fallback: withCaption(`📎 ${document.file_name}`),
+          };
         }
         return {
           kind: 'file',
@@ -852,7 +888,11 @@ export class TelegramSession implements ChatSession {
 
       case 'messageSticker': {
         const emoji = (content.sticker as { emoji?: string }).emoji;
-        return { kind: 'unsupported', typeId: 'sticker', fallback: emoji ? `${emoji} Sticker` : 'Sticker' };
+        return {
+          kind: 'unsupported',
+          typeId: 'sticker',
+          fallback: emoji ? `${emoji} Sticker` : 'Sticker',
+        };
       }
       case 'messageAnimation':
         return { kind: 'unsupported', typeId: 'animation', fallback: withCaption('GIF') };
@@ -886,10 +926,17 @@ export class TelegramSession implements ChatSession {
           fallback: `📊 ${(content.poll as { question: { text: string } }).question.text}`,
         };
       case 'messageDice':
-        return { kind: 'unsupported', typeId: 'dice', fallback: `${content.emoji as string} ${content.value as number}` };
+        return {
+          kind: 'unsupported',
+          typeId: 'dice',
+          fallback: `${content.emoji as string} ${content.value as number}`,
+        };
 
       case 'messageChatAddMembers':
-        return { kind: 'system', text: `${this.namesOf(content.member_user_ids as number[])} joined` };
+        return {
+          kind: 'system',
+          text: `${this.namesOf(content.member_user_ids as number[])} joined`,
+        };
       case 'messageChatDeleteMember':
         return { kind: 'system', text: `${this.namesOf([content.user_id as number])} left` };
       case 'messageChatJoinByLink':
@@ -907,7 +954,10 @@ export class TelegramSession implements ChatSession {
       case 'messagePinMessage':
         return { kind: 'system', text: 'Message pinned' };
       case 'messageContactRegistered':
-        return { kind: 'system', text: `${this.namesOf([userIdOf(raw.sender_id)])} joined Telegram` };
+        return {
+          kind: 'system',
+          text: `${this.namesOf([userIdOf(raw.sender_id)])} joined Telegram`,
+        };
       case 'messageChatUpgradeTo':
       case 'messageChatUpgradeFrom':
         return { kind: 'system', text: 'Group upgraded' };
@@ -922,12 +972,20 @@ export class TelegramSession implements ChatSession {
    * placeholder, and the message is re-emitted once `updateFile` says it is.
    */
   private localUri(raw: TdMessage, file: TdFile, fetchMedia: boolean): string | null {
-    if (file.local.is_downloading_completed && file.local.path) return localFileUri(file.local.path);
+    if (file.local.is_downloading_completed && file.local.path)
+      return localFileUri(file.local.path);
     if (!fetchMedia) return null;
     if (!this.awaitedFiles.has(file.id)) {
       this.awaitedFiles.set(file.id, { chatId: raw.chat_id, messageId: raw.id });
       this.api
-        .send<TdFile>({ '@type': 'downloadFile', file_id: file.id, priority: 16, offset: 0, limit: 0, synchronous: false })
+        .send<TdFile>({
+          '@type': 'downloadFile',
+          file_id: file.id,
+          priority: 16,
+          offset: 0,
+          limit: 0,
+          synchronous: false,
+        })
         .then((started) => {
           if (started.local.is_downloading_completed) {
             this.awaitedFiles.delete(file.id);
@@ -1057,11 +1115,14 @@ function describeCodeDelivery(type: string | undefined): string {
 
 function describeAuthError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('PHONE_NUMBER_INVALID')) return 'That is not a valid phone number. Include the country code, like +44.';
-  if (message.includes('PHONE_NUMBER_UNOCCUPIED')) return 'There is no Telegram account for that number.';
+  if (message.includes('PHONE_NUMBER_INVALID'))
+    return 'That is not a valid phone number. Include the country code, like +44.';
+  if (message.includes('PHONE_NUMBER_UNOCCUPIED'))
+    return 'There is no Telegram account for that number.';
   if (message.includes('PHONE_NUMBER_BANNED')) return 'Telegram has banned that number.';
   if (message.includes('PHONE_CODE_INVALID')) return 'That code is not right.';
-  if (message.includes('PHONE_CODE_EXPIRED')) return 'That code has expired. Save and reconnect to get a new one.';
+  if (message.includes('PHONE_CODE_EXPIRED'))
+    return 'That code has expired. Save and reconnect to get a new one.';
   if (message.includes('PASSWORD_HASH_INVALID')) return 'Wrong password.';
   if (message.includes('API_ID_INVALID') || message.includes('API_ID_PUBLISHED_FLOOD')) {
     return 'Telegram rejected the API ID and hash. Check them at my.telegram.org.';

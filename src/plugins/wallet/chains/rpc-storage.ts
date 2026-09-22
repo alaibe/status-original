@@ -2,9 +2,7 @@ import type { PluginContext } from '@/core/plugins/types';
 
 const STORAGE_RPC = 'rpc-overrides';
 
-export async function readRpcOverrides(
-  context: PluginContext
-): Promise<Record<string, string>> {
+export async function readRpcOverrides(context: PluginContext): Promise<Record<string, string>> {
   return (await context.storage.get<Record<string, string>>(STORAGE_RPC)) ?? {};
 }
 

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -20,11 +27,7 @@ import {
   toast,
   useThemeColors,
 } from '@/design';
-import {
-  isLocalConversation,
-  STATUS_LOCAL_ID,
-  toContent,
-} from '@/core/messaging/bots';
+import { isLocalConversation, STATUS_LOCAL_ID, toContent } from '@/core/messaging/bots';
 import { conversationScope } from '@/core/messaging/conversation-scope';
 import { useChatStore } from '@/core/messaging/chat-store';
 import type { ConversationId, MessageContent } from '@/core/messaging/types';
@@ -85,13 +88,14 @@ export function Composer({
       setMedia({ tab, anchor: null });
       return;
     }
-    button.measureInWindow((x, y, width, height) => setMedia({ tab, anchor: { x, y, width, height } }));
+    button.measureInWindow((x, y, width, height) =>
+      setMedia({ tab, anchor: { x, y, width, height } })
+    );
   };
 
-  const canAttach = Boolean(onSendContent) && (
-    !isLocalConversation(conversationId) ||
-    conversationId === STATUS_LOCAL_ID
-  );
+  const canAttach =
+    Boolean(onSendContent) &&
+    (!isLocalConversation(conversationId) || conversationId === STATUS_LOCAL_ID);
 
   const attach = async (pick: () => Promise<MessageContent | null>) => {
     const send = onSendContent;
@@ -118,7 +122,10 @@ export function Composer({
     () => registry.composerActionsFor(conversationId, scope)
   );
 
-  const commandNames = commands.flatMap(({ command }) => [command.name, ...(command.aliases ?? [])]);
+  const commandNames = commands.flatMap(({ command }) => [
+    command.name,
+    ...(command.aliases ?? []),
+  ]);
 
   const prefix = isTypingCommandName(value) ? commandNamePrefix(value) : null;
   const suggestions =
@@ -169,7 +176,10 @@ export function Composer({
         return;
       }
 
-      const runCommand = async (command: NonNullable<typeof parsed>, found: NonNullable<typeof entry>) => {
+      const runCommand = async (
+        command: NonNullable<typeof parsed>,
+        found: NonNullable<typeof entry>
+      ) => {
         onRunningChange?.(`/${command.name}`);
         const result = await found.command.run({
           rest: command.rest,
@@ -247,26 +257,26 @@ export function Composer({
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
             className="max-h-64">
-          {suggestions.map(({ command, pluginId }) => (
-            <Pressable
-              key={command.name}
-              testID={`command-${command.name}`}
-              accessibilityRole="button"
-              onPress={() => {
-                setValue(`/${command.name} `);
-                inputRef.current?.focus();
-              }}
-              pressScale={1}
-              className="flex-row items-baseline gap-2 border-b border-line px-3 py-2.5 last:border-b-0 active:bg-surface">
-              <Text className="font-mono text-footnote font-semibold text-brand">
-                /{command.name}
-              </Text>
-              <Text variant="caption" numberOfLines={1} className="flex-1">
-                {command.description}
-              </Text>
-              <Text variant="micro">{registry.get(pluginId)?.manifest.name ?? ''}</Text>
-            </Pressable>
-          ))}
+            {suggestions.map(({ command, pluginId }) => (
+              <Pressable
+                key={command.name}
+                testID={`command-${command.name}`}
+                accessibilityRole="button"
+                onPress={() => {
+                  setValue(`/${command.name} `);
+                  inputRef.current?.focus();
+                }}
+                pressScale={1}
+                className="flex-row items-baseline gap-2 border-b border-line px-3 py-2.5 last:border-b-0 active:bg-surface">
+                <Text className="font-mono text-footnote font-semibold text-brand">
+                  /{command.name}
+                </Text>
+                <Text variant="caption" numberOfLines={1} className="flex-1">
+                  {command.description}
+                </Text>
+                <Text variant="micro">{registry.get(pluginId)?.manifest.name ?? ''}</Text>
+              </Pressable>
+            ))}
           </ScrollView>
         </Animated.View>
       ) : null}
@@ -328,9 +338,7 @@ export function Composer({
         </Animated.View>
       ) : null}
 
-      <Animated.View
-        layout={springLayout()}
-        className="flex-row items-end gap-2 px-3 pb-2 pt-1">
+      <Animated.View layout={springLayout()} className="flex-row items-end gap-2 px-3 pb-2 pt-1">
         {canAttach ? (
           <Pressable
             testID="composer-attach"
@@ -343,55 +351,55 @@ export function Composer({
         ) : null}
 
         <View className="min-h-[44px] flex-1 flex-row items-end rounded-pill border border-line bg-surface-raised pl-4 pr-1">
-        <TextInput
-          testID="composer-input"
-          ref={inputRef}
-          value={value}
-          onChangeText={(t) => {
-            if (t.includes('\t')) {
-              const typed = t.replace(/\t/g, '');
-              setValue(completeCommandName(typed, commandNames) ?? typed);
+          <TextInput
+            testID="composer-input"
+            ref={inputRef}
+            value={value}
+            onChangeText={(t) => {
+              if (t.includes('\t')) {
+                const typed = t.replace(/\t/g, '');
+                setValue(completeCommandName(typed, commandNames) ?? typed);
+                if (error) setError(null);
+                return;
+              }
+              setValue(t);
               if (error) setError(null);
-              return;
-            }
-            setValue(t);
-            if (error) setError(null);
-          }}
-          placeholder="Message"
-          placeholderTextColor={colors['content-subtle']}
-          multiline
-          // A browser textarea starts two rows tall and never grows on its own;
-          // see the effect that sizes it to its content on desktop.
-          numberOfLines={1}
-          className="max-h-32 min-h-[42px] flex-1 py-2.5 pr-1 text-body text-content"
-          returnKeyType="send"
-          submitBehavior="submit"
-          onSubmitEditing={submit}
-          // Desktop: Enter sends and keeps the focus, Shift+Enter breaks the
-          // line. Left to react-native-web, Enter would also blur the field.
-          onKeyPress={
-            process.env.EXPO_OS === 'web'
-              ? (event) => {
-                  const key = event.nativeEvent as unknown as KeyboardEvent;
-                  if (key.key === 'Enter' && !key.shiftKey && !key.isComposing) {
-                    event.preventDefault();
-                    void submit();
+            }}
+            placeholder="Message"
+            placeholderTextColor={colors['content-subtle']}
+            multiline
+            // A browser textarea starts two rows tall and never grows on its own;
+            // see the effect that sizes it to its content on desktop.
+            numberOfLines={1}
+            className="max-h-32 min-h-[42px] flex-1 py-2.5 pr-1 text-body text-content"
+            returnKeyType="send"
+            submitBehavior="submit"
+            onSubmitEditing={submit}
+            // Desktop: Enter sends and keeps the focus, Shift+Enter breaks the
+            // line. Left to react-native-web, Enter would also blur the field.
+            onKeyPress={
+              process.env.EXPO_OS === 'web'
+                ? (event) => {
+                    const key = event.nativeEvent as unknown as KeyboardEvent;
+                    if (key.key === 'Enter' && !key.shiftKey && !key.isComposing) {
+                      event.preventDefault();
+                      void submit();
+                    }
                   }
-                }
-              : undefined
-          }
-        />
+                : undefined
+            }
+          />
 
-        <View ref={emojiButton} collapsable={false}>
-        <Pressable
-          testID="composer-emoji"
-          accessibilityRole="button"
-          accessibilityLabel="Emoji"
-          onPress={() => openMedia('emoji')}
-          className="h-11 w-9 items-center justify-center">
-          <Icon name="happy-outline" size={21} color={colors['content-muted']} />
-        </Pressable>
-        </View>
+          <View ref={emojiButton} collapsable={false}>
+            <Pressable
+              testID="composer-emoji"
+              accessibilityRole="button"
+              accessibilityLabel="Emoji"
+              onPress={() => openMedia('emoji')}
+              className="h-11 w-9 items-center justify-center">
+              <Icon name="happy-outline" size={21} color={colors['content-muted']} />
+            </Pressable>
+          </View>
         </View>
 
         {canAttach && value.trim().length === 0 && !busy ? (

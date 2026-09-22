@@ -41,13 +41,10 @@ export async function setBadgeCount(count: number): Promise<void> {
   if (process.env.EXPO_OS === 'web') return;
   try {
     await Notifications.setBadgeCountAsync(count);
-  } catch {
-  }
+  } catch {}
 }
 
-export function onNotificationTapped(
-  handler: (conversationId: string) => void
-): () => void {
+export function onNotificationTapped(handler: (conversationId: string) => void): () => void {
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const id = response.notification.request.content.data?.conversationId;
     if (typeof id === 'string') handler(id);

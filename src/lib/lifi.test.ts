@@ -6,7 +6,10 @@ const probe = { txHash: '0xabc', fromChain: 1, toChain: 10 };
 function stub(status: number, body: unknown) {
   const calls: { url: string; headers: Record<string, string> | undefined }[] = [];
   global.fetch = jest.fn(async (url, init) => {
-    calls.push({ url: String(url), headers: (init as RequestInit | undefined)?.headers as Record<string, string> | undefined });
+    calls.push({
+      url: String(url),
+      headers: (init as RequestInit | undefined)?.headers as Record<string, string> | undefined,
+    });
     return { ok: status < 400, status, json: async () => body } as Response;
   }) as unknown as typeof fetch;
   return calls;
@@ -75,7 +78,11 @@ describe('the LI.FI client', () => {
   });
 
   it('explains a missing route without the filtered-path dump', async () => {
-    stub(404, { message: 'No available quotes for the requested transfer', code: 1002, errors: {} });
+    stub(404, {
+      message: 'No available quotes for the requested transfer',
+      code: 1002,
+      errors: {},
+    });
 
     const failure = lifiStatus(probe, null);
     await expect(failure).rejects.toBeInstanceOf(LifiError);

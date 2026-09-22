@@ -18,11 +18,13 @@ const endpoint = 'https://user:private-password@rpc.example.invalid/private-api-
 const body = { method: 'eth_estimateGas', params: ['private-request-body'] };
 
 const rejectedEstimate = new EstimateGasExecutionError(
-  new TransactionRejectedRpcError(new RpcRequestError({
-    body,
-    error: { code: -32003, message: 'EVM error: OutOfFunds' },
-    url: endpoint,
-  })),
+  new TransactionRejectedRpcError(
+    new RpcRequestError({
+      body,
+      error: { code: -32003, message: 'EVM error: OutOfFunds' },
+      url: endpoint,
+    })
+  ),
   { to: '0x0000000000000000000000000000000000000001', value: 1n }
 );
 
@@ -56,11 +58,15 @@ describe('walletErrorMessage', () => {
     expect(message).toMatch(/limit/i);
     expect(message).toMatch(/wait/i);
     expect(message).toMatch(/balance/i);
-    expect(message).not.toMatch(/internet connection|private-|rpc\.example|https:|request body|viem@|transaction/i);
+    expect(message).not.toMatch(
+      /internet connection|private-|rpc\.example|https:|request body|viem@|transaction/i
+    );
   });
 
   it('keeps unsupported-chain recovery separate from endpoint configuration', () => {
-    const error = new BaseError('Could not estimate gas.', { cause: new Error('Unsupported chain 11155111') });
+    const error = new BaseError('Could not estimate gas.', {
+      cause: new Error('Unsupported chain 11155111'),
+    });
     const message = walletErrorMessage(error, { ...polygon, name: 'Sepolia' }, 'review');
 
     expect(message).toMatch(/Sepolia.*not available/i);
@@ -69,8 +75,16 @@ describe('walletErrorMessage', () => {
   });
 
   it('distinguishes user cancellation from a transfer that would revert during review', () => {
-    const cancelled = walletErrorMessage(new UserRejectedRequestError(new Error('Rejected')), polygon, 'review');
-    const reverted = walletErrorMessage(new ExecutionRevertedError({ message: 'execution reverted' }), polygon, 'review');
+    const cancelled = walletErrorMessage(
+      new UserRejectedRequestError(new Error('Rejected')),
+      polygon,
+      'review'
+    );
+    const reverted = walletErrorMessage(
+      new ExecutionRevertedError({ message: 'execution reverted' }),
+      polygon,
+      'review'
+    );
 
     expect(cancelled).toMatch(/cancelled/i);
     expect(cancelled).toMatch(/approve only if/i);
@@ -89,7 +103,9 @@ describe('walletErrorMessage', () => {
     expect(review).toMatch(/nothing was sent/i);
     expect(send).toMatch(/may have been submitted/i);
     expect(send).toMatch(/history or .*explorer before trying again/i);
-    expect(send).not.toMatch(/nothing was sent|no funds|private-|rpc\.example|https:|request body|viem@/i);
+    expect(send).not.toMatch(
+      /nothing was sent|no funds|private-|rpc\.example|https:|request body|viem@/i
+    );
   });
 
   it('does not treat a cancelled HTTP request as a user cancelling the payment', () => {
@@ -111,7 +127,11 @@ describe('walletErrorMessage', () => {
   });
 
   it('keeps an unclassified send outcome uncertain instead of treating it as safe to repeat', () => {
-    const message = walletErrorMessage(new Error('The remote service stopped responding.'), polygon, 'send');
+    const message = walletErrorMessage(
+      new Error('The remote service stopped responding.'),
+      polygon,
+      'send'
+    );
 
     expect(message).toMatch(/may have been submitted/i);
     expect(message).toMatch(/before trying again/i);
@@ -121,7 +141,10 @@ describe('walletErrorMessage', () => {
   it('makes unknown RPC errors operation-aware without exposing provider diagnostics or promising send failure', () => {
     const error = new RpcRequestError({
       body,
-      error: { code: -32603, message: 'Internal failure: Authorization: Bearer private-token\nstack: private-stack' },
+      error: {
+        code: -32603,
+        message: 'Internal failure: Authorization: Bearer private-token\nstack: private-stack',
+      },
       url: endpoint,
     });
     const send = walletErrorMessage(error, polygon, 'send');
@@ -130,7 +153,9 @@ describe('walletErrorMessage', () => {
     expect(send).toContain('Polygon');
     expect(send).toMatch(/may have been submitted/i);
     expect(send).toMatch(/before trying again/i);
-    expect(send).not.toMatch(/private-|Authorization|rpc\.example|https:|viem@|nothing was sent|Transaction creation failed/i);
+    expect(send).not.toMatch(
+      /private-|Authorization|rpc\.example|https:|viem@|nothing was sent|Transaction creation failed/i
+    );
     expect(fees).toMatch(/load network fees/i);
     expect(fees).not.toMatch(/transaction creation|may have been submitted|nothing was sent/i);
   });

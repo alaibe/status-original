@@ -37,7 +37,10 @@ export function LinkPreviewCard({ url, fromMe }: { url: string; fromMe: boolean 
         'mt-1.5 flex-row gap-2 rounded-md px-2 py-1.5',
         fromMe ? 'bg-bubble-out-on/15' : 'bg-content/5'
       )}
-      style={{ borderCurve: 'continuous', width: Math.min(screenWidth * MAX_WIDTH_RATIO, MAX_WIDTH) }}>
+      style={{
+        borderCurve: 'continuous',
+        width: Math.min(screenWidth * MAX_WIDTH_RATIO, MAX_WIDTH),
+      }}>
       <View className={cn('w-0.5 rounded-full', fromMe ? 'bg-bubble-out-on' : 'bg-brand')} />
       <View className="min-w-0 flex-1 gap-0.5">
         {siteName ? (

@@ -80,7 +80,10 @@ export function makeWalletBot(context: PluginContext): Bot {
     }),
 
     async onMessage(text, ctx) {
-      const asked = /\b(balance|how much|hold|send|pay|swap|bridge|trade|token|gas|fee|explorer|rpc|node|watch)\b/i.test(text);
+      const asked =
+        /\b(balance|how much|hold|send|pay|swap|bridge|trade|token|gas|fee|explorer|rpc|node|watch)\b/i.test(
+          text
+        );
       await ctx.say(
         asked
           ? 'Try /balance, /send, /trade, /tokens, /gas, /watch, /explorer or /rpc. Add --chain to mean a different network.'

@@ -89,9 +89,13 @@ describe('routing by id', () => {
     await connect();
 
     await useChatStore.getState().sendMessage(ns('x1'), { kind: 'text', text: 'to xmtp' });
-    await useChatStore.getState().sendMessage(ns('n1', 'nostr'), { kind: 'text', text: 'to nostr' });
+    await useChatStore
+      .getState()
+      .sendMessage(ns('n1', 'nostr'), { kind: 'text', text: 'to nostr' });
 
-    expect(xmtp.sent).toEqual([{ conversationId: 'x1', content: { kind: 'text', text: 'to xmtp' } }]);
+    expect(xmtp.sent).toEqual([
+      { conversationId: 'x1', content: { kind: 'text', text: 'to xmtp' } },
+    ]);
     expect(nostr.sent).toEqual([
       { conversationId: 'n1', content: { kind: 'text', text: 'to nostr' } },
     ]);
@@ -142,7 +146,11 @@ describe('independent failure', () => {
 
     const state = useChatStore.getState();
     expect(state.status).toBe('ready');
-    expect(state.protocols.xmtp).toEqual({ status: 'ready', error: null, history: { status: 'idle' } });
+    expect(state.protocols.xmtp).toEqual({
+      status: 'ready',
+      error: null,
+      history: { status: 'idle' },
+    });
     expect(state.protocols.nostr.status).toBe('error');
     expect(state.protocols.nostr.error).toBe('every relay refused');
     expect(state.conversations.map((c) => c.id)).toEqual([ns('c1')]);
@@ -186,7 +194,9 @@ describe('independent failure', () => {
   it('shows cached chats during catch-up and lets each protocol finish independently', async () => {
     const { xmtp, nostr, connect } = twoTransports();
     let finish!: () => void;
-    const pending = new Promise<void>((resolve) => { finish = resolve; });
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     jest.spyOn(nostr, 'sync').mockReturnValue(pending);
     nostr.seedConversation({ id: 'cached' });
     const connecting = connect();
@@ -198,7 +208,9 @@ describe('independent failure', () => {
       await Promise.resolve();
     }
 
-    expect(useChatStore.getState().conversations.some((c) => c.id === ns('cached', 'nostr'))).toBe(true);
+    expect(useChatStore.getState().conversations.some((c) => c.id === ns('cached', 'nostr'))).toBe(
+      true
+    );
     expect(useChatStore.getState().protocols.nostr.history?.status).toBe('fetching');
     expect(useChatStore.getState().protocols.xmtp.history?.status).toBe('idle');
     expect(xmtp.syncCount).toBe(1);
@@ -211,7 +223,11 @@ describe('independent failure', () => {
     const { nostr, connect } = twoTransports();
     await connect();
     let finish!: () => void;
-    jest.spyOn(nostr, 'sync').mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    jest.spyOn(nostr, 'sync').mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+    );
     const syncing = useChatStore.getState().sync();
     await disconnectFake();
     finish();

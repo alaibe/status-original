@@ -88,10 +88,7 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
 
     async fees() {
       const client = publicClientFor(chain.id);
-      const [estimate, block] = await Promise.all([
-        client.estimateFeesPerGas(),
-        client.getBlock(),
-      ]);
+      const [estimate, block] = await Promise.all([client.estimateFeesPerGas(), client.getBlock()]);
 
       const perGas = estimate.maxFeePerGas ?? 0n;
       const transfer = perGas * 21_000n;

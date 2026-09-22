@@ -37,9 +37,7 @@ export function SwipeableRow({ right, left, children }: SwipeableRowProps) {
     ref.current?.close();
     if (process.env.EXPO_OS === 'ios') {
       Haptics.impactAsync(
-        action.destructive
-          ? Haptics.ImpactFeedbackStyle.Medium
-          : Haptics.ImpactFeedbackStyle.Light
+        action.destructive ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
       ).catch(() => {});
     }
     action.onPress();
@@ -47,7 +45,7 @@ export function SwipeableRow({ right, left, children }: SwipeableRowProps) {
 
   const render = (actions: SwipeAction[], side: 'left' | 'right') =>
     function SwipeActions() {
-          return (
+      return (
         <View className="flex-row items-stretch py-1 pl-1 pr-1">
           {actions.map((action, index) => (
             <ActionButton
@@ -59,8 +57,8 @@ export function SwipeableRow({ right, left, children }: SwipeableRowProps) {
               side={side}
             />
           ))}
-            </View>
-          );
+        </View>
+      );
     };
 
   if (!right?.length && !left?.length) return <>{children}</>;
@@ -118,10 +116,14 @@ function ActionButton({
         width: ACTION_WIDTH,
         backgroundColor: fill,
         borderCurve: 'continuous',
-        borderTopLeftRadius: side === 'right' ? (inner ? ACTION_RADIUS : 0) : outer ? ACTION_RADIUS : 0,
-        borderBottomLeftRadius: side === 'right' ? (inner ? ACTION_RADIUS : 0) : outer ? ACTION_RADIUS : 0,
-        borderTopRightRadius: side === 'right' ? (outer ? ACTION_RADIUS : 0) : inner ? ACTION_RADIUS : 0,
-        borderBottomRightRadius: side === 'right' ? (outer ? ACTION_RADIUS : 0) : inner ? ACTION_RADIUS : 0,
+        borderTopLeftRadius:
+          side === 'right' ? (inner ? ACTION_RADIUS : 0) : outer ? ACTION_RADIUS : 0,
+        borderBottomLeftRadius:
+          side === 'right' ? (inner ? ACTION_RADIUS : 0) : outer ? ACTION_RADIUS : 0,
+        borderTopRightRadius:
+          side === 'right' ? (outer ? ACTION_RADIUS : 0) : inner ? ACTION_RADIUS : 0,
+        borderBottomRightRadius:
+          side === 'right' ? (outer ? ACTION_RADIUS : 0) : inner ? ACTION_RADIUS : 0,
         marginLeft: side === 'right' && !first ? 2 : 0,
         marginRight: side === 'left' && !last ? 2 : 0,
       }}

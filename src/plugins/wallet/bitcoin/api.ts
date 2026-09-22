@@ -94,10 +94,7 @@ export async function fetchFeeRates(apiBase: string = DEFAULT_API_BASE): Promise
   };
 }
 
-export async function broadcast(
-  hex: string,
-  apiBase: string = DEFAULT_API_BASE
-): Promise<string> {
+export async function broadcast(hex: string, apiBase: string = DEFAULT_API_BASE): Promise<string> {
   const response = await fetch(`${apiBase}/tx`, {
     method: 'POST',
     headers: { 'content-type': 'text/plain' },

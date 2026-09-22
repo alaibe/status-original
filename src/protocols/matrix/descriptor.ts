@@ -72,17 +72,26 @@ export const MATRIX_PROTOCOL = {
     if (!USER_ID.test(userId)) throw new Error('The Matrix ID must look like @you:example.org.');
 
     const sessionKey = accountMatrixSessionKey(accountId);
-    const [{ MatrixSession }, { MatrixClient }, dataDirectory, storePassphrase, session] = await Promise.all([
-      import('./adapter'),
-      import('./client'),
-      accountDirectory('matrix', accountId),
-      accountMatrixStorePassphrase(accountId),
-      readSession(sessionKey, userId, homeserverUrl),
-    ]);
+    const [{ MatrixSession }, { MatrixClient }, dataDirectory, storePassphrase, session] =
+      await Promise.all([
+        import('./adapter'),
+        import('./client'),
+        accountDirectory('matrix', accountId),
+        accountMatrixStorePassphrase(accountId),
+        readSession(sessionKey, userId, homeserverUrl),
+      ]);
     return MatrixSession.connect({
       createApi: () => MatrixClient.create(),
-      parameters: { dataDirectory, storePassphrase, homeserverUrl, userId, deviceName: DEVICE_NAME, session },
-      persistSession: (next) => (next ? vaultSet(sessionKey, JSON.stringify(next)) : vaultDelete(sessionKey)),
+      parameters: {
+        dataDirectory,
+        storePassphrase,
+        homeserverUrl,
+        userId,
+        deviceName: DEVICE_NAME,
+        session,
+      },
+      persistSession: (next) =>
+        next ? vaultSet(sessionKey, JSON.stringify(next)) : vaultDelete(sessionKey),
     });
   },
   // A live session erases through the SDK instead; this covers accounts that are not open.
@@ -102,13 +111,14 @@ function normaliseHomeserver(value: string): string {
 async function readSession(
   key: ReturnType<typeof accountMatrixSessionKey>,
   userId: string,
-  homeserverUrl: string,
+  homeserverUrl: string
 ): Promise<MxSession | null> {
   const raw = await vaultGet(key);
   if (!raw) return null;
   try {
     const session = JSON.parse(raw) as MxSession;
-    if (session.userId === userId && normaliseHomeserver(session.homeserverUrl) === homeserverUrl) return session;
+    if (session.userId === userId && normaliseHomeserver(session.homeserverUrl) === homeserverUrl)
+      return session;
   } catch {}
   await vaultDelete(key);
   return null;

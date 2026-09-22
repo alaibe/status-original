@@ -41,14 +41,22 @@ fn account_path(app: &AppHandle, area: &str, account_id: &str) -> Result<PathBuf
 }
 
 #[tauri::command]
-pub async fn account_dir(app: AppHandle, area: String, account_id: String) -> Result<String, String> {
+pub async fn account_dir(
+    app: AppHandle,
+    area: String,
+    account_id: String,
+) -> Result<String, String> {
     let dir = account_path(&app, &area, &account_id)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
-pub async fn erase_account_dir(app: AppHandle, area: String, account_id: String) -> Result<(), String> {
+pub async fn erase_account_dir(
+    app: AppHandle,
+    area: String,
+    account_id: String,
+) -> Result<(), String> {
     remove_dir(&account_path(&app, &area, &account_id)?)
 }
 

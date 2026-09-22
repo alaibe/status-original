@@ -18,7 +18,7 @@ export async function storeMedia(
   area: string,
   name: string,
   accountId: string,
-  base64: string,
+  base64: string
 ): Promise<string> {
   const file = mediaFile(area, name, accountId);
   if (!file.exists) {
@@ -33,7 +33,7 @@ export async function adoptMedia(
   area: string,
   name: string,
   accountId: string,
-  sourceUri: string,
+  sourceUri: string
 ): Promise<string> {
   const source = new File(sourceUri);
   const destination = mediaFile(area, name, accountId);
@@ -54,7 +54,7 @@ export async function downloadMedia(
   area: string,
   name: string,
   accountId: string,
-  url: string,
+  url: string
 ): Promise<StoredMedia> {
   const file = new File(mediaDirectory(area, accountId), name);
   if (!file.exists) await File.downloadFileAsync(url, file);

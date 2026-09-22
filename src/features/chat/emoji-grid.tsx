@@ -13,7 +13,6 @@ import emojiData from 'rn-emoji-keyboard/src/assets/emojis.json';
 import { Icon, SearchField, Text, useThemeColors, type IconName } from '@/design';
 import { useChatStore } from '@/core/messaging/chat-store';
 
-
 interface EmojiEntry {
   emoji: string;
   name: string;
@@ -126,14 +125,16 @@ export function EmojiGrid({ width, onEmoji, autoFocusSearch }: EmojiGridProps) {
     const built: Row[] = [];
     const starts: { category: string; offset: number }[] = [];
     if (trimmed) {
-      for (const group of chunk(searchEmoji(trimmed), columns)) built.push({ kind: 'emoji', emojis: group });
+      for (const group of chunk(searchEmoji(trimmed), columns))
+        built.push({ kind: 'emoji', emojis: group });
     } else {
       const groups: { id: string; title: string; emojis: string[] }[] = [];
       if (recent.length > 0) groups.push({ id: RECENT, title: 'Recently used', emojis: recent });
       for (const category of CATEGORIES) groups.push(category);
       for (const group of groups) {
         built.push({ kind: 'header', title: group.title, category: group.id });
-        for (const line of chunk(group.emojis, columns)) built.push({ kind: 'emoji', emojis: line });
+        for (const line of chunk(group.emojis, columns))
+          built.push({ kind: 'emoji', emojis: line });
       }
     }
     const positions: number[] = [];
@@ -198,7 +199,9 @@ export function EmojiGrid({ width, onEmoji, autoFocusSearch }: EmojiGridProps) {
             onPress={() => pick(emoji)}
             style={{ width: cell, height: CELL }}
             className="items-center justify-center rounded-md hover:bg-surface-sunken active:bg-surface-sunken">
-            <NativeText allowFontScaling={false} style={{ fontSize: EMOJI_SIZE, lineHeight: CELL - 4 }}>
+            <NativeText
+              allowFontScaling={false}
+              style={{ fontSize: EMOJI_SIZE, lineHeight: CELL - 4 }}>
               {emoji}
             </NativeText>
           </Pressable>
@@ -207,9 +210,10 @@ export function EmojiGrid({ width, onEmoji, autoFocusSearch }: EmojiGridProps) {
     );
   };
 
-  const tabs = recent.length > 0 && !trimmed
-    ? [{ id: RECENT, title: 'Recently used', icon: 'time-outline' as IconName }, ...CATEGORIES]
-    : CATEGORIES;
+  const tabs =
+    recent.length > 0 && !trimmed
+      ? [{ id: RECENT, title: 'Recently used', icon: 'time-outline' as IconName }, ...CATEGORIES]
+      : CATEGORIES;
 
   return (
     <View className="flex-1">

@@ -27,7 +27,14 @@ function stubContext() {
     throw new Error('not called during setup');
   };
   return {
-    manifest: { id: 'x', name: 'x', description: '', version: '1', icon: 'ellipse', permissions: [] },
+    manifest: {
+      id: 'x',
+      name: 'x',
+      description: '',
+      version: '1',
+      icon: 'ellipse',
+      permissions: [],
+    },
     storage: { get: async () => null, set: async () => {}, remove: async () => {} },
     identity: {
       address: '0x0000000000000000000000000000000000000000',
@@ -117,8 +124,8 @@ describe('every command', () => {
 
       // Outside every room no plugin's room breaks the tie, so at most one
       // may claim the name.
-      const inDm = [...owners].filter((owner) =>
-        registry.commandsFor('xmtp-abc', 'dm').get(key)?.pluginId === owner
+      const inDm = [...owners].filter(
+        (owner) => registry.commandsFor('xmtp-abc', 'dm').get(key)?.pluginId === owner
       );
       expect(inDm.length).toBeLessThanOrEqual(1);
     }
@@ -203,16 +210,19 @@ describe('every command', () => {
   ])('prompts for arguments to /%s /%s without performing the action', async (pluginId, name) => {
     const context = stubContext();
     const command = ALL_PLUGINS.find((plugin) => plugin.manifest.id === pluginId)!
-      .setup(context).commands!.find((candidate) => candidate.name === name)!;
+      .setup(context)
+      .commands!.find((candidate) => candidate.name === name)!;
     const respond = jest.fn();
 
-    expect(await command.run({
-      args: [],
-      rest: '',
-      conversationId: `local-${pluginId}`,
-      context,
-      respond,
-    })).toEqual({ type: 'setComposer', text: `/${name} ` });
+    expect(
+      await command.run({
+        args: [],
+        rest: '',
+        conversationId: `local-${pluginId}`,
+        context,
+        respond,
+      })
+    ).toEqual({ type: 'setComposer', text: `/${name} ` });
     expect(respond).not.toHaveBeenCalled();
   });
 
@@ -239,7 +249,10 @@ describe('every command', () => {
           for (const command of commandsIn(line.widget)) {
             // `/draft /x ` hands `/x` to the composer; that is the one that
             // has to run here.
-            const name = command.replace(/^\/draft\s+/, '').replace(/^\//, '').split(/\s/)[0];
+            const name = command
+              .replace(/^\/draft\s+/, '')
+              .replace(/^\//, '')
+              .split(/\s/)[0];
             if (!runnable.has(name)) wrong.push(`${bot.id}: /${name}`);
           }
         }
@@ -294,8 +307,21 @@ describe('every command', () => {
       // The same, plus the group's own management. That is core: you cannot
       // opt out of seeing who is in a group.
       'group',
-      ['address', 'balance', 'commands', 'ens', 'invite', 'leave', 'members',
-       'profile', 'remove', 'rename', 'request', 'send', 'split'],
+      [
+        'address',
+        'balance',
+        'commands',
+        'ens',
+        'invite',
+        'leave',
+        'members',
+        'profile',
+        'remove',
+        'rename',
+        'request',
+        'send',
+        'split',
+      ],
     ],
   ] as const)('offers exactly the agreed set in a %s', (scope, expected) => {
     const registry = activeRegistry();
@@ -346,49 +372,49 @@ describe('every command', () => {
     }
   });
 
-/** Every command string a widget's buttons carry, however deeply nested. */
-function commandsIn(widget: unknown): string[] {
-  const node = widget as {
-    kind?: string;
-    command?: string;
-    actions?: { command: string }[];
-    rows?: { actions?: { command: string }[] }[];
-    items?: { actions?: { command: string }[] }[];
-    submit?: { command: string };
-    children?: unknown[];
-  };
-  if (!node || typeof node !== 'object') return [];
+  /** Every command string a widget's buttons carry, however deeply nested. */
+  function commandsIn(widget: unknown): string[] {
+    const node = widget as {
+      kind?: string;
+      command?: string;
+      actions?: { command: string }[];
+      rows?: { actions?: { command: string }[] }[];
+      items?: { actions?: { command: string }[] }[];
+      submit?: { command: string };
+      children?: unknown[];
+    };
+    if (!node || typeof node !== 'object') return [];
 
-  return [
-    ...(node.actions ?? []).map((a) => a.command),
-    ...(node.rows ?? []).flatMap((r) => (r.actions ?? []).map((a) => a.command)),
-    ...(node.items ?? []).flatMap((i) => (i.actions ?? []).map((a) => a.command)),
-    ...(node.submit ? [node.submit.command] : []),
-    ...(node.children ?? []).flatMap(commandsIn),
-  ];
-}
-
-/**
- * The registry as the app builds it: every plugin active, plus the core
- * commands the app contributes itself. A test that leaves those out is
- * measuring a conversation nobody has.
- */
-function activeRegistry(): PluginRegistry {
-  const registry = new PluginRegistry(ALL_PLUGINS, {
-    commands: groupCommands,
-    composerActions: groupComposerActions,
-  });
-  for (const plugin of ALL_PLUGINS) {
-    registry.activate(plugin.manifest.id, () => stubContext() as never);
+    return [
+      ...(node.actions ?? []).map((a) => a.command),
+      ...(node.rows ?? []).flatMap((r) => (r.actions ?? []).map((a) => a.command)),
+      ...(node.items ?? []).flatMap((i) => (i.actions ?? []).map((a) => a.command)),
+      ...(node.submit ? [node.submit.command] : []),
+      ...(node.children ?? []).flatMap(commandsIn),
+    ];
   }
-  return registry;
-}
 
-/** The plugin's own room, or null when it has none. */
-function channelIdOf(pluginId: string): string | null {
-  const plugin = ALL_PLUGINS.find((p) => p.manifest.id === pluginId);
-  return plugin?.setup(stubContext()).bots?.[0]?.id ?? null;
-}
+  /**
+   * The registry as the app builds it: every plugin active, plus the core
+   * commands the app contributes itself. A test that leaves those out is
+   * measuring a conversation nobody has.
+   */
+  function activeRegistry(): PluginRegistry {
+    const registry = new PluginRegistry(ALL_PLUGINS, {
+      commands: groupCommands,
+      composerActions: groupComposerActions,
+    });
+    for (const plugin of ALL_PLUGINS) {
+      registry.activate(plugin.manifest.id, () => stubContext() as never);
+    }
+    return registry;
+  }
+
+  /** The plugin's own room, or null when it has none. */
+  function channelIdOf(pluginId: string): string | null {
+    const plugin = ALL_PLUGINS.find((p) => p.manifest.id === pluginId);
+    return plugin?.setup(stubContext()).bots?.[0]?.id ?? null;
+  }
 });
 
 const allBots = ALL_PLUGINS.flatMap((plugin) =>
@@ -485,9 +511,7 @@ describe('every network', () => {
    * they return different values needs a network.
    */
   it('resolves names its own way, or not at all', () => {
-    const resolvers = Object.fromEntries(
-      NETWORKS.map((n) => [n.id, n.strategy(stub()).resolve])
-    );
+    const resolvers = Object.fromEntries(NETWORKS.map((n) => [n.id, n.strategy(stub()).resolve]));
 
     expect(typeof resolvers.ethereum).toBe('function');
     expect(typeof resolvers.bitcoin).toBe('function');

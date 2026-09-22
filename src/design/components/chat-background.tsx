@@ -1,12 +1,7 @@
-
 import { Image, View, type ImageURISource } from 'react-native';
 
 import { useThemeColors, type ThemeColors } from '../hooks/use-theme-colors';
-import {
-  CHAT_PATTERNS,
-  CHAT_PATTERN_SCALE,
-  type ChatPatternName,
-} from './chat-pattern-tile';
+import { CHAT_PATTERNS, CHAT_PATTERN_SCALE, type ChatPatternName } from './chat-pattern-tile';
 
 const SOURCES = Object.fromEntries(
   Object.entries(CHAT_PATTERNS).map(([name, uri]) => [
@@ -34,7 +29,8 @@ const GRADIENTS = {
   subtle: {
     light: (c: ThemeColors) =>
       `linear-gradient(141deg, ${c['brand-soft']} 0%, ${c.canvas} 55%, ${c.surface} 100%)`,
-    dark: (c: ThemeColors) => `linear-gradient(141deg, ${c.surface} 0%, ${c.canvas} 55%, ${c.surface} 100%)`,
+    dark: (c: ThemeColors) =>
+      `linear-gradient(141deg, ${c.surface} 0%, ${c.canvas} 55%, ${c.surface} 100%)`,
   },
   vivid: {
     light: (c: ThemeColors) =>
@@ -55,10 +51,7 @@ export interface ChatBackgroundProps {
   intensity?: 'subtle' | 'vivid';
 }
 
-export function ChatBackground({
-  pattern = 'doodles',
-  intensity = 'subtle',
-}: ChatBackgroundProps) {
+export function ChatBackground({ pattern = 'doodles', intensity = 'subtle' }: ChatBackgroundProps) {
   const colors = useThemeColors();
   const scheme = colors.scheme;
 

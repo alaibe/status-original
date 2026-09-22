@@ -58,14 +58,17 @@ export async function writeInlineAttachment(
 export async function persistLocalAttachment(
   messageId: string,
   content: MessageContent,
-  accountId: string,
+  accountId: string
 ): Promise<MessageContent> {
-  if (content.kind !== 'image' && content.kind !== 'file' && content.kind !== 'voice') return content;
+  if (content.kind !== 'image' && content.kind !== 'file' && content.kind !== 'voice')
+    return content;
   if (!isTransientUri(content.uri)) return content;
 
   const fallback = content.kind === 'voice' ? 'recording.m4a' : 'attachment';
-  const name = (content.name ?? basenameOf(content.uri) ?? fallback)
-    .replace(/[^A-Za-z0-9._-]/g, '_');
+  const name = (content.name ?? basenameOf(content.uri) ?? fallback).replace(
+    /[^A-Za-z0-9._-]/g,
+    '_'
+  );
   const uri = await adoptMedia(ATTACHMENT_AREA, `${messageId}-${name}`, accountId, content.uri);
   return { ...content, uri };
 }

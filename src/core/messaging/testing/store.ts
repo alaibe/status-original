@@ -42,16 +42,13 @@ export class StoreBackedTestTransport implements ChatTransport {
 
   async openConversation(
     conversation: StoredConversation,
-    options?: { since?: number },
+    options?: { since?: number }
   ): Promise<void> {
     this.opened.push(conversation.routingKey ?? conversation.id);
     this.openCursors.push(options?.since);
   }
 
-  async send(
-    _conversation: StoredConversation,
-    content: MessageContent,
-  ): Promise<SendResult> {
+  async send(_conversation: StoredConversation, content: MessageContent): Promise<SendResult> {
     this.sent += 1;
     const id = `m${this.sent}`;
     return {
@@ -81,14 +78,16 @@ export class StoreBackedTestTransport implements ChatTransport {
   }
 
   receive(id: string, sentAt: number, text = id): Promise<void> {
-    return this.sink?.deliverToParticipants([STORE_TEST_SELF, STORE_TEST_PEER], {
-      id,
-      senderId: STORE_TEST_PEER,
-      sentAt,
-      transportTimestamp: sentAt,
-      content: { kind: 'text', text },
-      fromMe: false,
-    }) ?? Promise.resolve();
+    return (
+      this.sink?.deliverToParticipants([STORE_TEST_SELF, STORE_TEST_PEER], {
+        id,
+        senderId: STORE_TEST_PEER,
+        sentAt,
+        transportTimestamp: sentAt,
+        content: { kind: 'text', text },
+        fromMe: false,
+      }) ?? Promise.resolve()
+    );
   }
 }
 
@@ -134,7 +133,9 @@ export async function connectFake(
     keyring,
     registry: new PluginRegistry(),
     defaultEnabled: [],
-    makeContext: () => { throw new Error('No plugins in this test.'); },
+    makeContext: () => {
+      throw new Error('No plugins in this test.');
+    },
     only: options.protocols,
     createSession: async ({ protocolId }) =>
       options.sessionFor ? options.sessionFor(protocolId) : session,
@@ -144,7 +145,7 @@ export async function connectFake(
 
 export function projectTestAccount(
   accountId: string,
-  messages = createAccountStorage(accountId).messages,
+  messages = createAccountStorage(accountId).messages
 ): void {
   projectAccount({ ...createAccountStorage(accountId), messages });
 }

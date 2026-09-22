@@ -26,7 +26,7 @@ interface PluginHostValue {
     accountId: string,
     keyring: Keyring,
     storage: AccountStorage,
-    lease: PluginLease,
+    lease: PluginLease
   ): PluginContext;
   onPluginsChanged(ids: PluginId[]): void;
   setEnabled(id: PluginId, enabled: boolean): Promise<void>;
@@ -67,7 +67,8 @@ function makePluginContext(
   const accountChat = () => {
     active();
     const chat = useChatStore.getState();
-    if (chat.accountId !== accountId) throw new Error(`Plugin "${manifest.id}" is no longer active.`);
+    if (chat.accountId !== accountId)
+      throw new Error(`Plugin "${manifest.id}" is no longer active.`);
     return chat;
   };
 
@@ -265,7 +266,11 @@ function makePluginContext(
 
 export function PluginProvider({ plugins, defaultEnabled, children }: PluginProviderProps) {
   const [registry] = useState(
-    () => new PluginRegistry(plugins, { commands: groupCommands, composerActions: groupComposerActions })
+    () =>
+      new PluginRegistry(plugins, {
+        commands: groupCommands,
+        composerActions: groupComposerActions,
+      })
   );
   const [enabledIds, setEnabledIds] = useState<PluginId[]>([]);
 

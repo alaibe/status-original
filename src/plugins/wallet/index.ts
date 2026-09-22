@@ -24,8 +24,7 @@ export const walletPlugin: Plugin = {
   manifest: {
     id: 'wallet',
     name: 'Wallet',
-    description:
-      'Balances, sends, trades and payment requests, on the networks you switch on.',
+    description: 'Balances, sends, trades and payment requests, on the networks you switch on.',
     version: '2.0.0',
     icon: 'wallet-outline',
     permissions: [

@@ -178,9 +178,9 @@ export function defaultChain<T extends ChainStrategy>(
 ): T {
   const matches = recipient ? chains.filter((c) => c.isAddress(recipient)) : [];
   const from = matches.length > 0 ? matches : chains;
-  return from.find((c) => c.id === configuredDefault) ??
-    from.find((c) => c.id === 'ethereum') ??
-    from[0];
+  return (
+    from.find((c) => c.id === configuredDefault) ?? from.find((c) => c.id === 'ethereum') ?? from[0]
+  );
 }
 
 /** The strategy `--chain` names, from those switched on. */
@@ -347,7 +347,8 @@ export function networksCommand(
       if (args.length > 2 || (verb && !['on', 'off', 'default'].includes(verb))) {
         return {
           type: 'error',
-          message: 'Use /networks <id> on to enable, default to choose an enabled network, or off to disable a nondefault network.',
+          message:
+            'Use /networks <id> on to enable, default to choose an enabled network, or off to disable a nondefault network.',
         };
       }
 
@@ -368,13 +369,20 @@ export function networksCommand(
           }
           if (verb === 'default') {
             await setActive(context, network.id, enabled);
-            return { type: 'notice', tone: 'success', message: `${network.name} is the default now` };
+            return {
+              type: 'notice',
+              tone: 'success',
+              message: `${network.name} is the default now`,
+            };
           }
           if (isOn) return { type: 'notice', message: `${network.name} is already on` };
           await setEnabled(context, network.id, true, enabled);
           return { type: 'notice', tone: 'success', message: `${network.name} is on` };
         } catch (error) {
-          return { type: 'error', message: errorMessage(error, 'Could not update network preferences.') };
+          return {
+            type: 'error',
+            message: errorMessage(error, 'Could not update network preferences.'),
+          };
         }
       }
 

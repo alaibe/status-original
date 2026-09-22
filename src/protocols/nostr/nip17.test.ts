@@ -233,9 +233,7 @@ describe('conversation identity', () => {
       recipients: [bob.publicKey, carol.publicKey],
       content: 'hi',
     });
-    expect(participantsOf(rumor)).toEqual(
-      [alice.publicKey, bob.publicKey, carol.publicKey].sort()
-    );
+    expect(participantsOf(rumor)).toEqual([alice.publicKey, bob.publicKey, carol.publicKey].sort());
   });
 });
 

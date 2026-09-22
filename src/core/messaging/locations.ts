@@ -20,7 +20,14 @@ export function parseLocation(url: string): Location | null {
   const location: Location = { url };
 
   const label = params.q ?? params.query ?? params.address ?? params.name ?? params.daddr;
-  const coordinateParams = [params.ll, params.coordinate, params.q, params.query, params.daddr, params.center];
+  const coordinateParams = [
+    params.ll,
+    params.coordinate,
+    params.q,
+    params.query,
+    params.daddr,
+    params.center,
+  ];
   for (const candidate of coordinateParams) {
     const pair = candidate ? parsePair(candidate) : null;
     if (pair) {

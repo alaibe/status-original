@@ -38,11 +38,12 @@ const TRAILING_PUNCTUATION = /[.,;:!?'"\]}>]+$/;
 const DATE = /^(?:\d{4}[-./]\d{1,2}[-./]\d{1,2}|\d{1,2}[-./]\d{1,2}[-./]\d{2,4})$/;
 const DECIMAL = /^\d+\.\d+$/;
 
-export const EXPLORERS: Record<AddressFamily, { name: string; url: (address: string) => string }> = {
-  evm: { name: 'Etherscan', url: (a) => `https://etherscan.io/address/${a}` },
-  bitcoin: { name: 'mempool.space', url: (a) => `https://mempool.space/address/${a}` },
-  solana: { name: 'Solscan', url: (a) => `https://solscan.io/account/${a}` },
-};
+export const EXPLORERS: Record<AddressFamily, { name: string; url: (address: string) => string }> =
+  {
+    evm: { name: 'Etherscan', url: (a) => `https://etherscan.io/address/${a}` },
+    bitcoin: { name: 'mempool.space', url: (a) => `https://mempool.space/address/${a}` },
+    solana: { name: 'Solscan', url: (a) => `https://solscan.io/account/${a}` },
+  };
 
 export const ENS_APP = 'https://app.ens.domains/';
 
@@ -107,13 +108,23 @@ function classify(match: RegExpExecArray, text: string): LinkSegment | null {
   if (bech32 && bounded) {
     const mixedCase = /[a-z]/.test(bech32) && /[A-Z]/.test(bech32);
     if (mixedCase) return null;
-    return { kind: 'address', family: 'bitcoin', text: bech32, href: EXPLORERS.bitcoin.url(bech32) };
+    return {
+      kind: 'address',
+      family: 'bitcoin',
+      text: bech32,
+      href: EXPLORERS.bitcoin.url(bech32),
+    };
   }
 
   if (base58Token && bounded) {
     const family = base58Family(base58Token);
     if (family) {
-      return { kind: 'address', family, text: base58Token, href: EXPLORERS[family].url(base58Token) };
+      return {
+        kind: 'address',
+        family,
+        text: base58Token,
+        href: EXPLORERS[family].url(base58Token),
+      };
     }
     return null;
   }

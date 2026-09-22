@@ -19,7 +19,7 @@ import {
 } from '@/design';
 import { botIdFromConversation, isLocalConversation } from '@/core/messaging/bots';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
-import type { ChatMessage , MessageContent } from '@/core/messaging/types';
+import type { ChatMessage, MessageContent } from '@/core/messaging/types';
 import { useAppearanceStore } from '@/core/app/appearance';
 import { useBack } from '@/features/navigation/use-back';
 import { contentPreview, isNewDay } from '@/core/messaging/preview';
@@ -60,8 +60,9 @@ export default function ConversationScreen() {
 
   const sessions = useChatStore((s) => s.sessions);
   const conversation = useChatStore((s) => s.conversations.find((c) => c.id === id));
-  const fetchingHistory = useChatStore((s) =>
-    !!conversation?.protocol && s.protocols[conversation.protocol]?.history?.status === 'fetching'
+  const fetchingHistory = useChatStore(
+    (s) =>
+      !!conversation?.protocol && s.protocols[conversation.protocol]?.history?.status === 'fetching'
   );
   const messages = useChatStore((s) => s.messages[id]) ?? NO_MESSAGES;
   const loadMessages = useChatStore((s) => s.loadMessages);
@@ -157,9 +158,7 @@ export default function ConversationScreen() {
     />
   );
 
-  const title = conversation
-    ? conversationTitle(conversation, selfId, nameFor)
-    : 'Conversation';
+  const title = conversation ? conversationTitle(conversation, selfId, nameFor) : 'Conversation';
 
   return (
     <View className={desktop ? 'flex-1' : 'flex-1 bg-canvas'}>
@@ -169,19 +168,19 @@ export default function ConversationScreen() {
         className="absolute left-0 right-0 top-0 z-10 flex-row items-center gap-2 px-3"
         style={{ paddingTop: insets.top + frame.top + 6, paddingBottom: 8 }}>
         {desktop ? null : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={goBack}
-          className="h-10 w-10 items-center justify-center overflow-hidden rounded-pill">
-          <BlurView
-            intensity={40}
-            tint={colors.scheme === 'dark' ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          />
-          <View className="absolute inset-0 bg-canvas/55" />
-          <Icon name="chevron-back" size={22} color={colors.brand} />
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            onPress={goBack}
+            className="h-10 w-10 items-center justify-center overflow-hidden rounded-pill">
+            <BlurView
+              intensity={40}
+              tint={colors.scheme === 'dark' ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+            <View className="absolute inset-0 bg-canvas/55" />
+            <Icon name="chevron-back" size={22} color={colors.brand} />
+          </Pressable>
         )}
 
         <Pressable
@@ -233,19 +232,19 @@ export default function ConversationScreen() {
           <View className="flex-1">
             <HistoryStatus protocol={conversation?.protocol} />
             <EmptyState
-            icon={
-              <Icon
-                name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
-                size={40}
-                color={colors['content-subtle']}
-              />
-            }
-            title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
-            description={
-              isBot
-                ? 'Type /commands to see what you can do in this chat.'
-                : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
-            }
+              icon={
+                <Icon
+                  name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
+                  size={40}
+                  color={colors['content-subtle']}
+                />
+              }
+              title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
+              description={
+                isBot
+                  ? 'Type /commands to see what you can do in this chat.'
+                  : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
+              }
             />
           </View>
         ) : (
@@ -269,11 +268,17 @@ export default function ConversationScreen() {
                 {messageHistory?.hasOlder ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={messageHistory.error ? `Retry loading earlier messages. ${messageHistory.error}` : 'Load earlier messages'}
+                    accessibilityLabel={
+                      messageHistory.error
+                        ? `Retry loading earlier messages. ${messageHistory.error}`
+                        : 'Load earlier messages'
+                    }
                     disabled={messageHistory.loading}
                     onPress={() => void loadOlderMessages(id)}
                     className="items-center px-gutter py-3">
-                    <Text variant="caption" className={messageHistory.error ? 'text-danger' : undefined}>
+                    <Text
+                      variant="caption"
+                      className={messageHistory.error ? 'text-danger' : undefined}>
                       {messageHistory.loading
                         ? 'Loading earlier messages…'
                         : messageHistory.error
@@ -282,7 +287,9 @@ export default function ConversationScreen() {
                     </Text>
                   </Pressable>
                 ) : null}
-                {!isBot && conversation?.protocol ? <HistoryStatus protocol={conversation.protocol} /> : null}
+                {!isBot && conversation?.protocol ? (
+                  <HistoryStatus protocol={conversation.protocol} />
+                ) : null}
               </View>
             }
             ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
@@ -297,19 +304,19 @@ export default function ConversationScreen() {
           {conversation?.consent === 'unknown' ? (
             <ConsentBar conversationId={id} />
           ) : (
-          <Composer
-            conversationId={id}
-            onSendText={onSendText}
-            onSendContent={onSendContent}
-            replyTo={replyPreview}
-            onCancelReply={() => setReplyTo(null)}
-            pendingCommand={pendingCommand}
-            onPendingCommandHandled={clearPendingCommand}
-            onRunningChange={(command) => {
-              setRunning(command);
-              if (command) followNewest();
-            }}
-          />
+            <Composer
+              conversationId={id}
+              onSendText={onSendText}
+              onSendContent={onSendContent}
+              replyTo={replyPreview}
+              onCancelReply={() => setReplyTo(null)}
+              pendingCommand={pendingCommand}
+              onPendingCommandHandled={clearPendingCommand}
+              onRunningChange={(command) => {
+                setRunning(command);
+                if (command) followNewest();
+              }}
+            />
           )}
         </View>
       </KeyboardAvoidingView>

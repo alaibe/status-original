@@ -57,10 +57,7 @@ export function readAccountUr(ur: UR): KeystoneAccount {
 
   const path = `m/${key.getOrigin().getPath()}`;
   const xfp = accounts.getMasterFingerprint().toString('hex');
-  const address = `0x${key
-    .getKey()
-    .toString('hex')
-    .slice(-40)}` as Address;
+  const address = `0x${key.getKey().toString('hex').slice(-40)}` as Address;
 
   return { address, path, xfp };
 }

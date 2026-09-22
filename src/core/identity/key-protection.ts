@@ -40,9 +40,7 @@ export async function deleteMnemonic(accountId: string): Promise<void> {
   await vaultDeleteProtected(accountMnemonicKey(accountId)).catch(() => {});
 }
 
-export type ProtectionChange =
-  | { ok: true }
-  | { ok: false; reason: 'denied' | 'unreadable' };
+export type ProtectionChange = { ok: true } | { ok: false; reason: 'denied' | 'unreadable' };
 
 export async function enableKeyProtection(accountIds: string[]): Promise<ProtectionChange> {
   const moved: string[] = [];

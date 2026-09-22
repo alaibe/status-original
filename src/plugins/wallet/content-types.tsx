@@ -2,17 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import {
-  Badge,
-  Button,
-  cn,
-  Enter,
-  Eyebrow,
-  Icon,
-  Sheet,
-  Text,
-  useThemeColors,
-} from '@/design';
+import { Badge, Button, cn, Enter, Eyebrow, Icon, Sheet, Text, useThemeColors } from '@/design';
 import { shortAddress } from '@/core/identity/keyring';
 import type { MessageRendererProps, PluginContentType } from '@/core/plugins/types';
 
@@ -29,13 +19,7 @@ import { walletErrorMessage } from './errors';
 import { commitTransfer, networkOffMessage } from './transfer';
 import { chainStrategies, type ChainStrategy } from './chains/strategy';
 
-function CardShell({
-  fromMe,
-  children,
-}: {
-  fromMe: boolean;
-  children: React.ReactNode;
-}) {
+function CardShell({ fromMe, children }: { fromMe: boolean; children: React.ReactNode }) {
   return (
     <View
       className={cn(
@@ -62,7 +46,12 @@ function chainLabel(data: { chain?: string; chainId?: number }): string {
   return data.chain ?? 'an unknown chain';
 }
 
-function PaymentRequestCard({ data, fromMe, context, message }: MessageRendererProps<PaymentRequest>) {
+function PaymentRequestCard({
+  data,
+  fromMe,
+  context,
+  message,
+}: MessageRendererProps<PaymentRequest>) {
   const colors = useThemeColors();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);

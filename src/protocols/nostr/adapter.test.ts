@@ -29,10 +29,7 @@ function deriveFor(secret: Uint8Array) {
   };
 }
 
-async function connect(
-  relayUrls = ['wss://a.example'],
-  store = new InMemoryMessageStore(),
-) {
+async function connect(relayUrls = ['wss://a.example'], store = new InMemoryMessageStore()) {
   const factory = fakeRelayFactory();
   const session = await NostrSession.connect({
     derive: deriveFor(ALICE_SECRET),
@@ -81,7 +78,10 @@ describe('subscribing', () => {
     expect(verifyEvent(auth)).toBe(true);
     expect(auth.pubkey).toBe(alice.publicKey);
     expect(auth.kind).toBe(22242);
-    expect(auth.tags).toEqual([['relay', relay.url], ['challenge', 'private-inbox-challenge']]);
+    expect(auth.tags).toEqual([
+      ['relay', relay.url],
+      ['challenge', 'private-inbox-challenge'],
+    ]);
     expect(factory.relays[1].sent.some((m) => m[0] === 'AUTH')).toBe(false);
     expect(relay.published).toEqual([]);
     expect(relay.sent.filter((m) => m[0] === 'REQ')).toHaveLength(1);
@@ -99,7 +99,9 @@ describe('subscribing', () => {
     try {
       const { session, factory } = await connect(['wss://a.example', 'wss://b.example']);
       let latest: HistoryState = { status: 'idle' };
-      session.subscribeHistory((state) => { latest = state; });
+      session.subscribeHistory((state) => {
+        latest = state;
+      });
       const syncing = session.sync();
       const rejected = expect(syncing).rejects.toThrow('1 of 2 relays');
       const subscription = String(factory.relays[0].sent.find((m) => m[0] === 'REQ')![1]);
@@ -122,7 +124,9 @@ describe('subscribing', () => {
       store: new InMemoryMessageStore(),
     });
     let finished = false;
-    const syncing = session.sync().then(() => { finished = true; });
+    const syncing = session.sync().then(() => {
+      finished = true;
+    });
     await Promise.resolve();
     expect(finished).toBe(false);
     for (const relay of factory.relays) relay.open();
@@ -312,9 +316,9 @@ describe('sending', () => {
     // Never opened: nothing is connected.
     const conversation = await session.createDm(bob.publicKey);
 
-    await expect(
-      session.send(conversation.id, { kind: 'text', text: 'lost' })
-    ).rejects.toThrow(/No relay accepted/);
+    await expect(session.send(conversation.id, { kind: 'text', text: 'lost' })).rejects.toThrow(
+      /No relay accepted/
+    );
   });
 
   it('retries only the unresolved wrap with stable rumor and wrap ids', async () => {
@@ -357,12 +361,14 @@ describe('sending', () => {
     const { session, factory } = await connect(['wss://a.example'], new FlakyStore());
     const conversation = await session.createDm(bob.publicKey);
 
-    await expect(session.send(conversation.id, { kind: 'text', text: 'persist me' }))
-      .rejects.toThrow('disk full');
+    await expect(
+      session.send(conversation.id, { kind: 'text', text: 'persist me' })
+    ).rejects.toThrow('disk full');
     const publishedIds = factory.relays[0].published.map((event) => event.id);
 
-    await expect(session.send(conversation.id, { kind: 'text', text: 'persist me' }))
-      .resolves.toBeTruthy();
+    await expect(
+      session.send(conversation.id, { kind: 'text', text: 'persist me' })
+    ).resolves.toBeTruthy();
     expect(factory.relays[0].published.map((event) => event.id)).toEqual(publishedIds);
     expect(await session.getMessages(conversation.id)).toHaveLength(1);
   });
@@ -425,8 +431,12 @@ describe('catch-up cursor', () => {
     await settleDeliveries();
 
     const [conversation] = await session.listConversations();
-    expect((await session.getMessages(conversation.id))[0].sentAt).toBe(wrapped.rumor.created_at * 1000);
-    await expect(store.newestTransportTimestamp('nostr', Date.now())).resolves.toBe(giftWrap.created_at * 1000);
+    expect((await session.getMessages(conversation.id))[0].sentAt).toBe(
+      wrapped.rumor.created_at * 1000
+    );
+    await expect(store.newestTransportTimestamp('nostr', Date.now())).resolves.toBe(
+      giftWrap.created_at * 1000
+    );
   });
 
   it('ignores a persisted sender timestamp beyond the trusted local clock', async () => {
@@ -442,14 +452,20 @@ describe('catch-up cursor', () => {
       createdAt: old,
       hidden: false,
     });
-    await store.insertMessage(storedMessage(conversationId, 'old', old), {
-      id: conversationId,
-      protocolId: 'nostr',
-      participants,
-      createdAt: old,
-      hidden: false,
-    }, old);
-    await store.insertMessage(storedMessage(conversationId, 'poison', now + 365 * 24 * 60 * 60 * 1_000));
+    await store.insertMessage(
+      storedMessage(conversationId, 'old', old),
+      {
+        id: conversationId,
+        protocolId: 'nostr',
+        participants,
+        createdAt: old,
+        hidden: false,
+      },
+      old
+    );
+    await store.insertMessage(
+      storedMessage(conversationId, 'poison', now + 365 * 24 * 60 * 60 * 1_000)
+    );
 
     const factory = fakeRelayFactory();
     const session = await NostrSession.connect({
@@ -459,7 +475,9 @@ describe('catch-up cursor', () => {
       store,
     });
     factory.relays[0].open();
-    const filter = factory.relays[0].sent.find((message) => message[0] === 'REQ')![2] as { since: number };
+    const filter = factory.relays[0].sent.find((message) => message[0] === 'REQ')![2] as {
+      since: number;
+    };
 
     expect(filter.since).toBe(Math.floor(old / 1_000) - 3 * 24 * 60 * 60);
     await session.disconnect();
@@ -548,7 +566,6 @@ describe('teardown', () => {
     await session.disconnect();
     expect(factory.relays.every((r) => r.closed)).toBe(true);
   });
-
 });
 
 function textOf(message: ChatMessage): string {

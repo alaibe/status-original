@@ -21,13 +21,7 @@ import {
 } from './keyring';
 import { errorMessage } from '../errors';
 
-export type IdentityStatus =
-  | 'loading'
-  | 'absent'
-  | 'ready'
-  | 'blocked'
-  | 'invalidated'
-  | 'error';
+export type IdentityStatus = 'loading' | 'absent' | 'ready' | 'blocked' | 'invalidated' | 'error';
 
 interface IdentityState {
   status: IdentityStatus;
@@ -39,11 +33,7 @@ interface IdentityState {
   restore(): Promise<void>;
   retryUnlock(): Promise<boolean>;
   adoptIdentity(phrase: string, label?: string): Promise<void>;
-  addHardwareAccount(params: {
-    address: Address;
-    vendorId: string;
-    label?: string;
-  }): Promise<void>;
+  addHardwareAccount(params: { address: Address; vendorId: string; label?: string }): Promise<void>;
   selectAccount(id: string): Promise<void>;
   renameAccount(id: string, label: string): Promise<void>;
   removeErasedAccount(id: string): Promise<void>;

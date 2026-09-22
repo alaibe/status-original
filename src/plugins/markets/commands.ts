@@ -22,10 +22,10 @@ export async function alertsCard(context: PluginContext) {
     return {
       kind: 'widget' as const,
       fallback: 'No alerts',
-      widget: W.card(
-        [W.text('No alerts yet. Set one with /alert btc above 100000.')],
-        { title: 'Price alerts', icon: 'notifications-outline' }
-      ),
+      widget: W.card([W.text('No alerts yet. Set one with /alert btc above 100000.')], {
+        title: 'Price alerts',
+        icon: 'notifications-outline',
+      }),
     };
   }
 
@@ -104,7 +104,10 @@ export function marketsCommands(
           });
           return { type: 'handled' };
         } catch (error) {
-          return { type: 'error', message: errorMessage(error, 'Could not reach the market data.') };
+          return {
+            type: 'error',
+            message: errorMessage(error, 'Could not reach the market data.'),
+          };
         }
       },
     },

@@ -2,7 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChatStore } from './chat-store';
 import { InMemoryChatSession } from './in-memory-session';
 import { InMemoryMessageStore } from './message-store';
-import { connectFake, disconnectFake, ns, projectTestAccount, resetChatStore } from './testing/store';
+import {
+  connectFake,
+  disconnectFake,
+  ns,
+  projectTestAccount,
+  resetChatStore,
+} from './testing/store';
 
 jest.mock('../identity/keyring', () => ({
   ...jest.requireActual('../identity/keyring'),
@@ -51,9 +57,7 @@ describe('sending', () => {
     const messages = useChatStore.getState().messages[ns('c1')];
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatchObject({ fromMe: true, status: 'sent' });
-    expect(session.sent).toEqual([
-      { conversationId: 'c1', content: { kind: 'text', text: 'hi' } },
-    ]);
+    expect(session.sent).toEqual([{ conversationId: 'c1', content: { kind: 'text', text: 'hi' } }]);
   });
 
   /**
@@ -127,9 +131,11 @@ describe('sending', () => {
     await useChatStore.getState().loadMessages(ns('c1'));
 
     const finishes: (() => void)[] = [];
-    jest.spyOn(session, 'send').mockImplementation(() =>
-      new Promise<string>((resolve) => finishes.push(() => resolve('sent')))
-    );
+    jest
+      .spyOn(session, 'send')
+      .mockImplementation(
+        () => new Promise<string>((resolve) => finishes.push(() => resolve('sent')))
+      );
     const first = useChatStore.getState().sendMessage(ns('c1'), { kind: 'text', text: 'first' });
     const second = useChatStore.getState().sendMessage(ns('c1'), { kind: 'text', text: 'second' });
 
@@ -302,11 +308,15 @@ describe('stored history pagination', () => {
     });
 
     await useChatStore.getState().loadMessages('local-status');
-    expect(useChatStore.getState().messages['local-status'].some((entry) => entry.id === 'm001')).toBe(false);
+    expect(
+      useChatStore.getState().messages['local-status'].some((entry) => entry.id === 'm001')
+    ).toBe(false);
     await useChatStore.getState().loadOlderMessages('local-status');
 
-    expect(useChatStore.getState().messages['local-status'].find((entry) => entry.id === 'm001')?.reactions)
-      .toEqual({ '👍': ['me'] });
+    expect(
+      useChatStore.getState().messages['local-status'].find((entry) => entry.id === 'm001')
+        ?.reactions
+    ).toEqual({ '👍': ['me'] });
   });
 });
 
@@ -324,27 +334,35 @@ describe('account-bound async projections', () => {
     deferred.resolve([testConversation('old-conversation')]);
     await refreshing;
 
-    expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual(['new-conversation']);
+    expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual([
+      'new-conversation',
+    ]);
   });
 
-  it.each(['startDm', 'startGroup'] as const)('does not project deferred %s after an account switch', async (operation) => {
-    const old = new InMemoryChatSession();
-    const deferred = defer<Awaited<ReturnType<InMemoryChatSession['createDm']>>>();
-    if (operation === 'startDm') jest.spyOn(old, 'createDm').mockReturnValue(deferred.promise);
-    else jest.spyOn(old, 'createGroup').mockReturnValue(deferred.promise);
-    projectTestAccount('old');
-    useChatStore.setState({ sessions: { xmtp: old } });
+  it.each(['startDm', 'startGroup'] as const)(
+    'does not project deferred %s after an account switch',
+    async (operation) => {
+      const old = new InMemoryChatSession();
+      const deferred = defer<Awaited<ReturnType<InMemoryChatSession['createDm']>>>();
+      if (operation === 'startDm') jest.spyOn(old, 'createDm').mockReturnValue(deferred.promise);
+      else jest.spyOn(old, 'createGroup').mockReturnValue(deferred.promise);
+      projectTestAccount('old');
+      useChatStore.setState({ sessions: { xmtp: old } });
 
-    const starting = operation === 'startDm'
-      ? useChatStore.getState().startDm('xmtp', 'peer')
-      : useChatStore.getState().startGroup('xmtp', ['peer'], 'Old');
-    projectTestAccount('new');
-    useChatStore.setState({ conversations: [testConversation('new-conversation')] });
-    deferred.resolve(testConversation('native-old'));
-    await starting;
+      const starting =
+        operation === 'startDm'
+          ? useChatStore.getState().startDm('xmtp', 'peer')
+          : useChatStore.getState().startGroup('xmtp', ['peer'], 'Old');
+      projectTestAccount('new');
+      useChatStore.setState({ conversations: [testConversation('new-conversation')] });
+      deferred.resolve(testConversation('native-old'));
+      await starting;
 
-    expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual(['new-conversation']);
-  });
+      expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual([
+        'new-conversation',
+      ]);
+    }
+  );
 
   it.each(['addMembers', 'removeMembers', 'renameGroup', 'leaveGroup'] as const)(
     'does not project deferred %s completion after an account switch',
@@ -354,58 +372,72 @@ describe('account-bound async projections', () => {
       const deferred = defer<void>();
       jest.spyOn(old, operation).mockReturnValue(deferred.promise);
       projectTestAccount('old');
-      useChatStore.setState({ sessions: { xmtp: old }, conversations: [testConversation(ns('group'))] });
+      useChatStore.setState({
+        sessions: { xmtp: old },
+        conversations: [testConversation(ns('group'))],
+      });
 
       const state = useChatStore.getState();
-      const mutating = operation === 'addMembers'
-        ? state.addMembers(ns('group'), ['other'])
-        : operation === 'removeMembers'
-          ? state.removeMembers(ns('group'), ['peer'])
-          : operation === 'renameGroup'
-            ? state.renameGroup(ns('group'), 'Renamed')
-            : state.leaveGroup(ns('group'));
+      const mutating =
+        operation === 'addMembers'
+          ? state.addMembers(ns('group'), ['other'])
+          : operation === 'removeMembers'
+            ? state.removeMembers(ns('group'), ['peer'])
+            : operation === 'renameGroup'
+              ? state.renameGroup(ns('group'), 'Renamed')
+              : state.leaveGroup(ns('group'));
       projectTestAccount('new');
       useChatStore.setState({ conversations: [testConversation('new-conversation')] });
       deferred.resolve();
       await mutating;
 
-      expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual(['new-conversation']);
-    },
+      expect(useChatStore.getState().conversations.map((entry) => entry.id)).toEqual([
+        'new-conversation',
+      ]);
+    }
   );
 });
 
 describe('local persistence failures', () => {
-  it.each(['message', 'private message', 'reaction'] as const)('does not show a %s as sent', async (kind) => {
-    class FailingStore extends InMemoryMessageStore {
-      override async insertMessage(): Promise<boolean> {
-        throw new Error('disk full');
+  it.each(['message', 'private message', 'reaction'] as const)(
+    'does not show a %s as sent',
+    async (kind) => {
+      class FailingStore extends InMemoryMessageStore {
+        override async insertMessage(): Promise<boolean> {
+          throw new Error('disk full');
+        }
       }
+      projectTestAccount('test-account', new FailingStore());
+      const target = {
+        id: 'target',
+        conversationId: 'local-status',
+        senderId: 'me',
+        sentAt: 1,
+        content: { kind: 'text' as const, text: 'target' },
+        fromMe: true,
+        status: 'sent' as const,
+      };
+      useChatStore.setState({
+        conversations: [testConversation('local-status')],
+        messages: { 'local-status': [target] },
+        rawMessages: { 'local-status': [target] },
+      });
+
+      const action =
+        kind === 'message'
+          ? useChatStore
+              .getState()
+              .postLocalMessage('local-status', { kind: 'text', text: 'new' }, 'me')
+          : kind === 'private message'
+            ? useChatStore
+                .getState()
+                .postPrivateMessage('local-status', { kind: 'text', text: 'private' })
+            : useChatStore.getState().react('local-status', 'target', '👍');
+      await expect(action).rejects.toThrow('disk full');
+
+      expect(useChatStore.getState().messages['local-status']).toEqual([target]);
     }
-    projectTestAccount('test-account', new FailingStore());
-    const target = {
-      id: 'target',
-      conversationId: 'local-status',
-      senderId: 'me',
-      sentAt: 1,
-      content: { kind: 'text' as const, text: 'target' },
-      fromMe: true,
-      status: 'sent' as const,
-    };
-    useChatStore.setState({
-      conversations: [testConversation('local-status')],
-      messages: { 'local-status': [target] },
-      rawMessages: { 'local-status': [target] },
-    });
-
-    const action = kind === 'message'
-      ? useChatStore.getState().postLocalMessage('local-status', { kind: 'text', text: 'new' }, 'me')
-      : kind === 'private message'
-        ? useChatStore.getState().postPrivateMessage('local-status', { kind: 'text', text: 'private' })
-        : useChatStore.getState().react('local-status', 'target', '👍');
-    await expect(action).rejects.toThrow('disk full');
-
-    expect(useChatStore.getState().messages['local-status']).toEqual([target]);
-  });
+  );
 });
 
 describe('private command output', () => {
@@ -476,7 +508,9 @@ describe('consent', () => {
 
     // The point of routing this through the session rather than a local flag:
     // a reinstall, and this identity's other phone, both have to see it.
-    expect((await session.listConversations()).find((c) => c.id === 'spam')?.consent).toBe('denied');
+    expect((await session.listConversations()).find((c) => c.id === 'spam')?.consent).toBe(
+      'denied'
+    );
   });
 
   it('puts the conversation back when the transport refuses', async () => {
@@ -511,7 +545,9 @@ describe('consent', () => {
 
 function defer<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => { resolve = done; });
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 

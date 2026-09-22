@@ -27,7 +27,11 @@ describe('the light and dark palettes', () => {
    */
   it('puts dark on the dark side', () => {
     const luminance = (rgb: string) => {
-      const [r, g, b] = rgb.replace(/[^\d ]/g, '').trim().split(/\s+/).map(Number);
+      const [r, g, b] = rgb
+        .replace(/[^\d ]/g, '')
+        .trim()
+        .split(/\s+/)
+        .map(Number);
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
 

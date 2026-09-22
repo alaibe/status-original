@@ -61,12 +61,7 @@ describe('sighash', () => {
 
   it('is 32 bytes and commits to the input amount', () => {
     const a = sighash(inputs, outputs, 0, pub);
-    const b = sighash(
-      [{ ...inputs[0], value: 100_001n }],
-      outputs,
-      0,
-      pub
-    );
+    const b = sighash([{ ...inputs[0], value: 100_001n }], outputs, 0, pub);
 
     expect(a).toHaveLength(32);
     // BIP-143's whole point: the pre-image commits to what is being spent, so
@@ -76,9 +71,7 @@ describe('sighash', () => {
 
   it('changes when an output changes', () => {
     const moved = [{ script: scriptPubKey(address), value: 89_999n }];
-    expect(toHex(sighash(inputs, outputs, 0, pub))).not.toBe(
-      toHex(sighash(inputs, moved, 0, pub))
-    );
+    expect(toHex(sighash(inputs, outputs, 0, pub))).not.toBe(toHex(sighash(inputs, moved, 0, pub)));
   });
 });
 

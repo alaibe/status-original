@@ -10,7 +10,11 @@ describe('segmentText', () => {
   it('links a URL with a scheme and keeps the surrounding text', () => {
     expect(segmentText('see https://github.com/tauri-apps/tauri now')).toEqual([
       { kind: 'text', text: 'see ' },
-      { kind: 'url', text: 'https://github.com/tauri-apps/tauri', href: 'https://github.com/tauri-apps/tauri' },
+      {
+        kind: 'url',
+        text: 'https://github.com/tauri-apps/tauri',
+        href: 'https://github.com/tauri-apps/tauri',
+      },
       { kind: 'text', text: ' now' },
     ]);
   });
@@ -18,7 +22,11 @@ describe('segmentText', () => {
   it('links www. and bare domains with a known ending, adding https', () => {
     expect(links('www.example.org and laravel-news.com/vacuum-laravel')).toEqual([
       { kind: 'url', text: 'www.example.org', href: 'https://www.example.org' },
-      { kind: 'url', text: 'laravel-news.com/vacuum-laravel', href: 'https://laravel-news.com/vacuum-laravel' },
+      {
+        kind: 'url',
+        text: 'laravel-news.com/vacuum-laravel',
+        href: 'https://laravel-news.com/vacuum-laravel',
+      },
     ]);
   });
 
@@ -90,9 +98,24 @@ describe('segmentText: addresses, names and places', () => {
     const solana = 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK';
     expect(links(`${evm} ${bech32} ${legacy} ${solana}`)).toEqual([
       { kind: 'address', family: 'evm', text: evm, href: `https://etherscan.io/address/${evm}` },
-      { kind: 'address', family: 'bitcoin', text: bech32, href: `https://mempool.space/address/${bech32}` },
-      { kind: 'address', family: 'bitcoin', text: legacy, href: `https://mempool.space/address/${legacy}` },
-      { kind: 'address', family: 'solana', text: solana, href: `https://solscan.io/account/${solana}` },
+      {
+        kind: 'address',
+        family: 'bitcoin',
+        text: bech32,
+        href: `https://mempool.space/address/${bech32}`,
+      },
+      {
+        kind: 'address',
+        family: 'bitcoin',
+        text: legacy,
+        href: `https://mempool.space/address/${legacy}`,
+      },
+      {
+        kind: 'address',
+        family: 'solana',
+        text: solana,
+        href: `https://solscan.io/account/${solana}`,
+      },
     ]);
   });
 

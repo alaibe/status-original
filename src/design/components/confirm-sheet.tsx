@@ -58,7 +58,13 @@ export function ConfirmSheet({
           disabled={busy}
           onPress={confirm.onPress}
         />
-        <Button label={cancelLabel} tone="neutral" fullWidth disabled={busy} onPress={sheet.onClose} />
+        <Button
+          label={cancelLabel}
+          tone="neutral"
+          fullWidth
+          disabled={busy}
+          onPress={sheet.onClose}
+        />
       </View>
     </Sheet>
   );

@@ -11,7 +11,6 @@ import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/us
 import { openChat } from '@/features/navigation/open';
 
 export default function RequestsScreen() {
-
   const sessions = useChatStore((s) => s.sessions);
   const conversations = useChatStore((s) => s.conversations);
   const requests = conversations.filter((c) => c.consent === 'unknown');

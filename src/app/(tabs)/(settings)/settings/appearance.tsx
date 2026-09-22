@@ -42,7 +42,6 @@ export default function AppearanceScreen() {
       <Stack.Screen options={{ title: 'Appearance' }} />
 
       <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}>
-
         <Section title="Theme" surface="card" className="mb-6">
           {THEMES.map((entry) => (
             <ListItem

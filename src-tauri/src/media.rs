@@ -8,11 +8,19 @@ use tauri::AppHandle;
 
 use crate::paths::{data_dir, remove_dir, safe_component};
 
-fn media_path(app: &AppHandle, account_id: &str, area: &str, name: &str) -> Result<PathBuf, String> {
+fn media_path(
+    app: &AppHandle,
+    account_id: &str,
+    area: &str,
+    name: &str,
+) -> Result<PathBuf, String> {
     safe_component(account_id, "account")?;
     safe_component(area, "area")?;
     safe_component(name, "name")?;
-    Ok(data_dir(app, "media")?.join(account_id).join(area).join(name))
+    Ok(data_dir(app, "media")?
+        .join(account_id)
+        .join(area)
+        .join(name))
 }
 
 /// Writes the file unless it already exists, and returns its path.

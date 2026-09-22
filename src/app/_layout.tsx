@@ -128,40 +128,45 @@ function AppShell() {
     <View className="flex-1 bg-canvas">
       <StatusBar style={colors.scheme === 'dark' ? 'light' : 'dark'} />
       <AppFrame>
-      <Stack
-        screenOptions={{ headerShown: false, ...stackScreenOptions(colors) }}
-        screenLayout={
-          desktop
-            ? ({ route, children }) =>
-                DIALOG_ROUTES.has(route.name) ? <Dialog>{children}</Dialog> : <>{children}</>
-            : undefined
-        }>
-        <Stack.Screen name="index" options={{ animation: 'none' }} />
-        <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen
-          name="profile/[id]"
-          options={{ animation: 'slide_from_right', presentation: desktop ? 'transparentModal' : 'card' }}
-        />
-        <Stack.Screen name="recover" options={{ animation: 'fade' }} />
-        <Stack.Screen name="new-chat" options={SHEET_OPTIONS} />
-        <Stack.Screen name="invite" options={SHEET_OPTIONS} />
-        <Stack.Screen name="qr" options={SHEET_OPTIONS} />
-        <Stack.Screen
-          name="sheet"
-          options={{
-            presentation: 'formSheet',
-            sheetAllowedDetents: 'fitToContents',
-            contentStyle: { backgroundColor: colors.surface },
-          }}
-        />
-      </Stack>
+        <Stack
+          screenOptions={{ headerShown: false, ...stackScreenOptions(colors) }}
+          screenLayout={
+            desktop
+              ? ({ route, children }) =>
+                  DIALOG_ROUTES.has(route.name) ? <Dialog>{children}</Dialog> : <>{children}</>
+              : undefined
+          }>
+          <Stack.Screen name="index" options={{ animation: 'none' }} />
+          <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+          <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen
+            name="profile/[id]"
+            options={{
+              animation: 'slide_from_right',
+              presentation: desktop ? 'transparentModal' : 'card',
+            }}
+          />
+          <Stack.Screen name="recover" options={{ animation: 'fade' }} />
+          <Stack.Screen name="new-chat" options={SHEET_OPTIONS} />
+          <Stack.Screen name="invite" options={SHEET_OPTIONS} />
+          <Stack.Screen name="qr" options={SHEET_OPTIONS} />
+          <Stack.Screen
+            name="sheet"
+            options={{
+              presentation: 'formSheet',
+              sheetAllowedDetents: 'fitToContents',
+              contentStyle: { backgroundColor: colors.surface },
+            }}
+          />
+        </Stack>
       </AppFrame>
       <PluginOverlays />
       <ToastHost />
 
-      {lockStatus === 'open' ? null : lockStatus === 'locked' ? <LockGate /> : (
+      {lockStatus === 'open' ? null : lockStatus === 'locked' ? (
+        <LockGate />
+      ) : (
         <View className="absolute inset-0 bg-canvas" />
       )}
     </View>

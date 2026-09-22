@@ -17,7 +17,6 @@ import {
 } from './nip17';
 import { RelayPool, type RelayState, type WebSocketLike } from './relay-pool';
 
-
 export const NOSTR_PROTOCOL_ID = 'nostr';
 
 /**
@@ -63,15 +62,18 @@ class NostrTransport implements ChatTransport {
   private historyCursor: number | undefined;
   private deliveryError: unknown;
   private readonly deliveries = new Set<Promise<void>>();
-  private readonly pendingSends = new Map<string, {
-    content: string;
-    rumor: Rumor;
-    remaining: NostrEvent[];
-  }>();
+  private readonly pendingSends = new Map<
+    string,
+    {
+      content: string;
+      rumor: Rumor;
+      remaining: NostrEvent[];
+    }
+  >();
 
   constructor(
     readonly identity: NostrIdentity,
-    readonly pool: RelayPool,
+    readonly pool: RelayPool
   ) {
     this.self = { participantId: identity.publicKey, address: identity.npub };
   }
@@ -113,13 +115,17 @@ class NostrTransport implements ChatTransport {
     if (!rumor) return;
 
     try {
-      await this.sink?.deliverToParticipants(participantsOf(rumor), {
-        ...this.toIncoming(rumor),
-        transportTimestamp: event.created_at * 1000,
-      }, {
-        title: firstTagValue(rumor, 'subject'),
-        createdAt: rumor.created_at * 1000,
-      });
+      await this.sink?.deliverToParticipants(
+        participantsOf(rumor),
+        {
+          ...this.toIncoming(rumor),
+          transportTimestamp: event.created_at * 1000,
+        },
+        {
+          title: firstTagValue(rumor, 'subject'),
+          createdAt: rumor.created_at * 1000,
+        }
+      );
     } catch (error) {
       this.deliveryError = error;
       this.retryHistory = true;
@@ -157,7 +163,9 @@ class NostrTransport implements ChatTransport {
 
     let pending = this.pendingSends.get(conversation.id);
     if (pending && pending.content !== content.text) {
-      throw new Error('Finish retrying the partially published Nostr message before sending another');
+      throw new Error(
+        'Finish retrying the partially published Nostr message before sending another'
+      );
     }
     if (!pending) {
       const wrapped = wrapForRecipients(this.identity, {
@@ -222,9 +230,13 @@ class NostrTransport implements ChatTransport {
       const timer = setTimeout(() => {
         const completed = urls.filter((url) => this.eosed.has(url));
         const unavailable = urls.filter((url) => !this.eosed.has(url));
-        finish(completed.length > 0
-          ? new PartialHistoryError(`History fetched from ${completed.length} of ${urls.length} relays. Unavailable: ${unavailable.join(', ')}`)
-          : new Error('Nostr history fetch timed out'));
+        finish(
+          completed.length > 0
+            ? new PartialHistoryError(
+                `History fetched from ${completed.length} of ${urls.length} relays. Unavailable: ${unavailable.join(', ')}`
+              )
+            : new Error('Nostr history fetch timed out')
+        );
       }, 15_000);
       this.historyWaiters.add(check);
       check();
@@ -249,7 +261,7 @@ class NostrTransport implements ChatTransport {
 export class NostrSession extends StoreBackedSession implements ChatSession {
   private constructor(
     private readonly nostr: NostrTransport,
-    store: MessageStore,
+    store: MessageStore
   ) {
     super(nostr, store);
     nostr.attach(this);
@@ -262,14 +274,21 @@ export class NostrSession extends StoreBackedSession implements ChatSession {
       new RelayPool({
         urls: options.relays,
         createSocket: options.createSocket,
-        authenticate: (url, challenge) => signEvent({
-          pubkey: identity.publicKey,
-          created_at: nowSeconds(),
-          kind: 22242,
-          tags: [['relay', url], ['challenge', challenge]],
-          content: '',
-        }, identity.secretKey),
-      }),
+        authenticate: (url, challenge) =>
+          signEvent(
+            {
+              pubkey: identity.publicKey,
+              created_at: nowSeconds(),
+              kind: 22242,
+              tags: [
+                ['relay', url],
+                ['challenge', challenge],
+              ],
+              content: '',
+            },
+            identity.secretKey
+          ),
+      })
     );
 
     const session = new NostrSession(transport, options.store);

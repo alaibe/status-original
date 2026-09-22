@@ -11,14 +11,9 @@ export function hash160(bytes: Uint8Array): Uint8Array {
   return ripemd160(sha256(bytes));
 }
 
-export function p2wpkhAddress(
-  publicKey: Uint8Array,
-  network: BitcoinNetwork = 'mainnet'
-): string {
+export function p2wpkhAddress(publicKey: Uint8Array, network: BitcoinNetwork = 'mainnet'): string {
   if (publicKey.length !== 33) {
-    throw new Error(
-      `Expected a 33-byte compressed public key, got ${publicKey.length} bytes.`
-    );
+    throw new Error(`Expected a 33-byte compressed public key, got ${publicKey.length} bytes.`);
   }
 
   const program = hash160(publicKey);

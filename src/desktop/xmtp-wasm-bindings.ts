@@ -13,7 +13,7 @@ export * from '@xmtp/wasm-bindings';
 const WASM_PATH = '/xmtp/bindings_wasm_bg.wasm';
 
 export default function initFromStaticFile(
-  moduleOrPath?: Parameters<typeof init>[0],
+  moduleOrPath?: Parameters<typeof init>[0]
 ): ReturnType<typeof init> {
   return init(moduleOrPath ?? { module_or_path: new URL(WASM_PATH, self.location.href) });
 }

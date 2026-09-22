@@ -10,10 +10,7 @@ export async function readAlerts(context: PluginContext): Promise<MarketAlert[]>
   return (await context.storage.get<MarketAlert[]>(STORAGE_ALERTS)) ?? [];
 }
 
-export async function writeAlerts(
-  context: PluginContext,
-  alerts: MarketAlert[]
-): Promise<void> {
+export async function writeAlerts(context: PluginContext, alerts: MarketAlert[]): Promise<void> {
   await context.storage.set(STORAGE_ALERTS, alerts);
 }
 

@@ -21,7 +21,14 @@ function DragStrip() {
   return (
     <View
       {...DRAG_REGION}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: DRAG_STRIP_HEIGHT, zIndex: 10 }}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: DRAG_STRIP_HEIGHT,
+        zIndex: 10,
+      }}
     />
   );
 }

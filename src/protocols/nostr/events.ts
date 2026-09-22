@@ -22,14 +22,7 @@ export interface Rumor extends UnsignedEvent {
 }
 
 export function serializeEvent(event: UnsignedEvent): string {
-  return JSON.stringify([
-    0,
-    event.pubkey,
-    event.created_at,
-    event.kind,
-    event.tags,
-    event.content,
-  ]);
+  return JSON.stringify([0, event.pubkey, event.created_at, event.kind, event.tags, event.content]);
 }
 
 export function eventId(event: UnsignedEvent): string {

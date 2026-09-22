@@ -21,7 +21,7 @@ export async function compressPickedImage(asset: ImagePickerAsset): Promise<Imag
   canvas.height = height;
   canvas.getContext('2d')?.drawImage(image, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', QUALITY),
+    canvas.toBlob(resolve, 'image/jpeg', QUALITY)
   );
   if (!blob) return asset;
 

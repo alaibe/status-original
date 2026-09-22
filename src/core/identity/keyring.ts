@@ -1,7 +1,7 @@
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 
-import type { LocalAccount , Address } from 'viem';
+import type { LocalAccount, Address } from 'viem';
 
 import type { AccountKind } from './account-kind';
 import { deriveEd25519, type Ed25519Key } from './slip10';
@@ -88,7 +88,6 @@ export async function loadDbEncryptionKey(accountId: string): Promise<Uint8Array
   const bytes = base64ToBytes(value);
   return bytes.length === 32 ? bytes : null;
 }
-
 
 export function shortAddress(address: string, lead = 6, tail = 4): string {
   if (address.length <= lead + tail + 2) return address;

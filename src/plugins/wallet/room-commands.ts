@@ -141,7 +141,11 @@ export function chainRoomCommands(
         if (!check.ok) return { type: 'error', message: check.reason };
 
         await strategy.endpoint.set(ctx, value.replace(/\/$/, ''));
-        return { type: 'notice', tone: 'success', message: `${strategy.name} reads go to ${value} now` };
+        return {
+          type: 'notice',
+          tone: 'success',
+          message: `${strategy.name} reads go to ${value} now`,
+        };
       },
     },
   ];

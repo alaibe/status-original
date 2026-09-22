@@ -2,13 +2,7 @@ import type { MessageContent } from '@/core/messaging/types';
 import { poll, type Bot, type BotContext, type PluginContext } from '@/core/plugins/types';
 import { W } from '@/design/widgets';
 
-import {
-  afterFiring,
-  describeAlert,
-  firedAlerts,
-  symbolsToPoll,
-  type FiredAlert,
-} from './alerts';
+import { afterFiring, describeAlert, firedAlerts, symbolsToPoll, type FiredAlert } from './alerts';
 import { displaySymbol, fetchPrices, formatPrice } from './api';
 import { apiBase, readAlerts, writeAlerts } from './storage';
 

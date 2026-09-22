@@ -58,7 +58,9 @@ export function ActionSheet({ actions, searchFor, ...sheet }: ActionSheetProps) 
         />
       ) : null}
       <Scroller searchable={searchable}>
-        <View style={{ borderCurve: 'continuous' }} className="overflow-hidden rounded-card bg-surface-raised">
+        <View
+          style={{ borderCurve: 'continuous' }}
+          className="overflow-hidden rounded-card bg-surface-raised">
           {shown.length === 0 ? (
             <View className="px-4 py-6">
               <Text variant="caption" className="text-center">
@@ -67,7 +69,8 @@ export function ActionSheet({ actions, searchFor, ...sheet }: ActionSheetProps) 
             </View>
           ) : null}
           {shown.map((action, i) => {
-            const color = action.tone && action.tone !== 'neutral' ? colors[action.tone] : colors.content;
+            const color =
+              action.tone && action.tone !== 'neutral' ? colors[action.tone] : colors.content;
             return (
               <ListItem
                 key={`${action.label}-${i}`}
@@ -79,7 +82,9 @@ export function ActionSheet({ actions, searchFor, ...sheet }: ActionSheetProps) 
                     {action.label}
                   </Text>
                 }
-                leading={action.icon ? <Icon name={action.icon} size={20} color={color} /> : undefined}
+                leading={
+                  action.icon ? <Icon name={action.icon} size={20} color={color} /> : undefined
+                }
                 trailing={
                   action.selected ? (
                     <Icon name="checkmark" size={18} color={colors.brand} />
@@ -105,8 +110,7 @@ function Scroller({ searchable, children }: { searchable: boolean; children: Rea
     <ScrollView
       style={{ maxHeight: LIST_MAX }}
       keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+      showsVerticalScrollIndicator={false}>
       {children}
     </ScrollView>
   );

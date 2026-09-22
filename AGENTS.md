@@ -14,8 +14,11 @@ cannot make clear; never restate the code or add tautological commentary.
 ## Before you finish
 
 ```bash
-npm run typecheck && npm run lint && npm test
+npm run format && npm run typecheck && npm run lint && npm test
 ```
+
+Biome formats TypeScript and JSON, rustfmt formats `src-tauri`. Neither lints;
+`expo lint` still does that.
 
 ## Things that are not obvious from the code
 

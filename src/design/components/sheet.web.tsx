@@ -32,7 +32,15 @@ const MARGIN = 12;
  * On desktop a sheet is a popover: at the pointer when a right-click opened it,
  * centred when a button did. Esc and the backdrop close it.
  */
-export function Sheet({ visible, title, subtitle, leading, anchor, children, onClose }: SheetProps) {
+export function Sheet({
+  visible,
+  title,
+  subtitle,
+  leading,
+  anchor,
+  children,
+  onClose,
+}: SheetProps) {
   const window = useWindowDimensions();
   const insets = useLayoutInsets();
   const [size, setSize] = useState({ width: WIDTH, height: 0 });

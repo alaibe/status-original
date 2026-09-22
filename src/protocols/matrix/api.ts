@@ -113,7 +113,15 @@ export type MxContent =
 
 export type MxOutgoing =
   | { kind: 'text'; body: string }
-  | { kind: 'image'; path: string; mimeType?: string; width?: number; height?: number; size?: number; caption?: string }
+  | {
+      kind: 'image';
+      path: string;
+      mimeType?: string;
+      width?: number;
+      height?: number;
+      size?: number;
+      caption?: string;
+    }
   | { kind: 'file'; path: string; name: string; mimeType?: string; size?: number }
   | { kind: 'voice'; path: string; durationMs: number; mimeType?: string; size?: number };
 

@@ -17,7 +17,6 @@ export default function PrivacyScreen() {
       <Stack.Screen options={{ title: 'Privacy' }} />
 
       <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}>
-
         <Section title="Receipts" surface="card" className="mb-4">
           <ListItem
             title="Send read receipts"

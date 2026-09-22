@@ -78,9 +78,7 @@ describe('membership', () => {
 
     await useChatStore.getState().renameGroup(group.id, 'New');
 
-    expect(
-      useChatStore.getState().conversations.find((c) => c.id === group.id)?.title
-    ).toBe('New');
+    expect(useChatStore.getState().conversations.find((c) => c.id === group.id)?.title).toBe('New');
   });
 });
 
@@ -125,7 +123,10 @@ describe('group messages', () => {
     const group = await useChatStore.getState().startGroup('xmtp', [ALICE, BOB], 'Team');
     await useChatStore.getState().loadMessages(group.id);
 
-    session.deliver(native(group.id), { senderId: ALICE, content: { kind: 'text', text: 'hi all' } });
+    session.deliver(native(group.id), {
+      senderId: ALICE,
+      content: { kind: 'text', text: 'hi all' },
+    });
     session.deliver(native(group.id), { senderId: BOB, content: { kind: 'text', text: 'hey' } });
 
     const messages = useChatStore.getState().messages[group.id];

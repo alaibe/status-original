@@ -41,10 +41,7 @@ export async function resolveName(input: string): Promise<Address | null> {
   return address;
 }
 
-export async function resolveNameForCoin(
-  input: string,
-  coinType: bigint
-): Promise<string | null> {
+export async function resolveNameForCoin(input: string, coinType: bigint): Promise<string | null> {
   const value = input.trim();
   if (!looksLikeEnsName(value)) return null;
 

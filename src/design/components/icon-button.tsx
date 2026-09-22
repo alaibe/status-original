@@ -26,7 +26,11 @@ export function IconButton({
       accessibilityLabel={label}
       className={cn('size-tap items-center justify-center rounded-pill', className)}
       {...props}>
-      <Icon name={icon} size={size} color={tone === 'brand' ? colors.brand : colors['content-muted']} />
+      <Icon
+        name={icon}
+        size={size}
+        color={tone === 'brand' ? colors.brand : colors['content-muted']}
+      />
     </Pressable>
   );
 }

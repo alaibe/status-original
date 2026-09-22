@@ -33,7 +33,10 @@ export function LocationCard({ location, fromMe }: { location: Location; fromMe:
           className={cn('font-semibold', fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on')}>
           {title}
         </Text>
-        <Text variant="caption" numberOfLines={1} className={fromMe ? 'text-bubble-out-on/80' : undefined}>
+        <Text
+          variant="caption"
+          numberOfLines={1}
+          className={fromMe ? 'text-bubble-out-on/80' : undefined}>
           {location.label && coordinates ? `${coordinates} · Open in Maps` : 'Open in Maps'}
         </Text>
       </View>

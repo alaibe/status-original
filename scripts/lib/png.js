@@ -26,7 +26,8 @@ function readPng(buffer) {
       height = body.readUInt32BE(4);
       const depth = body[8];
       const color = body[9];
-      if (depth !== 8 || body[12] !== 0) throw new Error('Only 8-bit non-interlaced PNGs are supported');
+      if (depth !== 8 || body[12] !== 0)
+        throw new Error('Only 8-bit non-interlaced PNGs are supported');
       channels = { 2: 3, 6: 4 }[color];
       if (!channels) throw new Error(`Unsupported PNG colour type ${color}`);
     } else if (type === 'IDAT') {
@@ -51,9 +52,15 @@ function readPng(buffer) {
       const c = i >= channels ? previous[i - channels] : 0;
       let predictor = 0;
       switch (filter) {
-        case 1: predictor = a; break;
-        case 2: predictor = b; break;
-        case 3: predictor = (a + b) >> 1; break;
+        case 1:
+          predictor = a;
+          break;
+        case 2:
+          predictor = b;
+          break;
+        case 3:
+          predictor = (a + b) >> 1;
+          break;
         case 4: {
           const p = a + b - c;
           const pa = Math.abs(p - a);

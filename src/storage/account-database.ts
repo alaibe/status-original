@@ -14,6 +14,8 @@ export interface AccountDatabase {
   runAsync(sql: string, ...params: BindValue[]): Promise<RunResult>;
   getFirstAsync<T>(sql: string, ...params: BindValue[]): Promise<T | null>;
   getAllAsync<T>(sql: string, ...params: BindValue[]): Promise<T[]>;
-  withExclusiveTransactionAsync(work: (transaction: AccountDatabase) => Promise<void>): Promise<void>;
+  withExclusiveTransactionAsync(
+    work: (transaction: AccountDatabase) => Promise<void>
+  ): Promise<void>;
   closeAsync(): Promise<void>;
 }

@@ -2,10 +2,7 @@
   "configVersion": 0,
   "apple": {
     "copyright": "2026 Anthony Laibe",
-    "categories": [
-      "SOCIAL_NETWORKING",
-      "UTILITIES"
-    ],
+    "categories": ["SOCIAL_NETWORKING", "UTILITIES"],
     "info": {
       "en-US": {
         "title": "Status Original",

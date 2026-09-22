@@ -15,7 +15,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 use libloading::Library;
 use tauri::{AppHandle, Manager, State};
 
-
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
 type SendFn = unsafe extern "C" fn(*mut c_void, *const c_char);
 type ReceiveFn = unsafe extern "C" fn(*mut c_void, f64) -> *const c_char;
@@ -50,7 +49,10 @@ fn library_name() -> &'static str {
 fn library_path(app: &AppHandle) -> Option<PathBuf> {
     let name = library_name();
     let mut candidates = Vec::new();
-    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(PathBuf::from)) {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(PathBuf::from))
+    {
         candidates.push(dir.join("../Frameworks").join(name));
         candidates.push(dir.join(name));
     }
@@ -60,18 +62,26 @@ fn library_path(app: &AppHandle) -> Option<PathBuf> {
         candidates.push(dir.join(name));
     }
     if cfg!(debug_assertions) {
-        candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frameworks").join(name));
+        candidates.push(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("frameworks")
+                .join(name),
+        );
     }
     candidates.into_iter().find(|path| path.exists())
 }
 
 unsafe fn symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, String> {
-    library.get::<T>(name).map(|found| *found).map_err(|e| e.to_string())
+    library
+        .get::<T>(name)
+        .map(|found| *found)
+        .map_err(|e| e.to_string())
 }
 
 fn load(app: &AppHandle) -> Result<Api, String> {
-    let path = library_path(app)
-        .ok_or_else(|| "TDLib is not part of this build: `scripts/fetch-tdlib.sh` fetches it.".to_string())?;
+    let path = library_path(app).ok_or_else(|| {
+        "TDLib is not part of this build: `scripts/fetch-tdlib.sh` fetches it.".to_string()
+    })?;
     unsafe {
         let library = Library::new(&path).map_err(|e| e.to_string())?;
         Ok(Api {
@@ -99,7 +109,12 @@ unsafe impl Sync for Client {}
 pub struct Telegram(Mutex<Option<Arc<Client>>>);
 
 fn current(state: &State<Telegram>) -> Result<Arc<Client>, String> {
-    state.0.lock().unwrap().clone().ok_or_else(|| "No TDLib client".to_string())
+    state
+        .0
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or_else(|| "No TDLib client".to_string())
 }
 
 fn destroy(api: &Api, client: Arc<Client>) {
@@ -126,14 +141,22 @@ pub async fn td_create(app: AppHandle, state: State<'_, Telegram>) -> Result<(),
     discard(api, previous).await?;
 
     let ptr = unsafe { (api.create)() };
-    let quiet = CString::new(r#"{"@type":"setLogVerbosityLevel","new_verbosity_level":0}"#).unwrap();
+    let quiet =
+        CString::new(r#"{"@type":"setLogVerbosityLevel","new_verbosity_level":0}"#).unwrap();
     unsafe { (api.execute)(ptr, quiet.as_ptr()) };
-    *state.0.lock().unwrap() = Some(Arc::new(Client { ptr, gone: Mutex::new(false) }));
+    *state.0.lock().unwrap() = Some(Arc::new(Client {
+        ptr,
+        gone: Mutex::new(false),
+    }));
     Ok(())
 }
 
 #[tauri::command]
-pub async fn td_send(app: AppHandle, state: State<'_, Telegram>, request: String) -> Result<(), String> {
+pub async fn td_send(
+    app: AppHandle,
+    state: State<'_, Telegram>,
+    request: String,
+) -> Result<(), String> {
     let api = api(&app)?;
     let client = current(&state)?;
     let request = CString::new(request).map_err(|e| e.to_string())?;
@@ -143,7 +166,11 @@ pub async fn td_send(app: AppHandle, state: State<'_, Telegram>, request: String
 
 /// Blocks for up to `timeout` seconds; `None` means TDLib had nothing to say.
 #[tauri::command]
-pub async fn td_receive(app: AppHandle, state: State<'_, Telegram>, timeout: f64) -> Result<Option<String>, String> {
+pub async fn td_receive(
+    app: AppHandle,
+    state: State<'_, Telegram>,
+    timeout: f64,
+) -> Result<Option<String>, String> {
     let api = api(&app)?;
     let client = current(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -155,7 +182,11 @@ pub async fn td_receive(app: AppHandle, state: State<'_, Telegram>, timeout: f64
         if raw.is_null() {
             return Ok(None);
         }
-        Ok(Some(unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned()))
+        Ok(Some(
+            unsafe { CStr::from_ptr(raw) }
+                .to_string_lossy()
+                .into_owned(),
+        ))
     })
     .await
     .map_err(|e| e.to_string())?

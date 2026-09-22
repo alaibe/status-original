@@ -27,7 +27,7 @@ class TauriHidTransport extends Transport {
 /** USB has no discovery events: the list is polled while the sheet is open. */
 export async function scanForLedgers(
   onFound: (device: { id: string; name: string }) => void,
-  onError: (error: unknown) => void,
+  onError: (error: unknown) => void
 ): Promise<() => void> {
   const poll = async () => {
     try {

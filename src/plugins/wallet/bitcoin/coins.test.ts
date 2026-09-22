@@ -51,7 +51,8 @@ describe('planSpend', () => {
       const fee = BigInt(virtualSize(1, 2)) * 3n;
       const result = planSpend([utxo(10_000n + fee + extra)], 10_000n, 3);
       if (!result.ok) continue;
-      if (result.plan.change !== null) expect(result.plan.change).toBeGreaterThanOrEqual(DUST_LIMIT);
+      if (result.plan.change !== null)
+        expect(result.plan.change).toBeGreaterThanOrEqual(DUST_LIMIT);
     }
   });
 
@@ -60,7 +61,9 @@ describe('planSpend', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.plan.inputs).toHaveLength(3);
-    expect(conserved(result.plan.inputs, result.plan.send, result.plan.change, result.plan.fee)).toBe(true);
+    expect(
+      conserved(result.plan.inputs, result.plan.send, result.plan.change, result.plan.fee)
+    ).toBe(true);
   });
 
   it('spends the biggest coins first, so the choice is explainable', () => {

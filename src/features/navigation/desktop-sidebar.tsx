@@ -2,7 +2,16 @@ import { useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { DRAG_REGION, Icon, IconButton, type IconName, Pressable, SearchField, Text, useThemeColors } from '@/design';
+import {
+  DRAG_REGION,
+  Icon,
+  IconButton,
+  type IconName,
+  Pressable,
+  SearchField,
+  Text,
+  useThemeColors,
+} from '@/design';
 import { ChatList } from '@/features/chat/chat-list';
 import { ContactList, type ContactSort } from '@/features/contacts/contact-list';
 import { SettingsProfile, useEnsName } from '@/features/settings/settings-profile';
@@ -18,7 +27,12 @@ import { DIALOG_SEGMENTS } from './routes';
 
 type Tab = 'chats' | 'contacts' | 'settings';
 
-const TABS: { id: Tab; label: string; icon: IconName; href: '/chats' | '/contacts' | '/settings' }[] = [
+const TABS: {
+  id: Tab;
+  label: string;
+  icon: IconName;
+  href: '/chats' | '/contacts' | '/settings';
+}[] = [
   { id: 'chats', label: 'Chats', icon: 'chatbubbles-outline', href: '/chats' },
   { id: 'contacts', label: 'Contacts', icon: 'people-outline', href: '/contacts' },
   { id: 'settings', label: 'Settings', icon: 'hardware-chip-outline', href: '/settings' },
@@ -55,7 +69,7 @@ export function DesktopSidebar() {
   const tab = routed ?? lastTab;
   const selectedId = segments[0] === 'chat' ? params.id : undefined;
   const settingsPage = segments.find((segment): segment is SettingsPage =>
-    (SETTINGS_PAGES as readonly string[]).includes(segment),
+    (SETTINGS_PAGES as readonly string[]).includes(segment)
   );
 
   // Keys and the ENS name can only change on a settings page, so that is when they reload.
@@ -72,7 +86,9 @@ export function DesktopSidebar() {
         <Text variant="title" className="flex-1 text-center font-semibold">
           {TABS.find((entry) => entry.id === tab)?.label}
         </Text>
-        <View className="flex-row items-center justify-end" style={{ minWidth: TRAFFIC_LIGHTS_WIDTH }}>
+        <View
+          className="flex-row items-center justify-end"
+          style={{ minWidth: TRAFFIC_LIGHTS_WIDTH }}>
           {tab === 'settings' ? null : tab === 'contacts' ? (
             <IconButton
               icon="swap-horizontal-outline"

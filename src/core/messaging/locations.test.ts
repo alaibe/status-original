@@ -18,7 +18,9 @@ describe('parseLocation', () => {
   });
 
   it('reads Apple Maps links', () => {
-    expect(parseLocation('https://maps.apple.com/?ll=48.8584,2.2945&q=Eiffel%20Tower')).toMatchObject({
+    expect(
+      parseLocation('https://maps.apple.com/?ll=48.8584,2.2945&q=Eiffel%20Tower')
+    ).toMatchObject({
       lat: 48.8584,
       lng: 2.2945,
       label: 'Eiffel Tower',

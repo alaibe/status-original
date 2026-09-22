@@ -9,13 +9,7 @@ export interface SectionProps extends ViewProps {
   className?: string;
 }
 
-export function Section({
-  title,
-  surface = 'plain',
-  className,
-  children,
-  ...props
-}: SectionProps) {
+export function Section({ title, surface = 'plain', className, children, ...props }: SectionProps) {
   return (
     <View className={className} {...props}>
       {title ? (
@@ -27,8 +21,7 @@ export function Section({
         style={surface === 'card' ? { borderCurve: 'continuous' } : undefined}
         className={cn(
           surface === 'list' && 'border-y border-line bg-surface-raised',
-          surface === 'card' &&
-            'mx-gutter overflow-hidden rounded-card bg-surface-raised'
+          surface === 'card' && 'mx-gutter overflow-hidden rounded-card bg-surface-raised'
         )}>
         {children}
       </View>

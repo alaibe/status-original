@@ -36,9 +36,7 @@ export async function handleSessionRequest(
     }
 
     case 'eth_sendTransaction': {
-      const [tx] = item.params as [
-        { to: Address; value?: Hex; data?: Hex; gas?: Hex },
-      ];
+      const [tx] = item.params as [{ to: Address; value?: Hex; data?: Hex; gas?: Hex }];
 
       const chainId = resolveChainId(item.chainId);
       const client = walletClientFor(account, chainId);

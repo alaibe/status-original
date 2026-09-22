@@ -29,7 +29,7 @@ export class StoreBackedSession implements ChatSession, TransportSink {
 
   constructor(
     private readonly transport: ChatTransport,
-    private readonly store: MessageStore,
+    private readonly store: MessageStore
   ) {
     this.self = transport.self;
   }
@@ -53,7 +53,7 @@ export class StoreBackedSession implements ChatSession, TransportSink {
   deliverToParticipants(
     participants: ParticipantId[],
     incoming: IncomingMessage,
-    meta?: { title?: string; createdAt?: number },
+    meta?: { title?: string; createdAt?: number }
   ): Promise<void> {
     if (!this.acceptingDeliveries) return Promise.resolve();
     return this.enqueueDelivery(async () => {
@@ -63,9 +63,10 @@ export class StoreBackedSession implements ChatSession, TransportSink {
         ? {
             ...existing,
             title: meta?.title ?? existing.title,
-            createdAt: meta?.createdAt === undefined
-              ? existing.createdAt
-              : Math.min(existing.createdAt, meta.createdAt),
+            createdAt:
+              meta?.createdAt === undefined
+                ? existing.createdAt
+                : Math.min(existing.createdAt, meta.createdAt),
             hidden: false,
           }
         : this.build(participants, meta?.title, meta?.createdAt);
@@ -73,7 +74,11 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     });
   }
 
-  private async deliver(conversation: StoredConversation, incoming: IncomingMessage, isNew: boolean) {
+  private async deliver(
+    conversation: StoredConversation,
+    incoming: IncomingMessage,
+    isNew: boolean
+  ) {
     const visible = { ...conversation, hidden: false };
     const message: ChatMessage = { ...incoming, conversationId: visible.id, status: 'sent' };
 
@@ -83,7 +88,7 @@ export class StoreBackedSession implements ChatSession, TransportSink {
       inserted = await this.store.insertMessage(
         message,
         this.snapshot(visible),
-        incoming.transportTimestamp,
+        incoming.transportTimestamp
       );
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown storage error';
@@ -107,7 +112,11 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     this.deliveries = result.catch(() => {});
     return result;
   }
-  private build(participants: ParticipantId[], title?: string, createdAt?: number): StoredConversation {
+  private build(
+    participants: ParticipantId[],
+    title?: string,
+    createdAt?: number
+  ): StoredConversation {
     const sorted = [...new Set([...participants, this.self.participantId])].sort();
     return {
       id: this.transport.conversationIdFor(sorted),
@@ -127,14 +136,16 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     if (!this.transport.openConversation) return;
     const existing = this.opening.get(conversation.id);
     if (existing) return existing;
-    const work = this.history.run(async () => {
-      const since = await this.store.newestTransportTimestamp(
-        this.transport.protocolId,
-        this.transport.cursorUpperBound?.() ?? Number.POSITIVE_INFINITY,
-        conversation.id,
-      );
-      await this.transport.openConversation!(this.snapshot(conversation), { since });
-    }).finally(() => this.opening.delete(conversation.id));
+    const work = this.history
+      .run(async () => {
+        const since = await this.store.newestTransportTimestamp(
+          this.transport.protocolId,
+          this.transport.cursorUpperBound?.() ?? Number.POSITIVE_INFINITY,
+          conversation.id
+        );
+        await this.transport.openConversation!(this.snapshot(conversation), { since });
+      })
+      .finally(() => this.opening.delete(conversation.id));
     this.opening.set(conversation.id, work);
     return work;
   }
@@ -146,7 +157,10 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     const projected = this.toConversation(conversation, lastMessage);
     for (const listener of this.conversationListeners) listener(projected);
   }
-  private toConversation(conversation: StoredConversation, lastMessage?: ChatMessage): Conversation {
+  private toConversation(
+    conversation: StoredConversation,
+    lastMessage?: ChatMessage
+  ): Conversation {
     const others = conversation.participants.filter((id) => id !== this.self.participantId);
     return {
       id: conversation.id,
@@ -188,10 +202,13 @@ export class StoreBackedSession implements ChatSession, TransportSink {
       .map((conversation) => this.toConversation(conversation, latest.get(conversation.id)));
   }
 
-  async getMessages(id: ConversationId, opts?: {
-    limit?: number;
-    before?: { sentAt: number; id: MessageId };
-  }): Promise<ChatMessage[]> {
+  async getMessages(
+    id: ConversationId,
+    opts?: {
+      limit?: number;
+      before?: { sentAt: number; id: MessageId };
+    }
+  ): Promise<ChatMessage[]> {
     if (!this.conversations.has(id)) return [];
     return this.store.loadMessages(id, opts?.limit, opts?.before);
   }
@@ -213,7 +230,10 @@ export class StoreBackedSession implements ChatSession, TransportSink {
   }
 
   async getMembers(id: ConversationId): Promise<GroupMember[]> {
-    return this.require(id).participants.map((participant) => ({ id: participant, role: 'member' }));
+    return this.require(id).participants.map((participant) => ({
+      id: participant,
+      role: 'member',
+    }));
   }
 
   async addMembers(_id: ConversationId, _peers: ParticipantId[]): Promise<void> {
@@ -256,7 +276,7 @@ export class StoreBackedSession implements ChatSession, TransportSink {
       const results = await Promise.allSettled(
         [...this.conversations.values()]
           .filter((conversation) => !conversation.hidden)
-          .map((conversation) => this.open(conversation)),
+          .map((conversation) => this.open(conversation))
       );
       await this.transport.sync();
       await this.deliveries;
@@ -274,7 +294,9 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     return () => this.messageListeners.delete(onMessage);
   }
 
-  async streamConversations(onConversation: (conversation: Conversation) => void): Promise<Unsubscribe> {
+  async streamConversations(
+    onConversation: (conversation: Conversation) => void
+  ): Promise<Unsubscribe> {
     this.conversationListeners.add(onConversation);
     return () => this.conversationListeners.delete(onConversation);
   }

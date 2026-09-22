@@ -30,7 +30,13 @@ it('keeps ordinary notes quiet and pages Status history from account SQLite', as
   await useChatStore.getState().registerBots([makeStatusBot()]);
   const restored = useChatStore.getState().messages['local-status'];
   expect(restored).toHaveLength(welcomeLength + 205);
-  expect(restored[welcomeLength].content).toEqual({ kind: 'text', text: 'Remember how to help with item 0' });
-  expect(restored.at(-1)?.content).toEqual({ kind: 'text', text: 'Remember how to help with item 204' });
+  expect(restored[welcomeLength].content).toEqual({
+    kind: 'text',
+    text: 'Remember how to help with item 0',
+  });
+  expect(restored.at(-1)?.content).toEqual({
+    kind: 'text',
+    text: 'Remember how to help with item 204',
+  });
   await deleteAccountDatabase('status-test');
 });

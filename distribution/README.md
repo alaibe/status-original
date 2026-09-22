@@ -144,8 +144,8 @@ Base64 the certificate with `base64 -i cert.p12 | pbcopy`.
 
 Without the notarization three the DMG is signed but Gatekeeper still warns on
 first open. Without `EXPO_TOKEN` the mobile job is skipped rather than failing.
-Linux and Windows bundles are unsigned; signing those is a separate certificate
-on each platform and is not wired up.
+Linux and Windows bundles ship unsigned. Signing them takes a certificate per
+platform, which is worth adding once either has users.
 
 The update signing keypair is separate from anything Apple issues, and you make
 it once:
@@ -172,27 +172,39 @@ cannot be changed afterwards.
 
 ## The Mac App Store
 
-Its own build, because an App Store app is sandboxed and may not update itself:
+A separate build from the DMG, because an App Store app is sandboxed and may
+not update itself.
+
+`src-tauri/tauri.appstore.conf.json` sandboxes the app against
+`src-tauri/Entitlements.plist` and drops the updater capability, and building
+with `--no-default-features` leaves the updater out of the binary, because an
+App Store app may not update itself. The entitlements are the part to watch:
+USB HID for a Ledger, the address book for invitations, user-selected files for
+attachments, and network client for everything else.
+
+You supply four things from the Apple Developer account: a Mac App
+Distribution certificate, a Mac Installer Distribution certificate, a
+provisioning profile saved at `src-tauri/embedded.provisionprofile`
+(gitignored), and the real team id in place of `TEAMID` in
+`Entitlements.plist`. Organization enrolment under guideline 3.1.5(b) is the
+long pole, so start it early. Then:
 
 ```sh
-./scripts/build-mac-app-store.sh          # build the .pkg
-./scripts/build-mac-app-store.sh upload   # and send it to App Store Connect
+./scripts/fetch-tdlib.sh
+npx tauri build --bundles app --target universal-apple-darwin \
+  --config src-tauri/tauri.appstore.conf.json -- --no-default-features
+
+xcrun productbuild --sign "$APPLE_INSTALLER_IDENTITY" \
+  --component "src-tauri/target/universal-apple-darwin/release/bundle/macos/Status Original.app" \
+  /Applications "Status Original.pkg"
+
+xcrun altool --upload-app --type macos --file "Status Original.pkg" \
+  --apiKey "$APPLE_API_KEY" --apiIssuer "$APPLE_API_ISSUER"
 ```
 
-The app is sandboxed against `src-tauri/Entitlements.plist`, carries a
-provisioning profile, and is built without the updater feature. Tauri produces
-the `.app`; `productbuild` makes the `.pkg`.
-
-It needs a Mac App Distribution certificate, a Mac Installer Distribution
-certificate, a provisioning profile saved as
-`src-tauri/embedded.provisionprofile` (gitignored), and the real team id in
-place of `TEAMID` in `Entitlements.plist`. The script refuses to run until the
-last two are there.
-
-The sandbox entitlements are the part to watch: USB HID for a Ledger, the
-address book for invitations, user-selected files for attachments, and network
-client for everything else. Guideline 3.1.5(b) applies here as on iOS, so the
-same organization account is required.
+Tauri produces the `.app` and `productbuild` makes the `.pkg`; there is no
+Tauri bundler target for it. Three commands, so this becomes a job in the
+release workflow once you have run it once by hand.
 
 ## Updates after release
 

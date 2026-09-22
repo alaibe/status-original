@@ -34,7 +34,9 @@ fn vault_path(app: &AppHandle) -> Result<PathBuf, String> {
 fn keychain_key() -> Result<Option<Vec<u8>>, String> {
     let entry = keyring::Entry::new(SERVICE, MASTER_KEY_ENTRY).map_err(|e| e.to_string())?;
     match entry.get_password() {
-        Ok(encoded) => Ok(Some(BASE64_STANDARD.decode(encoded).map_err(|e| e.to_string())?)),
+        Ok(encoded) => Ok(Some(
+            BASE64_STANDARD.decode(encoded).map_err(|e| e.to_string())?,
+        )),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => Err(e.to_string()),
     }
@@ -61,7 +63,11 @@ fn fresh_key() -> Result<Vec<u8>, String> {
 fn debug_key(app: &AppHandle) -> Result<Vec<u8>, String> {
     let path = app_data_dir(app)?.join("vault.key");
     match std::fs::read_to_string(&path) {
-        Ok(encoded) => return BASE64_STANDARD.decode(encoded.trim()).map_err(|e| e.to_string()),
+        Ok(encoded) => {
+            return BASE64_STANDARD
+                .decode(encoded.trim())
+                .map_err(|e| e.to_string())
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(e.to_string()),
     }
@@ -104,7 +110,10 @@ fn load(app: &AppHandle) -> Result<Loaded, String> {
     let sealed = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Loaded { entries: BTreeMap::new(), key })
+            return Ok(Loaded {
+                entries: BTreeMap::new(),
+                key,
+            })
         }
         Err(e) => return Err(e.to_string()),
     };
@@ -146,7 +155,11 @@ fn with_vault<T>(
 }
 
 #[tauri::command]
-pub async fn vault_get(app: AppHandle, vault: State<'_, Vault>, key: String) -> Result<Option<String>, String> {
+pub async fn vault_get(
+    app: AppHandle,
+    vault: State<'_, Vault>,
+    key: String,
+) -> Result<Option<String>, String> {
     with_vault(&app, &vault, |loaded| Ok(loaded.entries.get(&key).cloned()))
 }
 
@@ -164,7 +177,11 @@ pub async fn vault_set(
 }
 
 #[tauri::command]
-pub async fn vault_delete(app: AppHandle, vault: State<'_, Vault>, key: String) -> Result<(), String> {
+pub async fn vault_delete(
+    app: AppHandle,
+    vault: State<'_, Vault>,
+    key: String,
+) -> Result<(), String> {
     with_vault(&app, &vault, |loaded| {
         if loaded.entries.remove(&key).is_some() {
             save(&app, loaded)?;

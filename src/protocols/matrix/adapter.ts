@@ -123,7 +123,10 @@ export class MatrixSession implements ChatSession {
 
   private askForPassword(): void {
     const { userId, homeserverUrl } = this.options.parameters;
-    this.setLogin({ step: 'password', hint: `The password for ${userId} on ${new URL(homeserverUrl).host}.` });
+    this.setLogin({
+      step: 'password',
+      hint: `The password for ${userId} on ${new URL(homeserverUrl).host}.`,
+    });
   }
 
   private setLogin(login: LoginState | null): void {
@@ -157,7 +160,8 @@ export class MatrixSession implements ChatSession {
 
   private onRoom(room: MxRoom): void {
     this.rooms.set(room.id, room);
-    if (room.isDm && room.heroes.length === 1 && room.name) this.names.set(room.heroes[0], room.name);
+    if (room.isDm && room.heroes.length === 1 && room.name)
+      this.names.set(room.heroes[0], room.name);
     if (included(room)) this.announce(room);
   }
 
@@ -184,11 +188,14 @@ export class MatrixSession implements ChatSession {
 
   async getMessages(
     id: ConversationId,
-    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } },
+    opts?: { limit?: number; before?: { sentAt: number; id: MessageId } }
   ): Promise<ChatMessage[]> {
     if (!this.userId) return [];
     const roomId = roomIdOf(id);
-    const events = await this.api.messages(roomId, { limit: opts?.limit ?? 50, before: opts?.before?.id });
+    const events = await this.api.messages(roomId, {
+      limit: opts?.limit ?? 50,
+      before: opts?.before?.id,
+    });
     const room = this.rooms.get(roomId);
     if (room && !room.isDm) void this.membersOf(roomId);
     return events.map((event) => this.toMessage(event, true));
@@ -213,7 +220,7 @@ export class MatrixSession implements ChatSession {
       unknown.map(async (id) => {
         const profile = await this.api.profile(id).catch(() => null);
         if (profile?.displayName) this.names.set(id, profile.displayName);
-      }),
+      })
     );
     const out: Record<ParticipantId, string> = {};
     for (const id of ids) {
@@ -225,7 +232,7 @@ export class MatrixSession implements ChatSession {
 
   async createDm(peer: ParticipantId): Promise<Conversation> {
     const existing = [...this.rooms.values()].find(
-      (room) => room.isDm && room.membership === 'joined' && this.peerOf(room) === peer,
+      (room) => room.isDm && room.membership === 'joined' && this.peerOf(room) === peer
     );
     return this.toConversation(existing ?? (await this.requireRoom(await this.api.createDm(peer))));
   }
@@ -358,7 +365,12 @@ export class MatrixSession implements ChatSession {
 
   private peerOf(room: MxRoom): string | null {
     const selfId = this.self.participantId;
-    return room.peer ?? room.heroes.find((id) => id !== selfId) ?? (room.inviter !== selfId ? room.inviter : null) ?? null;
+    return (
+      room.peer ??
+      room.heroes.find((id) => id !== selfId) ??
+      (room.inviter !== selfId ? room.inviter : null) ??
+      null
+    );
   }
 
   private toConversation(room: MxRoom): Conversation {
@@ -393,7 +405,10 @@ export class MatrixSession implements ChatSession {
       fromMe: raw.isOwn,
       status: raw.status,
       replyTo: raw.replyTo,
-      reactions: reactions.length > 0 ? Object.fromEntries(reactions.map((r) => [r.key, r.senders])) : undefined,
+      reactions:
+        reactions.length > 0
+          ? Object.fromEntries(reactions.map((r) => [r.key, r.senders]))
+          : undefined,
     };
   }
 
@@ -401,11 +416,19 @@ export class MatrixSession implements ChatSession {
     const content = raw.content;
     switch (content.kind) {
       case 'text':
-        return { kind: 'text', text: content.msgtype === 'emote' ? `* ${content.body}` : content.body };
+        return {
+          kind: 'text',
+          text: content.msgtype === 'emote' ? `* ${content.body}` : content.body,
+        };
 
       case 'image': {
         const uri = this.mediaUri(raw, content, fetchMedia);
-        if (!uri) return { kind: 'unsupported', typeId: 'image', fallback: withCaption('📷 Photo', content.caption) };
+        if (!uri)
+          return {
+            kind: 'unsupported',
+            typeId: 'image',
+            fallback: withCaption('📷 Photo', content.caption),
+          };
         return {
           kind: 'image',
           uri,
@@ -420,15 +443,33 @@ export class MatrixSession implements ChatSession {
 
       case 'file': {
         const uri = this.mediaUri(raw, content, fetchMedia);
-        if (!uri) return { kind: 'unsupported', typeId: 'file', fallback: withCaption(`📎 ${content.name}`, content.caption) };
-        return { kind: 'file', uri, name: content.name, mimeType: content.mimeType, size: content.size };
+        if (!uri)
+          return {
+            kind: 'unsupported',
+            typeId: 'file',
+            fallback: withCaption(`📎 ${content.name}`, content.caption),
+          };
+        return {
+          kind: 'file',
+          uri,
+          name: content.name,
+          mimeType: content.mimeType,
+          size: content.size,
+        };
       }
 
       case 'audio': {
-        if (!content.voice) return { kind: 'unsupported', typeId: 'audio', fallback: `🎵 ${content.name}` };
+        if (!content.voice)
+          return { kind: 'unsupported', typeId: 'audio', fallback: `🎵 ${content.name}` };
         const uri = this.mediaUri(raw, content, fetchMedia);
         if (!uri) return { kind: 'unsupported', typeId: 'voice', fallback: '🎤 Voice message' };
-        return { kind: 'voice', uri, durationMs: content.durationMs ?? 0, size: content.size, mimeType: content.mimeType };
+        return {
+          kind: 'voice',
+          uri,
+          durationMs: content.durationMs ?? 0,
+          size: content.size,
+          mimeType: content.mimeType,
+        };
       }
 
       case 'video':
@@ -442,7 +483,11 @@ export class MatrixSession implements ChatSession {
       case 'redacted':
         return { kind: 'unsupported', typeId: 'redacted', fallback: 'Message deleted' };
       case 'undecryptable':
-        return { kind: 'unsupported', typeId: 'undecryptable', fallback: '🔒 Waiting for the keys to this message' };
+        return {
+          kind: 'unsupported',
+          typeId: 'undecryptable',
+          fallback: '🔒 Waiting for the keys to this message',
+        };
 
       case 'membership': {
         if (content.userName) this.names.set(content.user, content.userName);
@@ -471,9 +516,15 @@ export class MatrixSession implements ChatSession {
       case 'state':
         switch (content.change) {
           case 'name':
-            return { kind: 'system', text: content.value ? `Renamed to "${content.value}"` : 'Name removed' };
+            return {
+              kind: 'system',
+              text: content.value ? `Renamed to "${content.value}"` : 'Name removed',
+            };
           case 'topic':
-            return { kind: 'system', text: content.value ? `Topic set to "${content.value}"` : 'Topic removed' };
+            return {
+              kind: 'system',
+              text: content.value ? `Topic set to "${content.value}"` : 'Topic removed',
+            };
           case 'avatar':
             return { kind: 'system', text: 'Room photo changed' };
           case 'created':
@@ -521,7 +572,12 @@ function included(room: MxRoom): boolean {
 /** The list needs a `ChatMessage`; the preview has no id, so it gets one nothing else will match. */
 function previewEvent(room: MxRoom): MxEvent {
   const latest = room.latest as MxPreview;
-  return { ...latest, id: `preview:${room.id}:${latest.timestamp}`, roomId: room.id, status: 'sent' };
+  return {
+    ...latest,
+    id: `preview:${room.id}:${latest.timestamp}`,
+    roomId: room.id,
+    status: 'sent',
+  };
 }
 
 function withCaption(label: string, caption: string | undefined): string {
@@ -543,9 +599,21 @@ function outgoing(content: MessageContent): MxOutgoing {
         caption: content.caption,
       };
     case 'file':
-      return { kind: 'file', path: pathOfFileUri(content.uri), name: content.name, mimeType: content.mimeType, size: content.size };
+      return {
+        kind: 'file',
+        path: pathOfFileUri(content.uri),
+        name: content.name,
+        mimeType: content.mimeType,
+        size: content.size,
+      };
     case 'voice':
-      return { kind: 'voice', path: pathOfFileUri(content.uri), durationMs: content.durationMs, mimeType: content.mimeType, size: content.size };
+      return {
+        kind: 'voice',
+        path: pathOfFileUri(content.uri),
+        durationMs: content.durationMs,
+        mimeType: content.mimeType,
+        size: content.size,
+      };
     default:
       throw new Error(`Matrix cannot send "${content.kind}" content`);
   }
@@ -553,9 +621,11 @@ function outgoing(content: MessageContent): MxOutgoing {
 
 function describeLoginError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/M_FORBIDDEN|Invalid username\/password|invalid password/i.test(message)) return 'Wrong password.';
+  if (/M_FORBIDDEN|Invalid username\/password|invalid password/i.test(message))
+    return 'Wrong password.';
   if (/M_USER_DEACTIVATED/.test(message)) return 'That account has been deactivated.';
-  if (/M_LIMIT_EXCEEDED/.test(message)) return 'Too many attempts. Wait a moment before trying again.';
+  if (/M_LIMIT_EXCEEDED/.test(message))
+    return 'Too many attempts. Wait a moment before trying again.';
   if (/M_UNKNOWN_TOKEN/.test(message)) return 'The homeserver rejected the session. Sign in again.';
   if (/dns error|connection refused|failed to lookup|ENOTFOUND/i.test(message)) {
     return 'The homeserver could not be reached. Check the URL.';

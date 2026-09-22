@@ -69,10 +69,10 @@ describe('the schema', () => {
     expect(version?.user_version).toBe(2);
 
     const tables = await db.getAllAsync<{ name: string }>(
-      "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
+      "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
     );
     expect(tables.map((t) => t.name)).toEqual(
-      expect.arrayContaining(['conversations', 'messages', 'transport_cursors']),
+      expect.arrayContaining(['conversations', 'messages', 'transport_cursors'])
     );
   });
 
@@ -97,7 +97,7 @@ describe('conversations', () => {
         routingKey: '/app/1/chat/proto',
         participants: ['a', 'b', 'c'],
         hidden: true,
-      }),
+      })
     );
 
     const [loaded] = await store.loadConversations(WAKU);
@@ -148,10 +148,9 @@ describe('messages', () => {
       return run(sql, ...params);
     });
 
-    await expect(store.insertMessage(
-      message({ id: 'm1', conversationId: 'c1' }),
-      conversation('c1'),
-    )).rejects.toThrow('disk full');
+    await expect(
+      store.insertMessage(message({ id: 'm1', conversationId: 'c1' }), conversation('c1'))
+    ).rejects.toThrow('disk full');
 
     expect(await store.loadConversations(WAKU)).toEqual([]);
     expect(await store.loadMessages('c1')).toEqual([]);
@@ -164,16 +163,23 @@ describe('messages', () => {
     const run = db.runAsync.bind(db);
     let release!: () => void;
     let reached!: () => void;
-    const paused = new Promise<void>((resolve) => { reached = resolve; });
+    const paused = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
     jest.spyOn(db, 'runAsync').mockImplementation(async (sql, ...params) => {
       if (sql.includes('INSERT INTO messages')) {
         reached();
-        await new Promise<void>((resolve) => { release = resolve; });
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
       }
       return run(sql, ...params);
     });
 
-    const ingesting = store.insertMessage(message({ id: 'm1', conversationId: 'c1' }), conversation('c1'));
+    const ingesting = store.insertMessage(
+      message({ id: 'm1', conversationId: 'c1' }),
+      conversation('c1')
+    );
     await paused;
     let readFinished = false;
     const reading = store.loadConversations(WAKU).then((rows) => {
@@ -195,11 +201,13 @@ describe('messages', () => {
     await store.insertMessage(
       message({ id: 'm1', conversationId: 'c1', sentAt: 99_000 }),
       conversation('c1'),
-      2_000,
+      2_000
     );
 
     expect((await store.latestMessages(WAKU)).get('c1')?.sentAt).toBe(99_000);
-    await expect(store.newestTransportTimestamp(WAKU, Number.POSITIVE_INFINITY, 'c1')).resolves.toBe(2_000);
+    await expect(
+      store.newestTransportTimestamp(WAKU, Number.POSITIVE_INFINITY, 'c1')
+    ).resolves.toBe(2_000);
   });
 
   it('returns them oldest first, the order the transcript renders', async () => {
@@ -243,8 +251,12 @@ describe('messages', () => {
     const store = new SqliteMessageStore(id);
     await store.upsertConversation(conversation('c1'));
 
-    await expect(store.insertMessage(message({ id: 'm1', conversationId: 'c1' }))).resolves.toBe(true);
-    await expect(store.insertMessage(message({ id: 'm1', conversationId: 'c1' }))).resolves.toBe(false);
+    await expect(store.insertMessage(message({ id: 'm1', conversationId: 'c1' }))).resolves.toBe(
+      true
+    );
+    await expect(store.insertMessage(message({ id: 'm1', conversationId: 'c1' }))).resolves.toBe(
+      false
+    );
 
     expect(await store.loadMessages('c1')).toHaveLength(1);
   });
@@ -286,11 +298,13 @@ describe('messages', () => {
     const store = new SqliteMessageStore(id);
     await store.upsertConversation(conversation('c1'));
     await store.insertMessage(message({ id: 'm1', conversationId: 'c1' }));
-    await store.insertMessage(message({
-      id: 'm1',
-      conversationId: 'c1',
-      content: { kind: 'text', text: 'tampered' },
-    }));
+    await store.insertMessage(
+      message({
+        id: 'm1',
+        conversationId: 'c1',
+        content: { kind: 'text', text: 'tampered' },
+      })
+    );
 
     expect((await store.loadMessages('c1'))[0].content).toEqual({ kind: 'text', text: 'hello' });
   });
@@ -298,12 +312,14 @@ describe('messages', () => {
   it('round-trips private command output', async () => {
     const id = freshAccount();
     const store = new SqliteMessageStore(id);
-    await store.insertMessage(message({
-      id: 'private:1',
-      conversationId: 'xmtp-c1',
-      senderId: 'local',
-      privateToMe: true,
-    }));
+    await store.insertMessage(
+      message({
+        id: 'private:1',
+        conversationId: 'xmtp-c1',
+        senderId: 'local',
+        privateToMe: true,
+      })
+    );
 
     expect((await store.loadMessages('xmtp-c1'))[0].privateToMe).toBe(true);
   });
@@ -333,7 +349,7 @@ describe('messages', () => {
         fromMe: true,
         replyTo: 'm0',
         content: { kind: 'image', uri: 'file:///a.png', width: 10, height: 20, caption: 'hi' },
-      }),
+      })
     );
 
     const [loaded] = await store.loadMessages('c1');
@@ -399,11 +415,15 @@ describe('clearing', () => {
     const run = db.runAsync.bind(db);
     let release!: () => void;
     let reached!: () => void;
-    const paused = new Promise<void>((resolve) => { reached = resolve; });
+    const paused = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
     jest.spyOn(db, 'runAsync').mockImplementation(async (sql, ...params) => {
       if (sql.includes('INSERT INTO conversations')) {
         reached();
-        await new Promise<void>((resolve) => { release = resolve; });
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
       }
       return run(sql, ...params);
     });
@@ -413,13 +433,17 @@ describe('clearing', () => {
     const deleting = deleteAccountDatabase(id);
     await expect(store.upsertConversation(conversation('c2'))).rejects.toThrow(/being deleted/);
     let deleted = false;
-    void deleting.then(() => { deleted = true; });
+    void deleting.then(() => {
+      deleted = true;
+    });
     await Promise.resolve();
     expect(deleted).toBe(false);
     release();
     await writing;
     await deleting;
-    await expect(store.upsertConversation(conversation('late'))).rejects.toThrow(/has been deleted/);
+    await expect(store.upsertConversation(conversation('late'))).rejects.toThrow(
+      /has been deleted/
+    );
     accounts.delete(id);
   });
 

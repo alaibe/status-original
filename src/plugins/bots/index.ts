@@ -61,8 +61,7 @@ export const botsPlugin: Plugin = {
   manifest: {
     id: 'bots',
     name: 'Bots',
-    description:
-      'Add bots by address and talk to them. Bots can reply with cards and buttons.',
+    description: 'Add bots by address and talk to them. Bots can reply with cards and buttons.',
     version: '1.0.0',
     icon: 'hardware-chip-outline',
     permissions: ['identity.read', 'chat.read', 'chat.send', 'network', 'storage'],
@@ -180,7 +179,6 @@ export const botsPlugin: Plugin = {
           };
         },
       },
-
     ];
 
     return {

@@ -62,8 +62,10 @@ class RnMatrixClient implements MatrixApi {
     this.params = params;
     const dir = new Directory(`file://${params.dataDirectory}`);
     if (!params.session && dir.exists) dir.delete();
-    const store = new sdk.SqliteStoreBuilder(`${params.dataDirectory}/store`, `${params.dataDirectory}/cache`)
-      .passphrase(params.storePassphrase);
+    const store = new sdk.SqliteStoreBuilder(
+      `${params.dataDirectory}/store`,
+      `${params.dataDirectory}/cache`
+    ).passphrase(params.storePassphrase);
     this.client = await new sdk.ClientBuilder()
       .sqliteStore(store)
       .homeserverUrl(params.homeserverUrl)
@@ -95,7 +97,9 @@ class RnMatrixClient implements MatrixApi {
 
   private async startSync(): Promise<void> {
     if (this.client.slidingSyncVersion() === sdk.SlidingSyncVersion.None) {
-      throw new Error('This homeserver does not support sliding sync (MSC4186), which the app needs.');
+      throw new Error(
+        'This homeserver does not support sliding sync (MSC4186), which the app needs.'
+      );
     }
     const syncService = await this.client.syncService().finish();
     this.syncService = syncService;
@@ -105,8 +109,11 @@ class RnMatrixClient implements MatrixApi {
     });
     this.roomEntries.controller().setFilter(
       new sdk.RoomListEntriesDynamicFilterKind.All({
-        filters: [new sdk.RoomListEntriesDynamicFilterKind.NonLeft(), new sdk.RoomListEntriesDynamicFilterKind.NonSpace()],
-      }),
+        filters: [
+          new sdk.RoomListEntriesDynamicFilterKind.NonLeft(),
+          new sdk.RoomListEntriesDynamicFilterKind.NonSpace(),
+        ],
+      })
     );
     await syncService.start();
   }
@@ -128,7 +135,9 @@ class RnMatrixClient implements MatrixApi {
     let grew = false;
     for (const update of updates) {
       const { changed, removed } = applyDiff(this.entries, update as VectorDiff<sdk.RoomLike>);
-      grew ||= update.tag === sdk.RoomListEntriesUpdate_Tags.Append || update.tag === sdk.RoomListEntriesUpdate_Tags.Reset;
+      grew ||=
+        update.tag === sdk.RoomListEntriesUpdate_Tags.Append ||
+        update.tag === sdk.RoomListEntriesUpdate_Tags.Reset;
       const kept = new Set(changed.map((room) => room.id()));
       // A `Set` brings a fresh handle for the same room; only rooms that left the list are gone.
       for (const room of removed) {
@@ -142,11 +151,15 @@ class RnMatrixClient implements MatrixApi {
     const fresh = [...touched.keys()].filter((id) => !this.subscribed.has(id));
     if (fresh.length > 0) {
       for (const id of fresh) this.subscribed.add(id);
-      this.syncService?.roomListService().subscribeToRooms(fresh).catch(() => {});
+      this.syncService
+        ?.roomListService()
+        .subscribeToRooms(fresh)
+        .catch(() => {});
     }
     for (const room of touched.values()) this.announce(room).catch(() => {});
     // Fetch the next page while the list keeps growing.
-    if (grew && this.entries.length > 0 && this.entries.length % ROOM_PAGE === 0) this.roomEntries?.controller().addOnePage();
+    if (grew && this.entries.length > 0 && this.entries.length % ROOM_PAGE === 0)
+      this.roomEntries?.controller().addOnePage();
   }
 
   private async announce(room: sdk.RoomLike): Promise<void> {
@@ -196,7 +209,12 @@ class RnMatrixClient implements MatrixApi {
     const membership = mapMembership(info.membership);
     const joined = membership === 'joined';
     const [selfRole, latest] = await Promise.all([
-      joined ? room.suggestedRoleForUser(room.ownUserId()).then(mapRole).catch((): MxRole => 'member') : ('member' as MxRole),
+      joined
+        ? room
+            .suggestedRoleForUser(room.ownUserId())
+            .then(mapRole)
+            .catch((): MxRole => 'member')
+        : ('member' as MxRole),
       joined ? latestOf(room).catch(() => undefined) : undefined,
     ]);
     const heroes = info.heroes.map((hero) => hero.userId);
@@ -223,7 +241,9 @@ class RnMatrixClient implements MatrixApi {
       this.live.set(roomId, existing);
       return existing;
     }
-    const timeline = await this.requireRoom(roomId).timelineWithConfiguration(timelineConfiguration());
+    const timeline = await this.requireRoom(roomId).timelineWithConfiguration(
+      timelineConfiguration()
+    );
     const items: sdk.TimelineItemLike[] = [];
     const handle = await timeline.addListener({
       onUpdate: (diffs) => {
@@ -253,12 +273,20 @@ class RnMatrixClient implements MatrixApi {
   async messages(roomId: string, opts: { limit: number; before?: string }): Promise<MxEvent[]> {
     const live = await this.liveTimeline(roomId);
     for (;;) {
-      const events = live.items.map((item) => this.toMxEvent(roomId, item)).filter((e): e is MxEvent => e !== null);
-      const end = opts.before ? events.findIndex((event) => event.id === opts.before) : events.length;
+      const events = live.items
+        .map((item) => this.toMxEvent(roomId, item))
+        .filter((e): e is MxEvent => e !== null);
+      const end = opts.before
+        ? events.findIndex((event) => event.id === opts.before)
+        : events.length;
       if (end >= opts.limit) return events.slice(end - opts.limit, end);
-      const hitStart = await live.timeline.paginateBackwards(Math.max(HISTORY_PAGE, opts.limit - Math.max(end, 0)));
+      const hitStart = await live.timeline.paginateBackwards(
+        Math.max(HISTORY_PAGE, opts.limit - Math.max(end, 0))
+      );
       if (hitStart) {
-        const all = live.items.map((item) => this.toMxEvent(roomId, item)).filter((e): e is MxEvent => e !== null);
+        const all = live.items
+          .map((item) => this.toMxEvent(roomId, item))
+          .filter((e): e is MxEvent => e !== null);
         const stop = opts.before ? all.findIndex((event) => event.id === opts.before) : all.length;
         return stop < 0 ? [] : all.slice(Math.max(0, stop - opts.limit), stop);
       }
@@ -280,7 +308,10 @@ class RnMatrixClient implements MatrixApi {
     if (event.eventOrTransactionId.tag !== sdk.EventOrTransactionId_Tags.EventId) return null;
     const content = mapContent(event.content);
     if (!content) return null;
-    const msgLike = event.content.tag === sdk.TimelineItemContent_Tags.MsgLike ? event.content.inner.content : null;
+    const msgLike =
+      event.content.tag === sdk.TimelineItemContent_Tags.MsgLike
+        ? event.content.inner.content
+        : null;
     const reactions = msgLike?.reactions.map((reaction) => ({
       key: reaction.key,
       senders: reaction.senders.map((sender) => sender.senderId),
@@ -309,7 +340,11 @@ class RnMatrixClient implements MatrixApi {
       if (!chunk || chunk.length === 0) break;
       for (const member of chunk) {
         if (member.membership.tag !== sdk.MembershipState_Tags.Join) continue;
-        out.push({ userId: member.userId, displayName: member.displayName, role: mapRole(member.suggestedRoleForPowerLevel) });
+        out.push({
+          userId: member.userId,
+          displayName: member.displayName,
+          role: mapRole(member.suggestedRoleForPowerLevel),
+        });
       }
     }
     return out;
@@ -378,7 +413,10 @@ class RnMatrixClient implements MatrixApi {
     const room = this.requireRoom(roomId);
     if (content.kind === 'text') {
       const relates = replyTo ? { 'm.relates_to': { 'm.in_reply_to': { event_id: replyTo } } } : {};
-      await room.sendRaw('m.room.message', JSON.stringify({ msgtype: 'm.text', body: content.body, ...relates }));
+      await room.sendRaw(
+        'm.room.message',
+        JSON.stringify({ msgtype: 'm.text', body: content.body, ...relates })
+      );
       return;
     }
     const { timeline } = await this.liveTimeline(roomId);
@@ -396,11 +434,17 @@ class RnMatrixClient implements MatrixApi {
           .join();
         return;
       case 'file':
-        await timeline.sendFile({ source, inReplyTo: replyTo }, { mimetype: content.mimeType, size }).join();
+        await timeline
+          .sendFile({ source, inReplyTo: replyTo }, { mimetype: content.mimeType, size })
+          .join();
         return;
       case 'voice':
         await timeline
-          .sendVoiceMessage({ source, inReplyTo: replyTo }, { duration: content.durationMs, mimetype: content.mimeType, size }, [])
+          .sendVoiceMessage(
+            { source, inReplyTo: replyTo },
+            { duration: content.durationMs, mimetype: content.mimeType, size },
+            []
+          )
           .join();
         return;
     }
@@ -418,8 +462,13 @@ class RnMatrixClient implements MatrixApi {
   // ---- media ----
 
   async media(media: MxMedia): Promise<string> {
-    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, media.source);
-    const file = new File(`file://${this.params.dataDirectory}/media/${digest.slice(0, 32)}${extensionOf(media.name)}`);
+    const digest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      media.source
+    );
+    const file = new File(
+      `file://${this.params.dataDirectory}/media/${digest.slice(0, 32)}${extensionOf(media.name)}`
+    );
     if (!file.exists) {
       const bytes = await this.client.getMediaContent(sdk.MediaSource.fromJson(media.source));
       file.create({ intermediates: true });
@@ -461,7 +510,9 @@ function unwrapped(target: RnMatrixClient): MatrixApi {
     api[key] = (...args: unknown[]) => {
       try {
         const result = (method as (...a: unknown[]) => unknown).apply(target, args);
-        return result instanceof Promise ? result.catch((error) => Promise.reject(toError(error))) : result;
+        return result instanceof Promise
+          ? result.catch((error) => Promise.reject(toError(error)))
+          : result;
       } catch (error) {
         throw toError(error);
       }
@@ -473,7 +524,12 @@ function unwrapped(target: RnMatrixClient): MatrixApi {
 function toError(error: unknown): Error {
   const inner = (error as { inner?: { msg?: unknown; code?: unknown } } | null)?.inner;
   if (!inner) return error instanceof Error ? error : new Error(String(error));
-  const msg = typeof inner.msg === 'string' ? inner.msg : error instanceof Error ? error.message : String(error);
+  const msg =
+    typeof inner.msg === 'string'
+      ? inner.msg
+      : error instanceof Error
+        ? error.message
+        : String(error);
   return new Error(typeof inner.code === 'string' ? `${inner.code}: ${msg}` : msg);
 }
 
@@ -487,7 +543,11 @@ export const MatrixClient = {
  * Applies one diff in place. `changed` holds items worth reporting; with
  * `newOnly`, bulk loads (initial items, pagination) are applied silently.
  */
-function applyDiff<T>(items: T[], diff: VectorDiff<T>, newOnly = false): { changed: T[]; removed: T[] } {
+function applyDiff<T>(
+  items: T[],
+  diff: VectorDiff<T>,
+  newOnly = false
+): { changed: T[]; removed: T[] } {
   switch (diff.tag) {
     case 'Append':
       items.push(...diff.inner.values);
@@ -537,7 +597,11 @@ function timelineConfiguration(): sdk.TimelineConfiguration {
 
 async function latestOf(room: sdk.RoomLike): Promise<MxPreview | undefined> {
   const value = await room.latestEvent();
-  if (value.tag !== sdk.LatestEventValue_Tags.Remote && value.tag !== sdk.LatestEventValue_Tags.Local) return undefined;
+  if (
+    value.tag !== sdk.LatestEventValue_Tags.Remote &&
+    value.tag !== sdk.LatestEventValue_Tags.Local
+  )
+    return undefined;
   const content = mapContent(value.inner.content);
   if (!content) return undefined;
   return {
@@ -599,7 +663,9 @@ function mapRole(role: sdk.RoomMemberRole): MxRole {
 }
 
 function nameOf(profile: sdk.ProfileDetails): string | undefined {
-  return profile.tag === sdk.ProfileDetails_Tags.Ready ? (profile.inner.displayName ?? undefined) : undefined;
+  return profile.tag === sdk.ProfileDetails_Tags.Ready
+    ? (profile.inner.displayName ?? undefined)
+    : undefined;
 }
 
 function sendState(state: sdk.EventSendState | undefined): MxEvent['status'] {
@@ -621,7 +687,14 @@ function mapContent(content: sdk.TimelineItemContent): MxContent | null {
       return mapMsgLike(content.inner.content.kind);
     case sdk.TimelineItemContent_Tags.RoomMembership: {
       const change = mapMembershipChange(content.inner.change);
-      return change ? { kind: 'membership', change, user: content.inner.userId, userName: content.inner.userDisplayName } : null;
+      return change
+        ? {
+            kind: 'membership',
+            change,
+            user: content.inner.userId,
+            userName: content.inner.userDisplayName,
+          }
+        : null;
     }
     case sdk.TimelineItemContent_Tags.State:
       return mapState(content.inner.content);
@@ -669,7 +742,11 @@ function mapMessage(type: sdk.MessageType): MxContent | null {
     }
     case sdk.MessageType_Tags.File: {
       const c = type.inner.content;
-      return { kind: 'file', ...media(c.source, c.filename, c.info?.mimetype, c.info?.size), caption: c.caption };
+      return {
+        kind: 'file',
+        ...media(c.source, c.filename, c.info?.mimetype, c.info?.size),
+        caption: c.caption,
+      };
     }
     case sdk.MessageType_Tags.Audio: {
       const c = type.inner.content;
@@ -690,8 +767,18 @@ function mapMessage(type: sdk.MessageType): MxContent | null {
   }
 }
 
-function media(source: sdk.MediaSourceLike, name: string, mimeType: string | undefined, size: bigint | undefined): MxMedia {
-  return { source: source.toJson(), name, mimeType, size: size === undefined ? undefined : Number(size) };
+function media(
+  source: sdk.MediaSourceLike,
+  name: string,
+  mimeType: string | undefined,
+  size: bigint | undefined
+): MxMedia {
+  return {
+    source: source.toJson(),
+    name,
+    mimeType,
+    size: size === undefined ? undefined : Number(size),
+  };
 }
 
 function mapMembershipChange(change: sdk.MembershipChange | undefined): MxMembershipChange | null {

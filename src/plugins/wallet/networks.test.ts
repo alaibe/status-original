@@ -23,7 +23,13 @@ jest.mock('./chains/evm', () => ({
   EVM_CHAINS: [
     { id: 'ethereum', name: 'Ethereum', icon: 'diamond-outline', description: 'Mainnet' },
     { id: 'base', name: 'Base', icon: 'ellipse-outline', description: 'L2' },
-    { id: 'sepolia', name: 'Sepolia', icon: 'diamond-outline', description: 'Testnet', testnet: true },
+    {
+      id: 'sepolia',
+      name: 'Sepolia',
+      icon: 'diamond-outline',
+      description: 'Testnet',
+      testnet: true,
+    },
   ],
   evmStrategy: (spec: { id: string }) => ({ id: spec.id }),
 }));
@@ -34,9 +40,13 @@ function makeContext(enabled: string[] = ['ethereum'], active?: string): PluginC
   return {
     manifest: { id: 'wallet' },
     storage: {
-      get: async <T,>(key: string) => (values.get(key) as T | undefined) ?? null,
-      set: async (key: string, value: unknown) => { values.set(key, value); },
-      remove: async (key: string) => { values.delete(key); },
+      get: async <T>(key: string) => (values.get(key) as T | undefined) ?? null,
+      set: async (key: string, value: unknown) => {
+        values.set(key, value);
+      },
+      remove: async (key: string) => {
+        values.delete(key);
+      },
     },
   } as unknown as PluginContext;
 }
@@ -92,17 +102,20 @@ describe('/networks enabled and default preferences', () => {
     expect(await enabledIds(context)).toEqual(['ethereum', 'base']);
   });
 
-  it.each([undefined, 'ethereum'])('protects a default from off with stored default %s', async (active) => {
-    const context = makeContext(['ethereum', 'base'], active);
+  it.each([undefined, 'ethereum'])(
+    'protects a default from off with stored default %s',
+    async (active) => {
+      const context = makeContext(['ethereum', 'base'], active);
 
-    expect((await run(context, '/networks ethereum off')).result.type).toBe('error');
-    expect(await enabledIds(context)).toEqual(['ethereum', 'base']);
-    expect((await activeNetwork(context))?.id).toBe('ethereum');
+      expect((await run(context, '/networks ethereum off')).result.type).toBe('error');
+      expect(await enabledIds(context)).toEqual(['ethereum', 'base']);
+      expect((await activeNetwork(context))?.id).toBe('ethereum');
 
-    expect((await run(context, '/networks base off')).result.type).toBe('notice');
-    expect(await enabledIds(context)).toEqual(['ethereum']);
-    expect((await activeNetwork(context))?.id).toBe('ethereum');
-  });
+      expect((await run(context, '/networks base off')).result.type).toBe('notice');
+      expect(await enabledIds(context)).toEqual(['ethereum']);
+      expect((await activeNetwork(context))?.id).toBe('ethereum');
+    }
+  );
 
   it('enforces the same invariants for direct preference mutations', async () => {
     const context = makeContext(['ethereum']);

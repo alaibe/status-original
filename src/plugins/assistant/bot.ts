@@ -20,17 +20,21 @@ function greeting(): ReturnType<Bot['greeting']> {
     'Keep your recovery phrase somewhere safe. It restores your account keys, but not notes saved only on this device.',
     {
       kind: 'widget',
-      fallback: 'Get started: /commands for commands, /plugins for plugins. Messaging networks: XMTP, Nostr and Waku.',
-      widget: W.card([
-        W.actions([
-          { label: 'Commands', command: '/commands' },
-          { label: 'Plugins', command: '/plugins' },
-        ]),
-        W.text('Learn about the messaging networks:'),
-        W.link('XMTP', 'https://xmtp.org'),
-        W.link('Nostr', 'https://nostr.com'),
-        W.link('Waku', 'https://waku.org'),
-      ], { title: 'Get started', icon: 'sparkles-outline' }),
+      fallback:
+        'Get started: /commands for commands, /plugins for plugins. Messaging networks: XMTP, Nostr and Waku.',
+      widget: W.card(
+        [
+          W.actions([
+            { label: 'Commands', command: '/commands' },
+            { label: 'Plugins', command: '/plugins' },
+          ]),
+          W.text('Learn about the messaging networks:'),
+          W.link('XMTP', 'https://xmtp.org'),
+          W.link('Nostr', 'https://nostr.com'),
+          W.link('Waku', 'https://waku.org'),
+        ],
+        { title: 'Get started', icon: 'sparkles-outline' }
+      ),
     },
   ];
 }

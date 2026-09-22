@@ -69,7 +69,9 @@ export function ApiKeyScreen({
     <Screen className="bg-surface px-0" edges={[]}>
       <Stack.Screen options={{ title }} />
 
-      <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}
+        keyboardShouldPersistTaps="handled">
         {saved === undefined ? null : (
           <Section title={sectionTitle} surface="card" className="mb-6">
             <View className="gap-3 px-gutter py-4">

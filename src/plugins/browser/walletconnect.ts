@@ -274,4 +274,3 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
     set({ kit: null, queue: [] });
   },
 }));
-

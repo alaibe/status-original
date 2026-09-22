@@ -1,10 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-import {
-  loadAccounts,
-  loadActiveAccountId,
-} from './accounts';
+import { loadAccounts, loadActiveAccountId } from './accounts';
 import { eraseAccount, eraseAllAccounts } from '../app/erase-account';
 import { useIdentityStore } from './identity-store';
 import { scopePrefix } from '@/storage/scope';
@@ -90,7 +87,9 @@ describe('eraseAccount', () => {
 
     await expect(eraseAccount(inactive.id)).rejects.toThrow('async-storage');
 
-    expect(useIdentityStore.getState().accounts.map((account) => account.id)).toContain(inactive.id);
+    expect(useIdentityStore.getState().accounts.map((account) => account.id)).toContain(
+      inactive.id
+    );
     expect(await SecureStore.getItemAsync(accountMnemonicKey(inactive.id))).not.toBeNull();
   });
 

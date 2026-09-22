@@ -25,7 +25,14 @@ export function MediaPanel({ tab: initialTab, anchor, onClose, onEmoji, onGif }:
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <Pressable accessibilityLabel="Close" onPress={onClose} className="flex-1" />
       <View
-        style={{ position: 'absolute', right, bottom, width: WIDTH, height, borderCurve: 'continuous' }}
+        style={{
+          position: 'absolute',
+          right,
+          bottom,
+          width: WIDTH,
+          height,
+          borderCurve: 'continuous',
+        }}
         className="overflow-hidden rounded-card border border-line bg-surface-raised shadow-xl">
         <MediaPanelContent
           tab={tab}

@@ -9,7 +9,8 @@ import {
 } from './alerts';
 import { displaySymbol, formatPercent, normaliseSymbol } from './api';
 
-const at = (spec: Parameters<typeof toAlert>[0], price = 100) => toAlert(spec, price, 1_700_000_000);
+const at = (spec: Parameters<typeof toAlert>[0], price = 100) =>
+  toAlert(spec, price, 1_700_000_000);
 
 describe('symbols', () => {
   it('accepts every spelling of the same market', () => {
@@ -67,7 +68,9 @@ describe('parsing an alert', () => {
     expect(parseAlert(['btc', 'above', 'soon'])).toMatchObject({
       error: expect.stringContaining('price'),
     });
-    expect(parseAlert(['btc', '0%'])).toMatchObject({ error: expect.stringContaining('above zero') });
+    expect(parseAlert(['btc', '0%'])).toMatchObject({
+      error: expect.stringContaining('above zero'),
+    });
   });
 });
 

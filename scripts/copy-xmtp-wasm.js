@@ -13,10 +13,12 @@ const source = path.join(
   '@xmtp',
   'wasm-bindings',
   'dist',
-  'bindings_wasm_bg.wasm',
+  'bindings_wasm_bg.wasm'
 );
 const target = path.join(__dirname, '..', 'public', 'xmtp', 'bindings_wasm_bg.wasm');
 
 fs.mkdirSync(path.dirname(target), { recursive: true });
 fs.copyFileSync(source, target);
-console.log(`copied ${path.relative(process.cwd(), source)} -> ${path.relative(process.cwd(), target)}`);
+console.log(
+  `copied ${path.relative(process.cwd(), source)} -> ${path.relative(process.cwd(), target)}`
+);

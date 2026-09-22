@@ -61,10 +61,14 @@ export class FakeWakuNode {
       const topics = (url.searchParams.get('contentTopics') ?? '').split(',');
       const startTime = Number(url.searchParams.get('startTime') ?? 0);
       const offset = Number(url.searchParams.get('cursor') ?? 0);
-      const pageSize = Math.min(Number(url.searchParams.get('pageSize') ?? 100), this.storePageSize);
-      const matching = this.stored.filter((message) =>
-        topics.includes(message.contentTopic) &&
-        (message.timestamp === undefined || message.timestamp >= startTime)
+      const pageSize = Math.min(
+        Number(url.searchParams.get('pageSize') ?? 100),
+        this.storePageSize
+      );
+      const matching = this.stored.filter(
+        (message) =>
+          topics.includes(message.contentTopic) &&
+          (message.timestamp === undefined || message.timestamp >= startTime)
       );
       const page = matching.slice(offset, offset + pageSize);
       const next = offset + page.length;

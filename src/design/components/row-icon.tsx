@@ -3,15 +3,7 @@ import { View } from 'react-native';
 import { cn } from '../lib/cn';
 import { Icon, type IconName } from '../icon';
 
-export type RowIconTone =
-  | 'blue'
-  | 'green'
-  | 'orange'
-  | 'red'
-  | 'purple'
-  | 'teal'
-  | 'grey'
-  | 'pink';
+export type RowIconTone = 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'teal' | 'grey' | 'pink';
 
 const FILL: Record<RowIconTone, string> = {
   blue: 'bg-[#3E63DD]',

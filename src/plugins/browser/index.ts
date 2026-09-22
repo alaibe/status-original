@@ -162,7 +162,10 @@ export const browserPlugin: Plugin = {
 
             const bookmark = await findBookmark(context, name);
             if (!bookmark) {
-              return { type: 'error', message: `No bookmark called "${name}". /bookmarks lists them.` };
+              return {
+                type: 'error',
+                message: `No bookmark called "${name}". /bookmarks lists them.`,
+              };
             }
 
             await removeBookmark(context, bookmark);
@@ -342,7 +345,6 @@ export const browserPlugin: Plugin = {
     };
   },
 };
-
 
 async function bookmarksCard(context: PluginContext) {
   const saved = await bookmarks(context);

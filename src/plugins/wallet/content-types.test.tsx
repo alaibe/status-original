@@ -15,7 +15,15 @@ jest.mock('@/design', () => ({
   Text: 'Text',
   Eyebrow: 'Text',
   Icon: 'Icon',
-  Sheet: ({ visible, children, onClose }: { visible: boolean; children: React.ReactNode; onClose: () => void }) => {
+  Sheet: ({
+    visible,
+    children,
+    onClose,
+  }: {
+    visible: boolean;
+    children: React.ReactNode;
+    onClose: () => void;
+  }) => {
     const { createElement: h, Fragment: F } = jest.requireActual('react');
     const { Button: B } = jest.requireActual('@/design/components/button');
     return visible ? h(F, null, h(B, { label: 'Close', onPress: onClose }), children) : null;
@@ -31,12 +39,17 @@ const hash = `0x${'ab'.repeat(32)}`;
 const quote = jest.fn();
 const commit = jest.fn();
 const shareReceipt = jest.fn();
-const RequestCard = walletContentTypes.find((type) => type.typeId === CONTENT_TYPE_PAYMENT_REQUEST)!.render!;
+const RequestCard = walletContentTypes.find((type) => type.typeId === CONTENT_TYPE_PAYMENT_REQUEST)!
+  .render!;
 let tree: ReactTestRenderer;
 let dispose: () => void;
 
-beforeAll(() => { actEnvironment.IS_REACT_ACT_ENVIRONMENT = true; });
-afterAll(() => { actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment; });
+beforeAll(() => {
+  actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+});
+afterAll(() => {
+  actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+});
 
 beforeEach(async () => {
   quote.mockReset().mockResolvedValue({ rows: [{ label: 'Fee', value: '0.00001 ETH' }] });
@@ -51,13 +64,20 @@ beforeEach(async () => {
     data: { amount: '0.1', symbol: 'ETH', to: `0x${'12'.repeat(20)}`, chain: 'ethereum' },
     fromMe: false,
     message: { conversationId: 'test-payment-errors' },
-    context: { chat: { sendCustom: shareReceipt }, ui: { notify: jest.fn() } } as unknown as PluginContext,
+    context: {
+      chat: { sendCustom: shareReceipt },
+      ui: { notify: jest.fn() },
+    } as unknown as PluginContext,
   } as MessageRendererProps<PaymentRequest>;
-  await act(async () => { tree = create(createElement(RequestCard, props)); });
+  await act(async () => {
+    tree = create(createElement(RequestCard, props));
+  });
 });
 
 afterEach(async () => {
-  await act(async () => { tree.unmount(); });
+  await act(async () => {
+    tree.unmount();
+  });
   dispose();
 });
 
@@ -70,7 +90,9 @@ function control(label: string) {
 async function press(label: string) {
   const button = control(label);
   expect(button.props.accessibilityState.disabled).toBeFalsy();
-  await act(async () => { button.props.onPress({}); });
+  await act(async () => {
+    button.props.onPress({});
+  });
 }
 
 it('removes an old fee quote and disables sending when a later review fails', async () => {
@@ -100,6 +122,8 @@ it('keeps a sent payment non-payable when posting its receipt fails', async () =
   expect(visible).toMatch(/do not send it again/i);
   expect(control('Confirm and send').props.accessibilityState.disabled).toBe(true);
   await press('Close');
-  expect(tree.root.findAllByType(Button).some((node) => node.props.label.startsWith('Pay '))).toBe(false);
+  expect(tree.root.findAllByType(Button).some((node) => node.props.label.startsWith('Pay '))).toBe(
+    false
+  );
   expect(commit).toHaveBeenCalledTimes(1);
 });

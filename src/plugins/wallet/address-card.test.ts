@@ -86,12 +86,18 @@ describe('addressCard', () => {
   it('resolves an ENS name first and survives a failed balance read', async () => {
     jest.mocked(resolveName).mockResolvedValue(vitalik);
     dispose();
-    dispose = registerChainStrategy({ ...ethereum, balance: async () => { throw new Error('rpc'); } });
+    dispose = registerChainStrategy({
+      ...ethereum,
+      balance: async () => {
+        throw new Error('rpc');
+      },
+    });
 
     const card = await addressCard(context, 'Vitalik.eth');
-    const item = card.widget.kind === 'card' && card.widget.children[0].kind === 'list'
-      ? card.widget.children[0].items[0]
-      : undefined;
+    const item =
+      card.widget.kind === 'card' && card.widget.children[0].kind === 'list'
+        ? card.widget.children[0].items[0]
+        : undefined;
     expect(item?.title).toBe('vitalik.eth');
     expect(item?.subtitle).toBe('0xd8dA…6045 · Ethereum');
     expect(lookupName).not.toHaveBeenCalled();
@@ -100,9 +106,10 @@ describe('addressCard', () => {
   it('leaves out the send action where /send cannot run', async () => {
     jest.mocked(lookupName).mockResolvedValue(null);
     const card = await addressCard(context, vitalik, { offerSend: false });
-    const item = card.widget.kind === 'card' && card.widget.children[0].kind === 'list'
-      ? card.widget.children[0].items[0]
-      : undefined;
+    const item =
+      card.widget.kind === 'card' && card.widget.children[0].kind === 'list'
+        ? card.widget.children[0].items[0]
+        : undefined;
     expect(item?.title).toBe('0xd8dA…6045');
     expect(item?.actions).toEqual([]);
   });
@@ -110,8 +117,8 @@ describe('addressCard', () => {
   it('rejects names that resolve to nothing and addresses of networks that are off', async () => {
     jest.mocked(resolveName).mockResolvedValue(null);
     await expect(addressCard(context, 'nobody.eth')).rejects.toThrow('No address is set');
-    await expect(addressCard(context, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')).rejects.toThrow(
-      'network that is off'
-    );
+    await expect(
+      addressCard(context, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')
+    ).rejects.toThrow('network that is off');
   });
 });

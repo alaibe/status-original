@@ -65,8 +65,10 @@ describe('availableFolders', () => {
   it('omits folders that would be empty', () => {
     // A tab that leads nowhere is noise, and the set grows with every
     // transport ever added.
-    const ids = availableFolders([conversation({ id: 'c1' })], { prefs: {}, readAt: { c1: 5_000 } })
-      .map((f) => f.id);
+    const ids = availableFolders([conversation({ id: 'c1' })], {
+      prefs: {},
+      readAt: { c1: 5_000 },
+    }).map((f) => f.id);
     expect(ids).not.toContain('groups');
     expect(ids).not.toContain('bots');
     expect(ids).not.toContain('unread');
@@ -96,7 +98,10 @@ describe('availableFolders', () => {
 
   it('ignores the local pseudo-protocol when deciding', () => {
     const folders = availableFolders(
-      [conversation({ id: 'a', protocol: 'xmtp' }), conversation({ id: 'local-x', protocol: 'local' })],
+      [
+        conversation({ id: 'a', protocol: 'xmtp' }),
+        conversation({ id: 'local-x', protocol: 'local' }),
+      ],
       empty
     );
     expect(folders.some((f) => f.id.startsWith('protocol:'))).toBe(false);

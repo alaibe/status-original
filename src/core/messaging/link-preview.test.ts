@@ -1,4 +1,10 @@
-import { fetchLinkPreview, isPreviewable, parseLinkPreview, resolveUrl, youtubeId } from './link-preview';
+import {
+  fetchLinkPreview,
+  isPreviewable,
+  parseLinkPreview,
+  resolveUrl,
+  youtubeId,
+} from './link-preview';
 
 const page = (head: string) => `<!doctype html><html><head>${head}</head><body>hi</body></html>`;
 
@@ -57,7 +63,9 @@ describe('parseLinkPreview', () => {
   });
 
   it('returns null when there is nothing to show', () => {
-    expect(parseLinkPreview(page('<meta name="viewport" content="width=device-width">'), 'https://a.co')).toBeNull();
+    expect(
+      parseLinkPreview(page('<meta name="viewport" content="width=device-width">'), 'https://a.co')
+    ).toBeNull();
   });
 });
 
@@ -93,7 +101,9 @@ describe('fetchLinkPreview', () => {
 
   it('sends a crawler user agent, no cookies and a byte range', async () => {
     const fetchImpl = jest.fn(async () =>
-      respond(page('<meta property="og:title" content="T">'), { 'content-type': 'text/html; charset=utf-8' })
+      respond(page('<meta property="og:title" content="T">'), {
+        'content-type': 'text/html; charset=utf-8',
+      })
     );
     await fetchLinkPreview('https://a.co/', { fetchImpl });
     const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
@@ -148,14 +158,15 @@ describe('youtubeId', () => {
 
 describe('fetchLinkPreview for YouTube', () => {
   it('asks oEmbed instead of the watch page and marks the card as a video', async () => {
-    const fetchImpl = jest.fn(async () =>
-      ({
-        ok: true,
-        url: '',
-        headers: { get: () => 'application/json' },
-        json: async () => ({ title: 'Never Gonna Give You Up', author_name: 'Rick Astley' }),
-        text: async () => '',
-      }) as unknown as Response
+    const fetchImpl = jest.fn(
+      async () =>
+        ({
+          ok: true,
+          url: '',
+          headers: { get: () => 'application/json' },
+          json: async () => ({ title: 'Never Gonna Give You Up', author_name: 'Rick Astley' }),
+          text: async () => '',
+        }) as unknown as Response
     );
     const preview = await fetchLinkPreview('https://youtu.be/dQw4w9WgXcQ', { fetchImpl });
     expect((fetchImpl.mock.calls[0] as unknown as [string])[0]).toBe(

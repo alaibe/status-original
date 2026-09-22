@@ -23,7 +23,7 @@ const { join } = require('node:path');
 const ROOT = join(__dirname, '..');
 const MARK = join(ROOT, 'assets/brand/mark.svg');
 const OUT = join(ROOT, 'assets/images');
-const STORE = join(ROOT, 'store/play');
+const STORE = join(ROOT, 'distribution/play');
 const APP_JSON = join(ROOT, 'app.json');
 const TMP = join(ROOT, 'node_modules/.cache/brand');
 
@@ -73,9 +73,13 @@ function svg({ plate, shape = 'square', scale = 1, mark = true }) {
   };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS}" height="${CANVAS}" viewBox="0 0 ${CANVAS} ${CANVAS}">
   ${plate ? plates[shape] : ''}
-  ${mark ? `<path fill="${INK}" fill-rule="evenodd"
+  ${
+    mark
+      ? `<path fill="${INK}" fill-rule="evenodd"
         transform="translate(${half} ${half}) scale(${scale}) translate(${-half} ${-half})"
-        d="${PATH}"/>` : ''}
+        d="${PATH}"/>`
+      : ''
+  }
 </svg>`;
 }
 
@@ -93,7 +97,15 @@ function banner({ width, height, plate }) {
 function render(name, markup, width, height = width, dir = OUT) {
   const source = join(TMP, `${name}.svg`);
   writeFileSync(source, markup);
-  execFileSync('rsvg-convert', ['-w', String(width), '-h', String(height), source, '-o', join(dir, `${name}.png`)]);
+  execFileSync('rsvg-convert', [
+    '-w',
+    String(width),
+    '-h',
+    String(height),
+    source,
+    '-o',
+    join(dir, `${name}.png`),
+  ]);
   console.log(`  ${name}.png  ${width}x${height}`);
 }
 

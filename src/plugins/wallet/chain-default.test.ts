@@ -40,21 +40,23 @@ function contextFor(defaultId: string): PluginContext {
 
 async function openForm(name: string, args: string[], context: PluginContext) {
   let widget: Widget | undefined;
-  const result = await walletCommands.find((c) => c.name === name)!.run({
-    args,
-    rest: args.join(' '),
-    context,
-    conversationId: 'local-status',
-    respond: async (content) => {
-      if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
-    },
-  });
-  const form = widget?.kind === 'card'
-    ? widget.children.find((child) => child.kind === 'form')
-    : undefined;
+  const result = await walletCommands
+    .find((c) => c.name === name)!
+    .run({
+      args,
+      rest: args.join(' '),
+      context,
+      conversationId: 'local-status',
+      respond: async (content) => {
+        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+      },
+    });
+  const form =
+    widget?.kind === 'card' ? widget.children.find((child) => child.kind === 'form') : undefined;
   return {
     result,
-    selected: form?.kind === 'form' ? form.fields.find((field) => field.id === 'chain')?.value : undefined,
+    selected:
+      form?.kind === 'form' ? form.fields.find((field) => field.id === 'chain')?.value : undefined,
   };
 }
 
@@ -66,7 +68,9 @@ describe('payment default precedence', () => {
 
   it('restricts a configured default to the recipient address family', () => {
     expect(defaultChain(chains, 'bc1qexampleaddress', 'base').id).toBe('bitcoin');
-    expect(defaultChain(chains, 'DRpbCBMxVnDK7maPM5tGv6MvB3v1sRMC86PZ8okm1GwP', 'base').id).toBe('solana');
+    expect(defaultChain(chains, 'DRpbCBMxVnDK7maPM5tGv6MvB3v1sRMC86PZ8okm1GwP', 'base').id).toBe(
+      'solana'
+    );
     expect(defaultChain(chains, recipient, 'bitcoin').id).toBe('ethereum');
   });
 
@@ -96,16 +100,30 @@ describe('payment forms use network preferences', () => {
     expect((await openForm(name, [], contextFor('base'))).selected).toBe('base');
   });
 
-  it.each(['send', 'request'])('/%s honors an explicit chain without reading preferences', async (name) => {
-    const context = {
-      storage: { get: () => { throw new Error('Preferences must not override --chain'); } },
-    } as unknown as PluginContext;
-    expect((await openForm(name, ['--chain', 'bitcoin'], context)).selected).toBe('bitcoin');
-  });
+  it.each(['send', 'request'])(
+    '/%s honors an explicit chain without reading preferences',
+    async (name) => {
+      const context = {
+        storage: {
+          get: () => {
+            throw new Error('Preferences must not override --chain');
+          },
+        },
+      } as unknown as PluginContext;
+      expect((await openForm(name, ['--chain', 'bitcoin'], context)).selected).toBe('bitcoin');
+    }
+  );
 
-  it.each(['send', 'request'])('/%s rejects a disabled explicit chain instead of falling back', async (name) => {
-    const { result, selected } = await openForm(name, ['--chain', 'optimism'], contextFor('base'));
-    expect(result).toEqual({ type: 'error', message: expect.stringContaining('optimism') });
-    expect(selected).toBeUndefined();
-  });
+  it.each(['send', 'request'])(
+    '/%s rejects a disabled explicit chain instead of falling back',
+    async (name) => {
+      const { result, selected } = await openForm(
+        name,
+        ['--chain', 'optimism'],
+        contextFor('base')
+      );
+      expect(result).toEqual({ type: 'error', message: expect.stringContaining('optimism') });
+      expect(selected).toBeUndefined();
+    }
+  );
 });

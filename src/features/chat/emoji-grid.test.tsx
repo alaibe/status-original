@@ -80,7 +80,10 @@ describe('EmojiGrid', () => {
   it('lays the grid out in as many 40pt columns as the width holds', async () => {
     await mount(380);
     const [firstCell] = buttons();
-    expect(StyleSheet.flatten(firstCell.props.style)).toMatchObject({ width: (380 - 16) / 9, height: 40 });
+    expect(StyleSheet.flatten(firstCell.props.style)).toMatchObject({
+      width: (380 - 16) / 9,
+      height: 40,
+    });
     expect(headers()[0]).toBe('Smileys & Emotion');
     expect(tabs()).toHaveLength(9);
   });

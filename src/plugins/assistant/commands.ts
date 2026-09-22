@@ -1,10 +1,5 @@
 import type { WidgetContent } from '@/core/messaging/types';
-import type {
-  PluginContext,
-  PluginSummary,
-  PluginView,
-  SlashCommand,
-} from '@/core/plugins/types';
+import type { PluginContext, PluginSummary, PluginView, SlashCommand } from '@/core/plugins/types';
 import { W } from '@/design/widgets';
 import { lookupName } from '@/lib/evm/ens';
 
@@ -53,7 +48,8 @@ export function assistantCommands(views: { plugins: PluginView }): SlashCommand[
               W.list(
                 available.map((c) => ({
                   title: `/${c.name}`,
-                  subtitle: c.usage === `/${c.name}` ? c.description : `${c.description} · ${c.usage}`,
+                  subtitle:
+                    c.usage === `/${c.name}` ? c.description : `${c.description} · ${c.usage}`,
                   actions: [{ label: `Run /${c.name}`, command: `/${c.name}` }],
                 }))
               ),
@@ -196,7 +192,10 @@ async function togglePlugin(
   const verb = enabled ? 'enable' : 'disable';
 
   if (!id) {
-    return { type: 'error', message: `Which plugin? Try /${verb} ethereum, or /plugins to see them.` };
+    return {
+      type: 'error',
+      message: `Which plugin? Try /${verb} ethereum, or /plugins to see them.`,
+    };
   }
 
   const match = context.plugins.list().find((p) => p.id === id.toLowerCase());

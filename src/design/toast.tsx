@@ -52,8 +52,16 @@ export const toast = {
 };
 
 const TONE = {
-  info: { border: 'border-line', icon: 'information-circle' as const, colour: 'content-muted' as const },
-  success: { border: 'border-success/50', icon: 'checkmark-circle' as const, colour: 'success' as const },
+  info: {
+    border: 'border-line',
+    icon: 'information-circle' as const,
+    colour: 'content-muted' as const,
+  },
+  success: {
+    border: 'border-success/50',
+    icon: 'checkmark-circle' as const,
+    colour: 'success' as const,
+  },
   error: { border: 'border-danger/50', icon: 'alert-circle' as const, colour: 'danger' as const },
 } as const;
 

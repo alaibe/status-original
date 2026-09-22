@@ -17,8 +17,8 @@ cd "$(dirname "$0")/.."
 
 case "${1:-}" in
   store)
-    FLOW="store/ios/capture.yaml"
-    OUT="store/ios/screenshots/6.9"
+    FLOW="distribution/ios/capture.yaml"
+    OUT="distribution/ios/screenshots/6.9"
     # Apple requires 6.9" iPhone screenshots at exactly this size.
     EXPECTED="1320 2868"
     WIDTH=""

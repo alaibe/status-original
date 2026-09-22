@@ -3,10 +3,7 @@ import type { ProtocolId } from './namespace';
 
 export type ProtocolConfig = Record<string, string>;
 
-export type ConfigFieldKind =
-  | 'text'
-  | 'secret'
-  | 'lines';
+export type ConfigFieldKind = 'text' | 'secret' | 'lines';
 
 export interface ProtocolConfigField {
   key: string;
@@ -29,10 +26,7 @@ export function configLines(value: string | undefined): string[] {
     .filter((line) => line.length > 0 && !line.startsWith('#'));
 }
 
-export function withDefaults(
-  schema: ProtocolConfigSchema,
-  config: ProtocolConfig
-): ProtocolConfig {
+export function withDefaults(schema: ProtocolConfigSchema, config: ProtocolConfig): ProtocolConfig {
   const out: ProtocolConfig = { ...config };
   for (const field of schema.fields) {
     if (field.default !== undefined && (out[field.key] ?? '') === '') {

@@ -19,7 +19,7 @@ import type {
   PluginOverlay,
   PluginView,
   SlashCommand,
-  } from './types';
+} from './types';
 
 interface CommandEntry {
   command: SlashCommand;
@@ -45,7 +45,7 @@ export interface CoreContribution {
 
 function indexCommands(
   entries: Iterable<CommandEntry>,
-  onClash?: (key: string, pluginId: PluginId) => void,
+  onClash?: (key: string, pluginId: PluginId) => void
 ): Map<string, CommandEntry> {
   const out = new Map<string, CommandEntry>();
   for (const entry of entries) {
@@ -124,7 +124,7 @@ export class PluginRegistry {
   async activate(
     id: PluginId,
     makeContext: (plugin: Plugin) => PluginContext,
-    revoke?: () => void,
+    revoke?: () => void
   ): Promise<void> {
     if (this.active.has(id)) return;
 
@@ -202,7 +202,10 @@ export class PluginRegistry {
     return owner === undefined || owner === pluginId || global === true;
   }
 
-  commandsFor(conversationId: ConversationId, scope?: ConversationScope): Map<string, CommandEntry> {
+  commandsFor(
+    conversationId: ConversationId,
+    scope?: ConversationScope
+  ): Map<string, CommandEntry> {
     return indexCommands(this.entries(conversationId, scope));
   }
 
@@ -225,7 +228,10 @@ export class PluginRegistry {
   }
 
   /** Core first, then plugins. No scope skips the `showIn` gate; no conversation skips ownership. */
-  private *entries(conversationId?: ConversationId, scope?: ConversationScope): Generator<CommandEntry> {
+  private *entries(
+    conversationId?: ConversationId,
+    scope?: ConversationScope
+  ): Generator<CommandEntry> {
     for (const command of this.core.commands ?? []) {
       if (scope !== undefined && !inScope(command.showIn, scope)) continue;
       yield { command, context: CORE_CONTEXT, pluginId: CORE_ID };

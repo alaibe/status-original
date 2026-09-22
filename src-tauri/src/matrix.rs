@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures_util::{stream, StreamExt};
-use matrix_sdk::attachment::{AttachmentConfig, AttachmentInfo, BaseAudioInfo, BaseFileInfo, BaseImageInfo};
+use matrix_sdk::attachment::{
+    AttachmentConfig, AttachmentInfo, BaseAudioInfo, BaseFileInfo, BaseImageInfo,
+};
 use matrix_sdk::authentication::matrix::MatrixSession;
 use matrix_sdk::encryption::EncryptionSettings;
 use matrix_sdk::media::{MediaFormat, MediaRequestParameters};
@@ -19,18 +21,25 @@ use matrix_sdk::ruma::api::client::receipt::create_receipt::v3::ReceiptType;
 use matrix_sdk::ruma::api::client::room::create_room;
 use matrix_sdk::ruma::events::room::encryption::RoomEncryptionEventContent;
 use matrix_sdk::ruma::events::room::message::{
-    AddMentions, MessageType, RoomMessageEventContent, RoomMessageEventContentWithoutRelation, TextMessageEventContent,
+    AddMentions, MessageType, RoomMessageEventContent, RoomMessageEventContentWithoutRelation,
+    TextMessageEventContent,
 };
 use matrix_sdk::ruma::events::{EmptyStateKey, InitialStateEvent, StateEventContentChange};
 use matrix_sdk::ruma::{EventId, OwnedEventId, OwnedRoomId, RoomId, UserId};
 use matrix_sdk::sliding_sync::{Version as SlidingSyncVersion, VersionBuilder};
-use matrix_sdk::{AuthSession, Client, Room, RoomMemberships, RoomState, SessionChange, SessionMeta, SessionTokens};
+use matrix_sdk::{
+    AuthSession, Client, Room, RoomMemberships, RoomState, SessionChange, SessionMeta,
+    SessionTokens,
+};
 use matrix_sdk_ui::eyeball_im::{Vector, VectorDiff};
-use matrix_sdk_ui::room_list_service::filters::{new_filter_all, new_filter_non_left, new_filter_not, new_filter_space};
+use matrix_sdk_ui::room_list_service::filters::{
+    new_filter_all, new_filter_non_left, new_filter_not, new_filter_space,
+};
 use matrix_sdk_ui::sync_service::SyncService;
 use matrix_sdk_ui::timeline::{
-    AnyOtherStateEventContentChange, EventSendState, LatestEventValue, MembershipChange, MsgLikeKind, RoomExt, Timeline,
-    TimelineDetails, TimelineEventItemId, TimelineItem, TimelineItemContent, TimelineReadReceiptTracking,
+    AnyOtherStateEventContentChange, EventSendState, LatestEventValue, MembershipChange,
+    MsgLikeKind, RoomExt, Timeline, TimelineDetails, TimelineEventItemId, TimelineItem,
+    TimelineItemContent, TimelineReadReceiptTracking,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -177,8 +186,12 @@ pub enum MxContent {
         voice: bool,
     },
     Video,
-    Sticker { body: String },
-    Poll { question: String },
+    Sticker {
+        body: String,
+    },
+    Poll {
+        question: String,
+    },
     Location,
     Redacted,
     Undecryptable,
@@ -198,7 +211,9 @@ pub enum MxContent {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MxOutgoing {
-    Text { body: String },
+    Text {
+        body: String,
+    },
     Image {
         path: String,
         mime_type: Option<String>,
@@ -207,8 +222,18 @@ pub enum MxOutgoing {
         size: Option<u64>,
         caption: Option<String>,
     },
-    File { path: String, name: String, mime_type: Option<String>, size: Option<u64> },
-    Voice { path: String, duration_ms: u64, mime_type: Option<String>, size: Option<u64> },
+    File {
+        path: String,
+        name: String,
+        mime_type: Option<String>,
+        size: Option<u64>,
+    },
+    Voice {
+        path: String,
+        duration_ms: u64,
+        mime_type: Option<String>,
+        size: Option<u64>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -220,10 +245,16 @@ pub struct MxMedia {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum MxUpdate {
-    Room { room: MxRoom },
+    Room {
+        room: MxRoom,
+    },
     #[serde(rename_all = "camelCase")]
-    RoomGone { room_id: String },
-    Event { event: MxEvent },
+    RoomGone {
+        room_id: String,
+    },
+    Event {
+        event: MxEvent,
+    },
     SignedOut,
 }
 
@@ -249,7 +280,12 @@ struct Session {
 pub struct Matrix(Mutex<Option<Arc<Session>>>);
 
 fn current(state: &State<Matrix>) -> Result<Arc<Session>, String> {
-    state.0.lock().unwrap().clone().ok_or_else(|| "No Matrix client".to_string())
+    state
+        .0
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or_else(|| "No Matrix client".to_string())
 }
 
 fn err(e: impl std::fmt::Display) -> String {
@@ -282,7 +318,10 @@ impl Session {
 
     async fn start_sync(self: &Arc<Self>) -> Result<(), String> {
         if matches!(self.client.sliding_sync_version(), SlidingSyncVersion::None) {
-            return Err("This homeserver does not support sliding sync (MSC4186), which the app needs.".to_string());
+            return Err(
+                "This homeserver does not support sliding sync (MSC4186), which the app needs."
+                    .to_string(),
+            );
         }
         let session = self.clone();
         self.tasks.lock().unwrap().push(tokio::spawn(async move {
@@ -294,7 +333,12 @@ impl Session {
             }
         }));
 
-        let sync = Arc::new(SyncService::builder(self.client.clone()).build().await.map_err(err)?);
+        let sync = Arc::new(
+            SyncService::builder(self.client.clone())
+                .build()
+                .await
+                .map_err(err)?,
+        );
         let room_list = sync.room_list_service().all_rooms().await.map_err(err)?;
         let session = self.clone();
         let service = sync.room_list_service();
@@ -321,7 +365,9 @@ impl Session {
                             continue;
                         }
                         touched.remove(room.room_id());
-                        session.emit(MxUpdate::RoomGone { room_id: room.room_id().to_string() });
+                        session.emit(MxUpdate::RoomGone {
+                            room_id: room.room_id().to_string(),
+                        });
                     }
                     for room in changed {
                         touched.insert(room.room_id().to_owned(), room);
@@ -329,9 +375,17 @@ impl Session {
                     diff.apply(&mut entries);
                 }
                 // The SDK only computes a room's latest event once it is subscribed to, as a list in view would be.
-                let fresh: Vec<OwnedRoomId> = touched.keys().filter(|id| subscribed.insert((*id).clone())).cloned().collect();
+                let fresh: Vec<OwnedRoomId> = touched
+                    .keys()
+                    .filter(|id| subscribed.insert((*id).clone()))
+                    .cloned()
+                    .collect();
                 if !fresh.is_empty() {
-                    service.set_room_subscriptions(&fresh.iter().map(|id| id.as_ref()).collect::<Vec<_>>()).await;
+                    service
+                        .set_room_subscriptions(
+                            &fresh.iter().map(|id| id.as_ref()).collect::<Vec<_>>(),
+                        )
+                        .await;
                 }
                 stream::iter(touched.into_values())
                     .for_each_concurrent(ANNOUNCE_CONCURRENCY, |room| {
@@ -363,12 +417,16 @@ impl Session {
     }
 
     async fn announce(self: &Arc<Self>, room: &Room) {
-        let Some((mapped, latest_id)) = self.to_mx_room(room).await else { return };
+        let Some((mapped, latest_id)) = self.to_mx_room(room).await else {
+            return;
+        };
         let preview = mapped.latest.clone();
         let joined = mapped.membership == "joined";
         self.emit(MxUpdate::Room { room: mapped });
 
-        let (Some(preview), true) = (preview, joined) else { return };
+        let (Some(preview), true) = (preview, joined) else {
+            return;
+        };
         let id = room.room_id().to_owned();
         let seen = {
             let mut seen = self.latest_seen.lock().unwrap();
@@ -401,7 +459,9 @@ impl Session {
 
     fn room(&self, id: &str) -> Result<Room, String> {
         let room_id = RoomId::parse(id).map_err(err)?;
-        self.client.get_room(&room_id).ok_or_else(|| format!("Unknown room {id}"))
+        self.client
+            .get_room(&room_id)
+            .ok_or_else(|| format!("Unknown room {id}"))
     }
 
     /// The room for the page, plus the id of its latest event when the SDK has one.
@@ -426,18 +486,32 @@ impl Session {
         };
         let is_dm = room.is_direct().await.unwrap_or(false) && room.active_members_count() <= 2;
         let peer = is_dm
-            .then(|| room.direct_targets().into_iter().find_map(|target| target.as_user_id().map(|id| id.to_string())))
+            .then(|| {
+                room.direct_targets()
+                    .into_iter()
+                    .find_map(|target| target.as_user_id().map(|id| id.to_string()))
+            })
             .flatten();
-        let heroes = room.heroes().await.into_iter().map(|hero| hero.user_id.to_string()).collect();
+        let heroes = room
+            .heroes()
+            .await
+            .into_iter()
+            .map(|hero| hero.user_id.to_string())
+            .collect();
         let (self_role, latest) = if joined {
-            let (role, latest) =
-                futures_util::join!(room.get_suggested_user_role(room.own_user_id()), RoomExt::latest_event(room));
+            let (role, latest) = futures_util::join!(
+                room.get_suggested_user_role(room.own_user_id()),
+                RoomExt::latest_event(room)
+            );
             (role.map(role_str).unwrap_or("member"), preview_of(latest))
         } else {
             ("member", None)
         };
         let inviter = if membership == "invited" {
-            room.invite_details().await.ok().and_then(|invite| invite.inviter.map(|m| m.user_id().to_string()))
+            room.invite_details()
+                .await
+                .ok()
+                .and_then(|invite| invite.inviter.map(|m| m.user_id().to_string()))
         } else {
             None
         };
@@ -460,7 +534,10 @@ impl Session {
 
     // ---- timelines ----
 
-    async fn live_timeline(self: &Arc<Self>, room_id: &RoomId) -> Result<Arc<LiveTimeline>, String> {
+    async fn live_timeline(
+        self: &Arc<Self>,
+        room_id: &RoomId,
+    ) -> Result<Arc<LiveTimeline>, String> {
         if let Some(existing) = self.touch_live(room_id).await {
             return Ok(existing);
         }
@@ -487,7 +564,11 @@ impl Session {
                         _ => continue,
                     };
                     if let Some(event) = to_mx_event(&id, &item) {
-                        session.latest_seen.lock().unwrap().insert(id.clone(), event.preview.timestamp);
+                        session
+                            .latest_seen
+                            .lock()
+                            .unwrap()
+                            .insert(id.clone(), event.preview.timestamp);
                         session.emit(MxUpdate::Event { event });
                     }
                 }
@@ -496,7 +577,11 @@ impl Session {
         let entry = Arc::new(LiveTimeline { timeline, task });
 
         let mut live = self.live.lock().await;
-        if let Some(existing) = live.iter().find(|(id, _)| id == room_id).map(|(_, live)| live.clone()) {
+        if let Some(existing) = live
+            .iter()
+            .find(|(id, _)| id == room_id)
+            .map(|(_, live)| live.clone())
+        {
             entry.task.abort();
             return Ok(existing);
         }
@@ -518,27 +603,48 @@ impl Session {
         Some(timeline)
     }
 
-    async fn messages(self: &Arc<Self>, room_id: &RoomId, limit: usize, before: Option<&str>) -> Result<Vec<MxEvent>, String> {
+    async fn messages(
+        self: &Arc<Self>,
+        room_id: &RoomId,
+        limit: usize,
+        before: Option<&str>,
+    ) -> Result<Vec<MxEvent>, String> {
         let live = self.live_timeline(room_id).await?;
         loop {
             let items = live.timeline.items().await;
             let end = match before {
-                Some(id) => items.iter().position(|item| item.as_event().and_then(|e| e.event_id()).is_some_and(|e| e == id)),
+                Some(id) => items.iter().position(|item| {
+                    item.as_event()
+                        .and_then(|e| e.event_id())
+                        .is_some_and(|e| e == id)
+                }),
                 None => Some(items.len()),
             };
             if let Some(end) = end {
-                let mut page: Vec<MxEvent> = items.iter().take(end).filter_map(|item| to_mx_event(room_id, item)).collect();
+                let mut page: Vec<MxEvent> = items
+                    .iter()
+                    .take(end)
+                    .filter_map(|item| to_mx_event(room_id, item))
+                    .collect();
                 if page.len() >= limit {
                     page.drain(..page.len() - limit);
                     return Ok(page);
                 }
                 let short = limit - page.len();
-                let hit_start = live.timeline.paginate_backwards(HISTORY_PAGE.max(short as u16)).await.map_err(err)?;
+                let hit_start = live
+                    .timeline
+                    .paginate_backwards(HISTORY_PAGE.max(short as u16))
+                    .await
+                    .map_err(err)?;
                 if hit_start {
                     return Ok(page);
                 }
             } else {
-                let hit_start = live.timeline.paginate_backwards(HISTORY_PAGE).await.map_err(err)?;
+                let hit_start = live
+                    .timeline
+                    .paginate_backwards(HISTORY_PAGE)
+                    .await
+                    .map_err(err)?;
                 if hit_start {
                     return Ok(Vec::new());
                 }
@@ -549,20 +655,32 @@ impl Session {
     // ---- sending ----
 
     /// Straight to the homeserver, so a rejection rejects here; the echo brings the event id.
-    async fn send(&self, room_id: &RoomId, content: MxOutgoing, reply_to: Option<String>) -> Result<(), String> {
+    async fn send(
+        &self,
+        room_id: &RoomId,
+        content: MxOutgoing,
+        reply_to: Option<String>,
+    ) -> Result<(), String> {
         let room = self.room(room_id.as_str())?;
-        let reply_to = reply_to.map(|id| EventId::parse(id).map_err(err)).transpose()?;
+        let reply_to = reply_to
+            .map(|id| EventId::parse(id).map_err(err))
+            .transpose()?;
         match content {
             MxOutgoing::Text { body } => match reply_to {
                 Some(event_id) => {
                     let content = room
-                        .make_reply_event(RoomMessageEventContentWithoutRelation::text_plain(body), reply(event_id))
+                        .make_reply_event(
+                            RoomMessageEventContentWithoutRelation::text_plain(body),
+                            reply(event_id),
+                        )
                         .await
                         .map_err(err)?;
                     room.send(content).await.map_err(err)?;
                 }
                 None => {
-                    room.send(RoomMessageEventContent::text_plain(body)).await.map_err(err)?;
+                    room.send(RoomMessageEventContent::text_plain(body))
+                        .await
+                        .map_err(err)?;
                 }
             },
             other => {
@@ -571,7 +689,9 @@ impl Session {
                     .info(info)
                     .caption(caption.map(TextMessageEventContent::plain))
                     .reply(reply_to.map(reply));
-                room.send_attachment(name, &mime, data, config).await.map_err(err)?;
+                room.send_attachment(name, &mime, data, config)
+                    .await
+                    .map_err(err)?;
             }
         }
         Ok(())
@@ -585,9 +705,17 @@ impl Session {
         let path = dir.join(format!("{}{}", &digest[..32], extension_of(&media.name)));
         if !path.exists() {
             let source = serde_json::from_str(&media.source).map_err(err)?;
-            let request = MediaRequestParameters { source, format: MediaFormat::File };
+            let request = MediaRequestParameters {
+                source,
+                format: MediaFormat::File,
+            };
             // The file is the cache; the SDK's own would hold a second copy.
-            let bytes = self.client.media().get_media_content(&request, false).await.map_err(err)?;
+            let bytes = self
+                .client
+                .media()
+                .get_media_content(&request, false)
+                .await
+                .map_err(err)?;
             tokio::fs::create_dir_all(&dir).await.map_err(err)?;
             tokio::fs::write(&path, bytes).await.map_err(err)?;
         }
@@ -598,7 +726,9 @@ impl Session {
 /// The rooms a diff brings in or changes.
 fn changed_by(diff: &VectorDiff<Room>) -> Vec<Room> {
     match diff {
-        VectorDiff::Append { values } | VectorDiff::Reset { values } => values.iter().cloned().collect(),
+        VectorDiff::Append { values } | VectorDiff::Reset { values } => {
+            values.iter().cloned().collect()
+        }
         VectorDiff::PushFront { value } | VectorDiff::PushBack { value } => vec![value.clone()],
         VectorDiff::Insert { value, .. } | VectorDiff::Set { value, .. } => vec![value.clone()],
         _ => Vec::new(),
@@ -622,13 +752,29 @@ fn removed_by(entries: &Vector<Room>, diff: &VectorDiff<Room>) -> Vec<Room> {
 // ---- mapping ----
 
 fn reply(event_id: OwnedEventId) -> Reply {
-    Reply { event_id, enforce_thread: EnforceThread::MaybeThreaded, add_mentions: AddMentions::Yes }
+    Reply {
+        event_id,
+        enforce_thread: EnforceThread::MaybeThreaded,
+        add_mentions: AddMentions::Yes,
+    }
 }
 
 fn preview_of(latest: LatestEventValue) -> Option<MxPreview> {
     let (timestamp, sender, is_own, profile, content) = match latest {
-        LatestEventValue::Remote { timestamp, sender, is_own, profile, content } => (timestamp, sender, is_own, profile, content),
-        LatestEventValue::Local { timestamp, sender, profile, content, .. } => (timestamp, sender, true, profile, content),
+        LatestEventValue::Remote {
+            timestamp,
+            sender,
+            is_own,
+            profile,
+            content,
+        } => (timestamp, sender, is_own, profile, content),
+        LatestEventValue::Local {
+            timestamp,
+            sender,
+            profile,
+            content,
+            ..
+        } => (timestamp, sender, true, profile, content),
         _ => return None,
     };
     Some(MxPreview {
@@ -706,8 +852,12 @@ fn map_content(content: &TimelineItemContent) -> Option<MxContent> {
     match content {
         TimelineItemContent::MsgLike(msg) => match &msg.kind {
             MsgLikeKind::Message(message) => map_message(message.msgtype()),
-            MsgLikeKind::Sticker(sticker) => Some(MxContent::Sticker { body: sticker.content().body.clone() }),
-            MsgLikeKind::Poll(poll) => Some(MxContent::Poll { question: poll.results().question }),
+            MsgLikeKind::Sticker(sticker) => Some(MxContent::Sticker {
+                body: sticker.content().body.clone(),
+            }),
+            MsgLikeKind::Poll(poll) => Some(MxContent::Poll {
+                question: poll.results().question,
+            }),
             MsgLikeKind::Redacted => Some(MxContent::Redacted),
             MsgLikeKind::UnableToDecrypt(_) => Some(MxContent::Undecryptable),
             MsgLikeKind::LiveLocation(_) => Some(MxContent::Location),
@@ -725,21 +875,29 @@ fn map_content(content: &TimelineItemContent) -> Option<MxContent> {
                 MembershipChange::InvitationRevoked => "invitationRevoked",
                 _ => return None,
             };
-            Some(MxContent::Membership { change: change_str, user: change.user_id().to_string(), user_name: change.display_name() })
+            Some(MxContent::Membership {
+                change: change_str,
+                user: change.user_id().to_string(),
+                user_name: change.display_name(),
+            })
         }
         TimelineItemContent::OtherState(state) => {
             let (change, value) = match state.content() {
                 AnyOtherStateEventContentChange::RoomName(c) => (
                     "name",
                     match c {
-                        StateEventContentChange::Original { content, .. } => Some(content.name.clone()).filter(|n| !n.is_empty()),
+                        StateEventContentChange::Original { content, .. } => {
+                            Some(content.name.clone()).filter(|n| !n.is_empty())
+                        }
                         StateEventContentChange::Redacted(_) => None,
                     },
                 ),
                 AnyOtherStateEventContentChange::RoomTopic(c) => (
                     "topic",
                     match c {
-                        StateEventContentChange::Original { content, .. } => Some(content.topic.clone()),
+                        StateEventContentChange::Original { content, .. } => {
+                            Some(content.topic.clone())
+                        }
                         StateEventContentChange::Redacted(_) => None,
                     },
                 ),
@@ -756,21 +914,45 @@ fn map_content(content: &TimelineItemContent) -> Option<MxContent> {
 
 fn map_message(msgtype: &MessageType) -> Option<MxContent> {
     Some(match msgtype {
-        MessageType::Text(t) => MxContent::Text { body: t.body.clone(), msgtype: None },
-        MessageType::Notice(n) => MxContent::Text { body: n.body.clone(), msgtype: Some("notice") },
-        MessageType::Emote(e) => MxContent::Text { body: e.body.clone(), msgtype: Some("emote") },
+        MessageType::Text(t) => MxContent::Text {
+            body: t.body.clone(),
+            msgtype: None,
+        },
+        MessageType::Notice(n) => MxContent::Text {
+            body: n.body.clone(),
+            msgtype: Some("notice"),
+        },
+        MessageType::Emote(e) => MxContent::Text {
+            body: e.body.clone(),
+            msgtype: Some("emote"),
+        },
         MessageType::Image(i) => MxContent::Image {
-            media: media_of(&i.source, i.filename(), i.info.as_ref().and_then(|info| info.mimetype.as_deref()), i.info.as_ref().and_then(|info| info.size)),
+            media: media_of(
+                &i.source,
+                i.filename(),
+                i.info.as_ref().and_then(|info| info.mimetype.as_deref()),
+                i.info.as_ref().and_then(|info| info.size),
+            ),
             width: i.info.as_ref().and_then(|info| info.width).map(Into::into),
             height: i.info.as_ref().and_then(|info| info.height).map(Into::into),
             caption: i.caption().map(str::to_string),
         },
         MessageType::File(f) => MxContent::File {
-            media: media_of(&f.source, f.filename(), f.info.as_ref().and_then(|info| info.mimetype.as_deref()), f.info.as_ref().and_then(|info| info.size)),
+            media: media_of(
+                &f.source,
+                f.filename(),
+                f.info.as_ref().and_then(|info| info.mimetype.as_deref()),
+                f.info.as_ref().and_then(|info| info.size),
+            ),
             caption: f.caption().map(str::to_string),
         },
         MessageType::Audio(a) => MxContent::Audio {
-            media: media_of(&a.source, a.filename(), a.info.as_ref().and_then(|info| info.mimetype.as_deref()), a.info.as_ref().and_then(|info| info.size)),
+            media: media_of(
+                &a.source,
+                a.filename(),
+                a.info.as_ref().and_then(|info| info.mimetype.as_deref()),
+                a.info.as_ref().and_then(|info| info.size),
+            ),
             duration_ms: a
                 .info
                 .as_ref()
@@ -795,13 +977,30 @@ fn role_str(role: matrix_sdk::room::RoomMemberRole) -> &'static str {
 }
 
 /// The page names files itself; the SDK would otherwise use the path's basename.
-async fn attachment(content: MxOutgoing) -> Result<(String, mime::Mime, Vec<u8>, AttachmentInfo, Option<String>), String> {
+async fn attachment(
+    content: MxOutgoing,
+) -> Result<(String, mime::Mime, Vec<u8>, AttachmentInfo, Option<String>), String> {
     let parse = |mime_type: Option<String>, fallback: &str| -> Result<mime::Mime, String> {
-        mime_type.unwrap_or_else(|| fallback.to_string()).parse::<mime::Mime>().map_err(err)
+        mime_type
+            .unwrap_or_else(|| fallback.to_string())
+            .parse::<mime::Mime>()
+            .map_err(err)
     };
-    let basename = |path: &str| Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let basename = |path: &str| {
+        Path::new(path)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    };
     match content {
-        MxOutgoing::Image { path, mime_type, width, height, size, caption } => Ok((
+        MxOutgoing::Image {
+            path,
+            mime_type,
+            width,
+            height,
+            size,
+            caption,
+        } => Ok((
             basename(&path),
             parse(mime_type, "image/jpeg")?,
             tokio::fs::read(&path).await.map_err(err)?,
@@ -813,14 +1012,26 @@ async fn attachment(content: MxOutgoing) -> Result<(String, mime::Mime, Vec<u8>,
             }),
             caption,
         )),
-        MxOutgoing::File { path, name, mime_type, size } => Ok((
+        MxOutgoing::File {
+            path,
+            name,
+            mime_type,
+            size,
+        } => Ok((
             name,
             parse(mime_type, "application/octet-stream")?,
             tokio::fs::read(&path).await.map_err(err)?,
-            AttachmentInfo::File(BaseFileInfo { size: size.map(uint) }),
+            AttachmentInfo::File(BaseFileInfo {
+                size: size.map(uint),
+            }),
             None,
         )),
-        MxOutgoing::Voice { path, duration_ms, mime_type, size } => Ok((
+        MxOutgoing::Voice {
+            path,
+            duration_ms,
+            mime_type,
+            size,
+        } => Ok((
             basename(&path),
             parse(mime_type, "audio/mp4")?,
             tokio::fs::read(&path).await.map_err(err)?,
@@ -841,7 +1052,9 @@ fn uint(value: u64) -> matrix_sdk::ruma::UInt {
 
 fn extension_of(name: &str) -> String {
     match Path::new(name).extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric()) => format!(".{}", ext.to_ascii_lowercase()),
+        Some(ext) if ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric()) => {
+            format!(".{}", ext.to_ascii_lowercase())
+        }
         _ => String::new(),
     }
 }
@@ -859,7 +1072,10 @@ async fn build_session(app: AppHandle, params: StartParams) -> Result<Arc<Sessio
         .homeserver_url(&params.homeserver_url)
         .sqlite_store(data_directory.join("store"), Some(&params.store_passphrase))
         .sliding_sync_version_builder(VersionBuilder::DiscoverNative)
-        .with_encryption_settings(EncryptionSettings { auto_enable_cross_signing: true, ..Default::default() })
+        .with_encryption_settings(EncryptionSettings {
+            auto_enable_cross_signing: true,
+            ..Default::default()
+        })
         .build()
         .await
         .map_err(err)?;
@@ -875,7 +1091,11 @@ async fn build_session(app: AppHandle, params: StartParams) -> Result<Arc<Sessio
 }
 
 #[tauri::command]
-pub async fn mx_start(app: AppHandle, state: State<'_, Matrix>, params: StartParams) -> Result<Option<MxSession>, String> {
+pub async fn mx_start(
+    app: AppHandle,
+    state: State<'_, Matrix>,
+    params: StartParams,
+) -> Result<Option<MxSession>, String> {
     let previous = state.0.lock().unwrap().take();
     if let Some(previous) = previous {
         previous.stop_sync().await;
@@ -883,12 +1103,20 @@ pub async fn mx_start(app: AppHandle, state: State<'_, Matrix>, params: StartPar
     let session = build_session(app, params).await?;
     *state.0.lock().unwrap() = Some(session.clone());
 
-    let Some(saved) = session.params.session.clone() else { return Ok(None) };
+    let Some(saved) = session.params.session.clone() else {
+        return Ok(None);
+    };
     session
         .client
         .restore_session(MatrixSession {
-            meta: SessionMeta { user_id: UserId::parse(&saved.user_id).map_err(err)?, device_id: saved.device_id.into() },
-            tokens: SessionTokens { access_token: saved.access_token, refresh_token: saved.refresh_token },
+            meta: SessionMeta {
+                user_id: UserId::parse(&saved.user_id).map_err(err)?,
+                device_id: saved.device_id.into(),
+            },
+            tokens: SessionTokens {
+                access_token: saved.access_token,
+                refresh_token: saved.refresh_token,
+            },
         })
         .await
         .map_err(err)?;
@@ -927,16 +1155,28 @@ pub async fn mx_room(state: State<'_, Matrix>, id: String) -> Result<Option<MxRo
 }
 
 #[tauri::command]
-pub async fn mx_messages(state: State<'_, Matrix>, room_id: String, limit: usize, before: Option<String>) -> Result<Vec<MxEvent>, String> {
+pub async fn mx_messages(
+    state: State<'_, Matrix>,
+    room_id: String,
+    limit: usize,
+    before: Option<String>,
+) -> Result<Vec<MxEvent>, String> {
     let session = current(&state)?;
     let room_id = RoomId::parse(&room_id).map_err(err)?;
     session.messages(&room_id, limit, before.as_deref()).await
 }
 
 #[tauri::command]
-pub async fn mx_members(state: State<'_, Matrix>, room_id: String) -> Result<Vec<MxMember>, String> {
+pub async fn mx_members(
+    state: State<'_, Matrix>,
+    room_id: String,
+) -> Result<Vec<MxMember>, String> {
     let session = current(&state)?;
-    let members = session.room(&room_id)?.members(RoomMemberships::JOIN).await.map_err(err)?;
+    let members = session
+        .room(&room_id)?
+        .members(RoomMemberships::JOIN)
+        .await
+        .map_err(err)?;
     Ok(members
         .into_iter()
         .map(|member| MxMember {
@@ -948,13 +1188,20 @@ pub async fn mx_members(state: State<'_, Matrix>, room_id: String) -> Result<Vec
 }
 
 #[tauri::command]
-pub async fn mx_profile(state: State<'_, Matrix>, user_id: String) -> Result<Option<MxProfile>, String> {
+pub async fn mx_profile(
+    state: State<'_, Matrix>,
+    user_id: String,
+) -> Result<Option<MxProfile>, String> {
     let session = current(&state)?;
     let user = UserId::parse(&user_id).map_err(err)?;
     match session.client.account().fetch_user_profile_of(&user).await {
         Ok(profile) => Ok(Some(MxProfile {
             user_id,
-            display_name: profile.data.get("displayname").and_then(|v| v.as_str()).map(str::to_string),
+            display_name: profile
+                .data
+                .get("displayname")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
         })),
         Err(_) => Ok(None),
     }
@@ -969,36 +1216,71 @@ pub async fn mx_create_dm(state: State<'_, Matrix>, user_id: String) -> Result<S
 }
 
 #[tauri::command]
-pub async fn mx_create_room(state: State<'_, Matrix>, user_ids: Vec<String>, name: String) -> Result<String, String> {
+pub async fn mx_create_room(
+    state: State<'_, Matrix>,
+    user_ids: Vec<String>,
+    name: String,
+) -> Result<String, String> {
     let session = current(&state)?;
     let mut request = create_room::v3::Request::new();
     request.name = Some(name);
-    request.invite = user_ids.iter().map(|id| UserId::parse(id).map_err(err)).collect::<Result<_, _>>()?;
+    request.invite = user_ids
+        .iter()
+        .map(|id| UserId::parse(id).map_err(err))
+        .collect::<Result<_, _>>()?;
     request.preset = Some(create_room::v3::RoomPreset::PrivateChat);
-    request.initial_state =
-        vec![InitialStateEvent::new(EmptyStateKey, RoomEncryptionEventContent::with_recommended_defaults()).to_raw_any()];
+    request.initial_state = vec![InitialStateEvent::new(
+        EmptyStateKey,
+        RoomEncryptionEventContent::with_recommended_defaults(),
+    )
+    .to_raw_any()];
     let room = session.client.create_room(request).await.map_err(err)?;
     Ok(room.room_id().to_string())
 }
 
 #[tauri::command]
-pub async fn mx_invite(state: State<'_, Matrix>, room_id: String, user_id: String) -> Result<(), String> {
+pub async fn mx_invite(
+    state: State<'_, Matrix>,
+    room_id: String,
+    user_id: String,
+) -> Result<(), String> {
     let session = current(&state)?;
     let user = UserId::parse(&user_id).map_err(err)?;
-    session.room(&room_id)?.invite_user_by_id(&user).await.map_err(err)
+    session
+        .room(&room_id)?
+        .invite_user_by_id(&user)
+        .await
+        .map_err(err)
 }
 
 #[tauri::command]
-pub async fn mx_kick(state: State<'_, Matrix>, room_id: String, user_id: String) -> Result<(), String> {
+pub async fn mx_kick(
+    state: State<'_, Matrix>,
+    room_id: String,
+    user_id: String,
+) -> Result<(), String> {
     let session = current(&state)?;
     let user = UserId::parse(&user_id).map_err(err)?;
-    session.room(&room_id)?.kick_user(&user, None).await.map_err(err)
+    session
+        .room(&room_id)?
+        .kick_user(&user, None)
+        .await
+        .map_err(err)
 }
 
 #[tauri::command]
-pub async fn mx_set_name(state: State<'_, Matrix>, room_id: String, name: String) -> Result<(), String> {
+pub async fn mx_set_name(
+    state: State<'_, Matrix>,
+    room_id: String,
+    name: String,
+) -> Result<(), String> {
     let session = current(&state)?;
-    session.room(&room_id)?.set_name(name).await.map(|_| ()).map_err(err)
+    session
+        .room(&room_id)?
+        .set_name(name)
+        .await
+        .map(|_| ())
+        .map_err(err)
 }
 
 #[tauri::command]
@@ -1014,30 +1296,58 @@ pub async fn mx_leave(state: State<'_, Matrix>, room_id: String) -> Result<(), S
 }
 
 #[tauri::command]
-pub async fn mx_ignore(state: State<'_, Matrix>, user_id: String, ignored: bool) -> Result<(), String> {
+pub async fn mx_ignore(
+    state: State<'_, Matrix>,
+    user_id: String,
+    ignored: bool,
+) -> Result<(), String> {
     let session = current(&state)?;
     let user = UserId::parse(&user_id).map_err(err)?;
     if ignored {
-        session.client.account().ignore_user(&user).await.map_err(err)
+        session
+            .client
+            .account()
+            .ignore_user(&user)
+            .await
+            .map_err(err)
     } else {
-        session.client.account().unignore_user(&user).await.map_err(err)
+        session
+            .client
+            .account()
+            .unignore_user(&user)
+            .await
+            .map_err(err)
     }
 }
 
 #[tauri::command]
-pub async fn mx_send(state: State<'_, Matrix>, room_id: String, content: MxOutgoing, reply_to: Option<String>) -> Result<(), String> {
+pub async fn mx_send(
+    state: State<'_, Matrix>,
+    room_id: String,
+    content: MxOutgoing,
+    reply_to: Option<String>,
+) -> Result<(), String> {
     let session = current(&state)?;
     let room_id = RoomId::parse(&room_id).map_err(err)?;
     session.send(&room_id, content, reply_to).await
 }
 
 #[tauri::command]
-pub async fn mx_toggle_reaction(state: State<'_, Matrix>, room_id: String, event_id: String, key: String) -> Result<(), String> {
+pub async fn mx_toggle_reaction(
+    state: State<'_, Matrix>,
+    room_id: String,
+    event_id: String,
+    key: String,
+) -> Result<(), String> {
     let session = current(&state)?;
     let room_id = RoomId::parse(&room_id).map_err(err)?;
     let event_id: OwnedEventId = EventId::parse(&event_id).map_err(err)?;
     let live = session.live_timeline(&room_id).await?;
-    live.timeline.toggle_reaction(&TimelineEventItemId::EventId(event_id), &key).await.map(|_| ()).map_err(err)
+    live.timeline
+        .toggle_reaction(&TimelineEventItemId::EventId(event_id), &key)
+        .await
+        .map(|_| ())
+        .map_err(err)
 }
 
 #[tauri::command]
@@ -1045,7 +1355,11 @@ pub async fn mx_mark_read(state: State<'_, Matrix>, room_id: String) -> Result<(
     let session = current(&state)?;
     let room_id = RoomId::parse(&room_id).map_err(err)?;
     let live = session.live_timeline(&room_id).await?;
-    live.timeline.mark_as_read(ReceiptType::Read).await.map(|_| ()).map_err(err)
+    live.timeline
+        .mark_as_read(ReceiptType::Read)
+        .await
+        .map(|_| ())
+        .map_err(err)
 }
 
 #[tauri::command]

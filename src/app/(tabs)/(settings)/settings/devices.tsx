@@ -109,9 +109,7 @@ export default function DevicesScreen() {
               className="mb-4">
               {others.length === 0 ? (
                 <View className="px-gutter py-6">
-                  <Text variant="footnote">
-                    This account is only signed in here.
-                  </Text>
+                  <Text variant="footnote">This account is only signed in here.</Text>
                 </View>
               ) : (
                 others.map((installation) => (
@@ -121,11 +119,13 @@ export default function DevicesScreen() {
                     subtitle={describe(installation)}
                     numberOfLinesSubtitle={2}
                     leading={
-                      <Icon name="phone-portrait-outline" size={20} color={colors['content-muted']} />
+                      <Icon
+                        name="phone-portrait-outline"
+                        size={20}
+                        color={colors['content-muted']}
+                      />
                     }
-                    trailing={
-                      <Icon name="close-circle-outline" size={20} color={colors.danger} />
-                    }
+                    trailing={<Icon name="close-circle-outline" size={20} color={colors.danger} />}
                     onPress={() => setConfirming(installation)}
                   />
                 ))
@@ -173,7 +173,5 @@ export default function DevicesScreen() {
 
 function describe(installation: Installation): string {
   const id = `${installation.id.slice(0, 12)}…`;
-  return installation.createdAt
-    ? `Added ${formatDayLabel(installation.createdAt)} · ${id}`
-    : id;
+  return installation.createdAt ? `Added ${formatDayLabel(installation.createdAt)} · ${id}` : id;
 }

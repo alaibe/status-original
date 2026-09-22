@@ -5,7 +5,10 @@ import { accountDatabaseKey } from './vault';
 const SCHEMA_VERSION = 2;
 
 const databases = new Map<string, Promise<AccountDatabase>>();
-const operations = new Map<string, { tail: Promise<void>; deleting: boolean; generation: number }>();
+const operations = new Map<
+  string,
+  { tail: Promise<void>; deleting: boolean; generation: number }
+>();
 
 function operationState(accountId: string) {
   let state = operations.get(accountId);
@@ -23,7 +26,7 @@ export function accountDatabaseGeneration(accountId: string): number {
 export function runAccountDatabaseOperation<T>(
   accountId: string,
   generation: number,
-  work: (db: AccountDatabase) => Promise<T>,
+  work: (db: AccountDatabase) => Promise<T>
 ): Promise<T> {
   const state = operationState(accountId);
   if (state.deleting || state.generation !== generation) {
@@ -31,7 +34,10 @@ export function runAccountDatabaseOperation<T>(
   }
 
   const result = state.tail.then(() => openAccountDatabase(accountId).then(work));
-  state.tail = result.then(() => {}, () => {});
+  state.tail = result.then(
+    () => {},
+    () => {}
+  );
   return result;
 }
 

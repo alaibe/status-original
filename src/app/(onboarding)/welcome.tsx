@@ -71,15 +71,13 @@ export default function Welcome() {
         </Animated.View>
         <Animated.View entering={Enter.content(stagger(2, 70))}>
           <Text variant="bodyMuted" className="mt-2 max-w-[420px]">
-            End-to-end encrypted messaging with no company in the middle. Your account is a key
-            you hold, and it also works as your Ethereum wallet.
+            End-to-end encrypted messaging with no company in the middle. Your account is a key you
+            hold, and it also works as your Ethereum wallet.
           </Text>
         </Animated.View>
       </View>
 
-      <Animated.View
-        entering={Enter.content(stagger(3, 70))}
-        className="gap-3 pb-8">
+      <Animated.View entering={Enter.content(stagger(3, 70))} className="gap-3 pb-8">
         {!isSecureStorageAvailable ? (
           <View className="rounded-card border border-warning/40 bg-warning/10 p-3">
             <Text variant="caption" className="text-warning">

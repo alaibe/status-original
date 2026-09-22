@@ -11,8 +11,19 @@ import {
 import { flagValue, withoutFlag } from '@/core/commands/flags';
 import { shortAddress } from '@/core/identity/keyring';
 import { loadTradeKey } from '@/core/identity/trade-key';
-import type { CommandInvocation, CommandResult, PluginContext, SlashCommand } from '@/core/plugins/types';
-import { W, type Widget, type WidgetOption, type WidgetRow, type WidgetTone } from '@/design/widgets';
+import type {
+  CommandInvocation,
+  CommandResult,
+  PluginContext,
+  SlashCommand,
+} from '@/core/plugins/types';
+import {
+  W,
+  type Widget,
+  type WidgetOption,
+  type WidgetRow,
+  type WidgetTone,
+} from '@/design/widgets';
 import { publicClientFor, trimDecimals } from '@/lib/evm/chains';
 import { popularTokens } from '@/lib/evm/token-list';
 import { planPermit, permittedCall, type PermitPlan, type PermitTargets } from '@/lib/evm/permit';
@@ -69,8 +80,7 @@ function receiveOptions(chains: TradeChain[], held: WidgetOption[]): WidgetOptio
 type TradeChain = ChainStrategy & { evm: Chain };
 
 /** LI.FI routes between EVM networks here; Bitcoin and Solana sit this one out. */
-const tradeChains = () =>
-  sendableChains().filter((c): c is TradeChain => c.evm !== undefined);
+const tradeChains = () => sendableChains().filter((c): c is TradeChain => c.evm !== undefined);
 
 function chainNamed(chains: TradeChain[], named: string): TradeChain | { error: string } {
   const known = networkById(named);
@@ -171,7 +181,8 @@ async function tradeForm(
           ],
           {
             label: 'Get a quote',
-            command: '/trade {amount} {token} {receive} --from {from} --to {to} --recipient {recipient}',
+            command:
+              '/trade {amount} {token} {receive} --from {from} --to {to} --recipient {recipient}',
           }
         ),
         W.text(
@@ -294,7 +305,10 @@ async function prepare(
   };
 
   if (native) {
-    const gas = (quote.estimate.gasCosts ?? []).reduce((sum, cost) => sum + BigInt(cost.amount), 0n);
+    const gas = (quote.estimate.gasCosts ?? []).reduce(
+      (sum, cost) => sum + BigInt(cost.amount),
+      0n
+    );
     if (held < fromAmount + gas) {
       return {
         error:
@@ -479,7 +493,9 @@ async function execute(
       throw new ApprovalPending(fromToken.symbol, from.name);
     }
     if (receipt.status === 'reverted') {
-      throw new Error(`The ${fromToken.symbol} approval was rejected on ${from.name}. Nothing was traded.`);
+      throw new Error(
+        `The ${fromToken.symbol} approval was rejected on ${from.name}. Nothing was traded.`
+      );
     }
   }
 
@@ -515,13 +531,19 @@ function sentCard(
   const amount = amountOf(quote.action.fromAmount, fromToken);
   return W.card(
     [
-      W.stat(`${amount} ${fromToken.symbol} → ≈ ${amountOf(quote.estimate.toAmount, toToken)} ${toToken.symbol}`, {
-        label: same ? `Swapped on ${from.name}` : `Sent from ${from.name} to ${to.name}`,
-        tone: 'success',
-      }),
+      W.stat(
+        `${amount} ${fromToken.symbol} → ≈ ${amountOf(quote.estimate.toAmount, toToken)} ${toToken.symbol}`,
+        {
+          label: same ? `Swapped on ${from.name}` : `Sent from ${from.name} to ${to.name}`,
+          tone: 'success',
+        }
+      ),
       ...(approval ? [W.code(approval, { label: 'Approval' })] : []),
       W.code(hash, { label: 'Transaction' }),
-      W.link(`View on ${from.explorer.name}`, explorerUrlFor(from.evm.id, hash) ?? lifiExplorerUrl(hash)),
+      W.link(
+        `View on ${from.explorer.name}`,
+        explorerUrlFor(from.evm.id, hash) ?? lifiExplorerUrl(hash)
+      ),
       W.link('Track on LI.FI', lifiExplorerUrl(hash)),
       ...(same
         ? []
@@ -550,11 +572,19 @@ async function statusCard(
   key: string | null,
   respond: Respond
 ): Promise<CommandResult> {
-  const status = await lifiStatus({ txHash: hash, fromChain: from.evm.id, toChain: to.evm.id }, key);
+  const status = await lifiStatus(
+    { txHash: hash, fromChain: from.evm.id, toChain: to.evm.id },
+    key
+  );
   const { label, tone } = STATUS_LABEL[status.status] ?? STATUS_LABEL.INVALID;
   const leg = (name: string, l: LifiStatus['sending']): WidgetRow[] =>
     l?.token && l.amount
-      ? [{ label: name, value: `${amountOf(l.amount, l.token)} ${l.token.symbol} on ${chainName(l.chainId)}` }]
+      ? [
+          {
+            label: name,
+            value: `${amountOf(l.amount, l.token)} ${l.token.symbol} on ${chainName(l.chainId)}`,
+          },
+        ]
       : [];
   const open = status.status === 'PENDING' || status.status === 'NOT_FOUND';
 
@@ -563,11 +593,19 @@ async function statusCard(
     fallback: `Bridge ${label.toLowerCase()}`,
     widget: W.card(
       [
-        W.stat(label, { label: `Bridge ${from.name} → ${to.name}`, caption: status.substatusMessage, tone }),
+        W.stat(label, {
+          label: `Bridge ${from.name} → ${to.name}`,
+          caption: status.substatusMessage,
+          tone,
+        }),
         W.rows([...leg('Sent', status.sending), ...leg('Received', status.receiving)]),
-        ...(status.receiving?.txLink ? [W.link(`View on ${chainName(status.receiving.chainId)}`, status.receiving.txLink)] : []),
+        ...(status.receiving?.txLink
+          ? [W.link(`View on ${chainName(status.receiving.chainId)}`, status.receiving.txLink)]
+          : []),
         W.link('Track on LI.FI', status.lifiExplorerLink ?? lifiExplorerUrl(hash)),
-        ...(open ? [W.actions([{ label: 'Check again', command: statusCommand(hash, from, to) }])] : []),
+        ...(open
+          ? [W.actions([{ label: 'Check again', command: statusCommand(hash, from, to) }])]
+          : []),
         POWERED_BY,
       ],
       { title: 'Bridge status', icon: 'swap-horizontal-outline', tone }
@@ -628,7 +666,8 @@ export const tradeCommand: SlashCommand = {
       } catch (error) {
         return {
           type: 'error',
-          message: error instanceof LifiError ? error.message : walletErrorMessage(error, from, 'status'),
+          message:
+            error instanceof LifiError ? error.message : walletErrorMessage(error, from, 'status'),
         };
       }
     }
@@ -639,7 +678,8 @@ export const tradeCommand: SlashCommand = {
     } catch (error) {
       return { type: 'error', message: walletErrorMessage(error, from, 'quote') };
     }
-    if ('error' in prepared) return { type: 'error', message: `${prepared.error} Nothing was sent.` };
+    if ('error' in prepared)
+      return { type: 'error', message: `${prepared.error} Nothing was sent.` };
 
     if (!confirmed) {
       await respond({

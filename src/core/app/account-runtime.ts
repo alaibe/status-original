@@ -49,7 +49,7 @@ export interface RuntimeAccount {
     accountId: string,
     keyring: Keyring,
     storage: AccountStorage,
-    lease: PluginLease,
+    lease: PluginLease
   ): PluginContext;
   onPluginsChanged?(ids: PluginId[]): void;
   createSession?: SessionFactory;
@@ -80,7 +80,10 @@ export class AccountRuntime {
   private subscriptions: Unsubscribe[] = [];
   private sessions = new Map<ProtocolId, ChatSession>();
   private bots = new Map<string, RunningBot>();
-  private eraseSessions = new Map<string, Map<ProtocolId, ChatSession & Partial<XmtpCapabilities>>>();
+  private eraseSessions = new Map<
+    string,
+    Map<ProtocolId, ChatSession & Partial<XmtpCapabilities>>
+  >();
   private proactiveIds: MessageId[] = [];
 
   constructor(private readonly descriptors: readonly ProtocolDescriptor[]) {}
@@ -147,7 +150,7 @@ export class AccountRuntime {
   updateProtocolConfig(
     accountId: string,
     protocolId: ProtocolId,
-    config: ProtocolConfig,
+    config: ProtocolConfig
   ): Promise<void> {
     return this.serialize(async () => {
       const generation = this.currentGeneration;
@@ -255,7 +258,7 @@ export class AccountRuntime {
     input: RuntimeAccount,
     storage: AccountStorage,
     generation: number,
-    id: PluginId,
+    id: PluginId
   ): Promise<void> {
     if (!this.isCurrent(generation)) return;
     if (input.registry.isActive(id)) return;
@@ -263,7 +266,7 @@ export class AccountRuntime {
     await input.registry.activate(
       id,
       (plugin) => input.makeContext(plugin, input.accountId, input.keyring, storage, lease),
-      lease.revoke,
+      lease.revoke
     );
     if (!input.registry.isActive(id)) lease.revoke();
   }
@@ -271,7 +274,7 @@ export class AccountRuntime {
   private async publishPlugins(
     input: RuntimeAccount,
     storage: AccountStorage,
-    generation: number,
+    generation: number
   ): Promise<void> {
     if (!this.isCurrent(generation)) return;
     const ids = input.registry.activeIds();
@@ -294,91 +297,110 @@ export class AccountRuntime {
       (descriptor) => !selected || selected.includes(descriptor.id)
     );
 
-    await Promise.all(descriptors.map(async (descriptor) => {
-      if (!this.isCurrent(generation)) return;
-      const protocolId = descriptor.id;
-      this.setProtocol(protocolId, { status: 'connecting', error: null });
-      try {
-        let session: ChatSession;
-        if (input.createSession) {
-          session = await input.createSession({
-            protocolId,
-            account: input.keyring.account,
-            derive: input.keyring.derive,
-            contentTypes: input.registry.contentTypeSpecs(),
-          });
-        } else {
-          const stored = await loadProtocolConfig(input.accountId, protocolId);
-          if (!this.isCurrent(generation)) return;
-          const config = effectiveConfig(descriptor, stored);
-          if (!isConfigured(descriptor, config)) {
-            this.setProtocol(protocolId, { status: 'idle', error: null });
+    await Promise.all(
+      descriptors.map(async (descriptor) => {
+        if (!this.isCurrent(generation)) return;
+        const protocolId = descriptor.id;
+        this.setProtocol(protocolId, { status: 'connecting', error: null });
+        try {
+          let session: ChatSession;
+          if (input.createSession) {
+            session = await input.createSession({
+              protocolId,
+              account: input.keyring.account,
+              derive: input.keyring.derive,
+              contentTypes: input.registry.contentTypeSpecs(),
+            });
+          } else {
+            const stored = await loadProtocolConfig(input.accountId, protocolId);
+            if (!this.isCurrent(generation)) return;
+            const config = effectiveConfig(descriptor, stored);
+            if (!isConfigured(descriptor, config)) {
+              this.setProtocol(protocolId, { status: 'idle', error: null });
+              return;
+            }
+            session = await descriptor.connect!({
+              accountId: input.accountId,
+              account: input.keyring.account,
+              derive: input.keyring.derive,
+              contentTypes: input.registry.contentTypeSpecs(),
+              config,
+              storage: this.storage!,
+            });
+          }
+
+          if (!this.isCurrent(generation)) {
+            await session.disconnect().catch(() => {});
             return;
           }
-          session = await descriptor.connect!({
-            accountId: input.accountId,
-            account: input.keyring.account,
-            derive: input.keyring.derive,
-            contentTypes: input.registry.contentTypeSpecs(),
-            config,
-            storage: this.storage!,
-          });
-        }
-
-        if (!this.isCurrent(generation)) {
-          await session.disconnect().catch(() => {});
-          return;
-        }
-        this.sessions.set(protocolId, session);
-        useChatStore.setState((state) => ({ sessions: { ...state.sessions, [protocolId]: session } }));
-        this.setProtocol(protocolId, { status: 'ready', error: null });
-        const live = () => this.isSession(generation, protocolId, session);
-
-        if (session.subscribeHistory) {
-          this.subscriptions.push(session.subscribeHistory((history) => {
-            if (!live()) return;
-            this.setProtocol(protocolId, { ...useChatStore.getState().protocols[protocolId], history });
+          this.sessions.set(protocolId, session);
+          useChatStore.setState((state) => ({
+            sessions: { ...state.sessions, [protocolId]: session },
           }));
-        }
-        if (session.subscribeLogin) {
-          this.subscriptions.push(session.subscribeLogin((login) => {
-            if (!live()) return;
-            this.setProtocol(protocolId, { ...useChatStore.getState().protocols[protocolId], login });
-          }));
-        }
-        const stopMessages = await session.streamMessages((message) => {
-          if (live()) useChatStore.getState().ingestMessage(namespaceMessage(protocolId, message));
-        });
-        if (!live()) {
-          stopMessages();
-          await session.disconnect().catch(() => {});
-          return;
-        }
-        this.subscriptions.push(stopMessages);
+          this.setProtocol(protocolId, { status: 'ready', error: null });
+          const live = () => this.isSession(generation, protocolId, session);
 
-        const stopConversations = await session.streamConversations((conversation) => {
-          if (live()) {
-            useChatStore.getState().ingestConversation(namespaceConversation(protocolId, conversation));
+          if (session.subscribeHistory) {
+            this.subscriptions.push(
+              session.subscribeHistory((history) => {
+                if (!live()) return;
+                this.setProtocol(protocolId, {
+                  ...useChatStore.getState().protocols[protocolId],
+                  history,
+                });
+              })
+            );
           }
-        });
-        if (!live()) {
-          stopConversations();
-          await session.disconnect().catch(() => {});
-          return;
+          if (session.subscribeLogin) {
+            this.subscriptions.push(
+              session.subscribeLogin((login) => {
+                if (!live()) return;
+                this.setProtocol(protocolId, {
+                  ...useChatStore.getState().protocols[protocolId],
+                  login,
+                });
+              })
+            );
+          }
+          const stopMessages = await session.streamMessages((message) => {
+            if (live())
+              useChatStore.getState().ingestMessage(namespaceMessage(protocolId, message));
+          });
+          if (!live()) {
+            stopMessages();
+            await session.disconnect().catch(() => {});
+            return;
+          }
+          this.subscriptions.push(stopMessages);
+
+          const stopConversations = await session.streamConversations((conversation) => {
+            if (live()) {
+              useChatStore
+                .getState()
+                .ingestConversation(namespaceConversation(protocolId, conversation));
+            }
+          });
+          if (!live()) {
+            stopConversations();
+            await session.disconnect().catch(() => {});
+            return;
+          }
+          this.subscriptions.push(stopConversations);
+          const conversations = await session.listConversations();
+          if (!live()) return;
+          useChatStore
+            .getState()
+            .ingestConversations(
+              conversations.map((conversation) => namespaceConversation(protocolId, conversation))
+            );
+          await useChatStore.getState().syncProtocol(protocolId);
+        } catch (error) {
+          if (this.isCurrent(generation)) {
+            this.setProtocol(protocolId, { status: 'error', error: errorMessage(error) });
+          }
         }
-        this.subscriptions.push(stopConversations);
-        const conversations = await session.listConversations();
-        if (!live()) return;
-        useChatStore.getState().ingestConversations(
-          conversations.map((conversation) => namespaceConversation(protocolId, conversation))
-        );
-        await useChatStore.getState().syncProtocol(protocolId);
-      } catch (error) {
-        if (this.isCurrent(generation)) {
-          this.setProtocol(protocolId, { status: 'error', error: errorMessage(error) });
-        }
-      }
-    }));
+      })
+    );
 
     if (this.isCurrent(generation)) this.rollUpStatus();
   }
@@ -429,7 +451,9 @@ export class AccountRuntime {
       sessions: {},
       protocols: {},
       syncing: false,
-      conversations: state.conversations.filter((conversation) => conversation.protocol === 'local'),
+      conversations: state.conversations.filter(
+        (conversation) => conversation.protocol === 'local'
+      ),
       messages: Object.fromEntries(Object.entries(state.messages).filter(local)),
       rawMessages: Object.fromEntries(Object.entries(state.rawMessages).filter(local)),
     });
@@ -461,11 +485,13 @@ export class AccountRuntime {
     const context: BotContext = {
       conversationId,
       say: async (content) => {
-        if (running.stopped || !this.isCurrent(generation) || this.current?.accountId !== accountId) return;
+        if (running.stopped || !this.isCurrent(generation) || this.current?.accountId !== accountId)
+          return;
         const chat = useChatStore.getState();
         if (!chat.conversations.some((conversation) => conversation.id === conversationId)) return;
         await chat.postLocalMessage(conversationId, toContent(content), 'bot');
-        if (running.stopped || !this.isCurrent(generation) || this.current?.accountId !== accountId) return;
+        if (running.stopped || !this.isCurrent(generation) || this.current?.accountId !== accountId)
+          return;
         const posted = useChatStore.getState().messages[conversationId]?.at(-1);
         if (posted) {
           this.proactiveIds.push(posted.id);
@@ -473,15 +499,18 @@ export class AccountRuntime {
         }
       },
     };
-    Promise.resolve().then(() => bot.activate?.(context)).then((dispose) => {
-      if (typeof dispose !== 'function') return;
-      if (running.stopped) dispose();
-      else running.dispose = dispose;
-    }).catch((error) => {
-      console.warn(`[bots] "${bot.id}" failed to activate`, error);
-      reportError(error);
-      if (this.bots.get(bot.id) === running) this.stopBot(bot.id);
-    });
+    Promise.resolve()
+      .then(() => bot.activate?.(context))
+      .then((dispose) => {
+        if (typeof dispose !== 'function') return;
+        if (running.stopped) dispose();
+        else running.dispose = dispose;
+      })
+      .catch((error) => {
+        console.warn(`[bots] "${bot.id}" failed to activate`, error);
+        reportError(error);
+        if (this.bots.get(bot.id) === running) this.stopBot(bot.id);
+      });
   }
 
   private stopBots(): void {
@@ -516,20 +545,16 @@ export class AccountRuntime {
   private createLease(
     input: RuntimeAccount,
     generation: number,
-    pluginId: PluginId,
+    pluginId: PluginId
   ): OwnedPluginLease {
     let revoked = false;
     const lease: OwnedPluginLease = {
       assertActive: () => {
-        if (
-          revoked ||
-          !this.isCurrent(generation) ||
-          this.current?.accountId !== input.accountId
-        ) {
+        if (revoked || !this.isCurrent(generation) || this.current?.accountId !== input.accountId) {
           throw new Error(`Plugin "${pluginId}" is no longer active.`);
         }
       },
-      guard: async <T,>(run: () => Promise<T>): Promise<T> => {
+      guard: async <T>(run: () => Promise<T>): Promise<T> => {
         lease.assertActive();
         const result = await run();
         lease.assertActive();
@@ -563,7 +588,9 @@ export class AccountRuntime {
   }
 
   private isCurrent(generation: number): boolean {
-    return this.current !== null && this.currentGeneration === generation && this.isDesired(generation);
+    return (
+      this.current !== null && this.currentGeneration === generation && this.isDesired(generation)
+    );
   }
 
   private isSession(generation: number, id: ProtocolId, session: ChatSession): boolean {

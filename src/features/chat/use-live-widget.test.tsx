@@ -17,7 +17,10 @@ jest.mock('@/core/plugins/host', () => ({ usePluginHost: () => mockHost }));
 
 const text = (value: string): Widget => ({ kind: 'text', text: value });
 const card = (value: string) => ({ kind: 'widget' as const, widget: text(value), fallback: value });
-const snapshot: WidgetContent = { ...card('then'), live: { pluginId: 'p', view: 'list', args: ['x'] } };
+const snapshot: WidgetContent = {
+  ...card('then'),
+  live: { pluginId: 'p', view: 'list', args: ['x'] },
+};
 
 function Probe({ content }: { content: WidgetContent }) {
   return createElement('probe', { widget: useLiveWidget(content) });

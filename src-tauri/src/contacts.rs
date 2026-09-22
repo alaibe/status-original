@@ -18,8 +18,8 @@ mod platform {
     use std::sync::mpsc;
 
     use block2::RcBlock;
-    use objc2::runtime::{Bool, ProtocolObject};
     use objc2::rc::Retained;
+    use objc2::runtime::{Bool, ProtocolObject};
     use objc2::AnyThread;
     use objc2_contacts::{
         CNAuthorizationStatus, CNContact, CNContactFamilyNameKey, CNContactFetchRequest,

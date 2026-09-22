@@ -55,8 +55,7 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => ({
         readReceipts: parsed.readReceipts ?? false,
         linkPreviews: parsed.linkPreviews ?? true,
       });
-    } catch {
-    }
+    } catch {}
   },
 
   clear() {

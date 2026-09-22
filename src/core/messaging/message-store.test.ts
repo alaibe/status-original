@@ -75,7 +75,6 @@ describe('history across a restart', () => {
     const second = await sessionOn(store);
     expect(await second.session.getMessages(conversation.id)).toHaveLength(1);
   });
-
 });
 
 describe('dedupe', () => {
@@ -114,7 +113,7 @@ describe('durable writes', () => {
       attempts = 0;
       override async insertMessage(
         message: Parameters<InMemoryMessageStore['insertMessage']>[0],
-        conversation?: Parameters<InMemoryMessageStore['insertMessage']>[1],
+        conversation?: Parameters<InMemoryMessageStore['insertMessage']>[1]
       ) {
         this.attempts += 1;
         if (this.attempts === 1) throw new Error('disk full');
@@ -126,7 +125,9 @@ describe('durable writes', () => {
     const seen: string[] = [];
     await session.streamMessages((message) => seen.push(message.id));
     let history: import('./history').HistoryState = { status: 'idle' };
-    session.subscribeHistory((state) => { history = state; });
+    session.subscribeHistory((state) => {
+      history = state;
+    });
 
     await expect(transport.receive('m1', 1000, 'keep me')).rejects.toThrow('disk full');
     expect(history).toEqual({
@@ -146,9 +147,11 @@ describe('durable writes', () => {
     class SlowStore extends InMemoryMessageStore {
       override async insertMessage(
         message: Parameters<InMemoryMessageStore['insertMessage']>[0],
-        conversation?: Parameters<InMemoryMessageStore['insertMessage']>[1],
+        conversation?: Parameters<InMemoryMessageStore['insertMessage']>[1]
       ) {
-        await new Promise<void>((resolve) => { release = resolve; });
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
         return super.insertMessage(message, conversation);
       }
     }
