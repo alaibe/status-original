@@ -1,0 +1,193 @@
+name: Release
+
+# Push a tag to release everything:
+#   git tag v1.0.0 && git push github v1.0.0
+#
+# Desktop bundles are built by tauri-apps/tauri-action on a runner per OS and
+# attached to one draft release. Mobile is built by EAS and only triggered from
+# here. The release is published once every job has succeeded.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Leave the release as a draft
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_id: ${{ steps.release.outputs.id }}
+      has_expo: ${{ steps.expo.outputs.has_expo }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: version
+        run: echo "version=$(jq -r .expo.version app.json)" >> "$GITHUB_OUTPUT"
+
+      # A tag that disagrees with a manifest ships a build whose in-app version
+      # is not the one people downloaded.
+      - name: Manifests agree with the tag
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          TAG="${{ github.ref_name }}"
+          [ "$TAG" = "v$V" ] || [ "${{ github.event_name }}" = workflow_dispatch ] \
+            || { echo "tag $TAG does not match app.json $V" >&2; exit 1; }
+          for pair in package.json:.version src-tauri/tauri.conf.json:.version; do
+            found=$(jq -r "${pair#*:}" "${pair%%:*}")
+            [ "$found" = "$V" ] || { echo "${pair%%:*} is $found, expected $V" >&2; exit 1; }
+          done
+          grep -q "^version = \"$V\"" src-tauri/Cargo.toml \
+            || { echo "src-tauri/Cargo.toml is not $V" >&2; exit 1; }
+
+      - id: expo
+        run: echo "has_expo=${{ secrets.EXPO_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      # Created once so every job attaches to the same release.
+      - id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq .id 2>/dev/null || true)
+          if [ -z "$id" ]; then
+            id=$(gh api "repos/${{ github.repository }}/releases" \
+              -f tag_name="$TAG" -f name="Status Original ${{ steps.version.outputs.version }}" \
+              -F draft=true -F prerelease=false --jq .id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  desktop:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One universal binary on macOS: libtdjson.dylib already carries both
+          # architectures, so two per-arch builds would gain nothing.
+          - os: macos-15
+            args: --target universal-apple-darwin
+          - os: ubuntu-22.04
+            args: ''
+          - os: windows-latest
+            args: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-15' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.os }}
+
+      # Tauri's own prerequisites, plus cmake for aws-lc (matrix-sdk), perl for
+      # OpenSSL (SQLCipher) and libudev for hidapi (Ledger).
+      - name: Linux dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            cmake perl libudev-dev
+
+      # OpenSSL's assembly needs it; MSVC and cmake are already on the image.
+      - name: Windows dependencies
+        if: matrix.os == 'windows-latest'
+        run: choco install nasm --no-progress -y
+
+      - run: npm ci
+
+      # macOS builds it from Swiftgram's xcframework, about 360 MB once; Linux
+      # and Windows download the same TDLib version already built.
+      - name: Cache TDLib
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/frameworks
+          key: tdlib-${{ matrix.os }}-${{ hashFiles('scripts/fetch-tdlib.sh') }}
+      - name: TDLib
+        shell: bash
+        run: ./scripts/fetch-tdlib.sh
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Developer ID Application certificate, for distribution outside the store.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          # Notarization. Without these the DMG is signed but Gatekeeper warns.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Signs the update artifacts an installed copy verifies before applying.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          # Writes and merges latest.json across the matrix; installed copies read it.
+          uploadUpdaterJson: true
+
+  mobile:
+    needs: prepare
+    if: needs.prepare.outputs.has_expo == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      # EAS builds on its own infrastructure, so this runner only triggers and
+      # collects. That is why one Linux runner can produce an iOS build.
+      - name: Android
+        run: |
+          eas build --platform android --profile github \
+            --non-interactive --wait --json > build.json
+          url=$(jq -r '.[0].artifacts.applicationArchiveUrl // .[0].artifacts.buildUrl' build.json)
+          [ "$url" != "null" ] || { echo "EAS returned no artifact URL" >&2; exit 1; }
+          curl -fL -o "status-original-${{ needs.prepare.outputs.version }}.apk" "$url"
+
+      - name: Attach the APK to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "v${{ needs.prepare.outputs.version }}" ./*.apk --clobber
+
+      # Apple permits no sideloading, so there is nothing to attach here.
+      - name: iOS to TestFlight
+        run: |
+          eas build --platform ios --profile production \
+            --non-interactive --wait --auto-submit-with-profile production
+
+  publish:
+    needs: [prepare, desktop, mobile]
+    if: ${{ !cancelled() && needs.desktop.result == 'success' && !inputs.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.prepare.outputs.version }}" \
+            --repo "${{ github.repository }}" --draft=false

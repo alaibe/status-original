@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
+import { guideUrl } from '@/lib/guide';
 import { accountDirectory, eraseAccountDirectory } from '@/storage/media';
 import {
   accountMatrixSessionKey,
@@ -18,7 +19,7 @@ const DEVICE_NAME = `Status Original on ${Platform.select({ ios: 'iPhone', andro
 
 export const MATRIX_PROTOCOL = {
   id: 'matrix',
-  docsUrl: 'https://matrix.org/ecosystem/bridges/',
+  docsUrl: guideUrl('networks', 'matrix'),
   label: 'Matrix',
   description:
     'Your Matrix account: encrypted rooms and DMs on any homeserver, plus whatever your ' +

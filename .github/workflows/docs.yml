@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
+      # PRIVACY.md is included into docs/privacy.md; the other root documents
+      # are for the repository, not the site.
       - 'docs/**'
-      - 'README.md'
-      - 'CONTRIBUTING.md'
       - 'PRIVACY.md'
       - '.github/workflows/docs.yml'
       - 'package.json'

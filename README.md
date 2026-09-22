@@ -1,202 +1,134 @@
 # Status Original
 
-A self-custodial messenger for iOS, Android and the desktop. Your account is a
-recovery phrase held on the device. There is no email, phone number or
-application backend, and nobody can reset the account for you.
+An encrypted messenger whose account is a key you hold. Twelve words, generated
+on the device. No sign-up, no phone number, no email, and no backend of ours for
+anyone to subpoena, sell or breach. The same phrase is also an Ethereum, Bitcoin
+and Solana wallet.
 
-Built with Expo SDK 57, React Native 0.86 and React 19.2; the desktop app is
-the same code as a web export inside a Tauri window.
+iOS, Android and macOS, from one Expo SDK 57 / React Native 0.86 / React 19.2
+codebase. The desktop app is the web export of that codebase running in a Tauri
+window.
 
 <p align="center">
-  <img src="store/screenshots/ios-6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
-  <img src="store/screenshots/ios-6.9/03-conversation.png" width="196" alt="The Status room, with command chips and links to the messaging networks">
-  <img src="store/screenshots/ios-6.9/05-message-actions.png" width="196" alt="Long-pressing a message: reactions, reply, copy and forward">
-  <img src="store/screenshots/ios-6.9/06-plugins.png" width="196" alt="Plugins screen: assistant, names, bots, wallet, browser and markets">
+  <img src="store/ios/screenshots/6.9/01-welcome.png" width="196" alt="Welcome screen: create an account, restore a phrase or connect a hardware wallet">
+  <img src="store/ios/screenshots/6.9/03-conversation.png" width="196" alt="The Status room, with command chips above the composer">
+  <img src="store/ios/screenshots/6.9/05-message-actions.png" width="196" alt="Long-pressing a message: reactions, reply, copy and forward">
+  <img src="store/ios/screenshots/6.9/06-plugins.png" width="196" alt="Plugins screen: assistant, names, bots, wallet, browser and markets">
 </p>
 
-## What it does
+**[User guide](https://alaibe.github.io/status-original/)** ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) ·
+[Privacy](PRIVACY.md) · [Disclaimer](DISCLAIMER.md)
 
-- End-to-end encrypted messaging over XMTP, Nostr and Waku, in one inbox
-  that shows which network each conversation is on.
-- Your Telegram account in the same inbox, as a real client over TDLib:
-  private chats and groups, signed in with your phone number. Telegram is
-  not end-to-end encrypted, and the app says so on the conversation.
-- Your Matrix account too, over matrix-rust-sdk (the crate behind Element X):
-  encrypted rooms and DMs on any homeserver, invitations as message requests,
-  and whatever the homeserver bridges in — a self-hosted mautrix bridge puts
-  WhatsApp, Signal, Slack, iMessage or Discord chats in the same list with no
-  code for them in the app.
-- Message requests, search, filters, replies, reactions, forwarding, photos,
-  files, GIFs and voice messages. Links unfurl into a card (YouTube with a
-  poster, maps links into a place that opens in Maps); phone numbers, email
-  addresses, wallet addresses and ENS names are tappable, and an address gets
-  the wallet's card with its name and balance. XMTP groups where the protocol
-  supports them.
-- Local encrypted history in a SQLCipher database per account.
-- Several accounts per device, from a phrase or a hardware wallet (Ledger,
-  Trezor, Keystone), with optional biometric unlock.
-- Plugins that ship in the binary and switch on per account: a wallet for
-  Ethereum, Bitcoin and Solana, price alerts, profile tools, local bot rooms,
-  and a browser plugin with bookmarks that connects sites in the system
-  browser back to the wallet over WalletConnect (Uniswap, CoW Swap, 1inch,
-  Matcha, SushiSwap, Curve).
+## Five networks, one inbox
 
-The app has three tabs: Chats, Contacts and Settings. The local Status room
-holds help and plugin commands. In any chat, `/` opens a command picker and
-`/commands` lists what works in that room; the chips above the composer run
-the same commands.
+Every conversation says which network it is on and what that network actually
+protects, because the honest answers differ:
 
-Some commands worth knowing: `/networks` turns chains on and off and picks the
-default, `/send` and `/request` start on that default unless you pass
-`--chain`, `/trade` (also `/swap`, `/bridge`) quotes a swap or a bridge
-between EVM networks through LI.FI, `/scan` reads a WalletConnect code, and
-`/open matcha` opens a bookmark. Sending and trading show a review step first
-and sign nothing until you confirm.
+| Network | Confidentiality | Reach someone by | Runs on |
+| --- | --- | --- | --- |
+| **XMTP** | MLS, forward secret | Ethereum address or ENS name | Your recovery phrase |
+| **Nostr** | NIP-17 sealed DMs; relays never learn the sender | `npub…` public key | Your recovery phrase |
+| **Waku** | Encrypted payloads through an nwaku node you name | Public key | Your recovery phrase |
+| **Telegram** | None. Telegram holds and can read it | `@username`, `t.me` link, phone number | Your Telegram account, over TDLib |
+| **Matrix** | Olm/Megolm in rooms with encryption on | `@user:server` | Your Matrix account, over matrix-rust-sdk |
 
-## Architecture
+Telegram and Matrix are real client implementations, not bridges we operate:
+sign in with your own credentials and those chats land in the same list. A
+Matrix homeserver running a [mautrix](https://github.com/mautrix) bridge brings
+WhatsApp, Signal, Slack, iMessage or Discord along with it, with no code for
+any of them in this app.
 
-```text
-src/
-  app/          Expo Router routes and tab navigation
-  core/
-    app/        account runtime and application lifecycle
-    identity/   accounts, keyrings, hardware signers, key protection
-    messaging/  chat domain, persistence sessions, history, projections
-    commands/   command parsing and shared group commands
-    plugins/    plugin contracts, registry, storage and host
-  protocols/    XMTP, Nostr, Waku, Telegram and Matrix descriptors and adapters
-  storage/      account-scoped storage, SQLCipher, vault, media, erase
-  design/       tokens, components, motion and widget rendering
-  features/     chat and protocol UI
-  plugins/      the bundled plugins
-  desktop/      what the web build swaps in for the desktop window
-src-tauri/      the desktop window: Rust commands for SQLCipher, the vault, Ledger, TDLib and Matrix
-```
+## What else is in it
 
-A file ending in `.web.tsx` or `.web.ts` is the desktop version of its
-neighbour; `docs/desktop.md` lists them.
+- Message requests, folders, search, replies, reactions, forwarding, pin,
+  archive and mute. Photos, files, GIFs and voice notes. Groups where the
+  protocol has them.
+- Links unfurl into cards fetched by your device, not a server. Phone numbers,
+  email addresses, map coordinates, wallet addresses and ENS names are tappable
+  with no request at all.
+- Per-account SQLCipher history. Several accounts per device, each from a
+  recovery phrase or a hardware wallet (Ledger, Trezor, Keystone), with optional
+  biometric unlock and key protection.
+- A fresh install is a messenger and nothing else. Wallet, dapp browser, market
+  alerts, bots and name lookups are plugins that ship switched off, each
+  declaring its permissions before you enable it.
 
-`ChatSession` is the messaging contract the app talks to. XMTP implements it
-on the SDK's own encrypted database, Telegram on TDLib's and Matrix on
-matrix-rust-sdk's; Nostr and Waku
-use `StoreBackedSession` over the app's `MessageStore`, so transport code
-stays separate from local persistence. A session that signs in interactively
-reports the step it is waiting on, and the protocol's settings screen walks
-through it. `AccountRuntime` owns the active account's storage, plugins,
-protocol sessions and local bots. Conversation and message IDs carry their
-protocol before they reach the unified store.
+Everything a plugin does is a slash command. `/` in any conversation opens a
+picker scoped to that room; the chips above the composer run the same commands.
+`/networks` switches chains on and off, `/send` and `/request` move money inside
+the conversation where it came up, `/trade` (also `/swap`, `/bridge`) quotes
+through LI.FI, `/scan` reads a WalletConnect code. Anything that signs shows a
+review step first.
 
-A plugin contributes commands, content types, bots, URI handlers, composer
-actions and overlays. A content type declares its codec and its renderer
-together, so a client that lacks the plugin shows the payload's fallback text.
+## Platforms
 
-Account data is split by medium: recovery phrases, database keys and
-credentials in SecureStore; conversations and messages in one SQLCipher
-database per account; preferences in account-scoped AsyncStorage; downloaded
-media in account-scoped directories. Erasing an account removes all of it
-before the keys.
+iOS, macOS, Windows and Linux. Android builds from the same codebase but has no
+Telegram: `react-native-tdlib`'s Android side does not expose the raw
+`td_json_client` calls `src/protocols/telegram/td-client.ts` drives.
 
-## Setup
+One tag releases every platform. [`store/`](store/README.md) has the pipeline,
+the secrets it reads and the store checklists.
 
-Node.js 22.13 or newer, Xcode 26.3 and CocoaPods for iOS; Rust for the desktop
-app. Expo Go does not work: the app uses native modules for XMTP, TDLib,
-SQLCipher and hardware wallets.
+## Quick start
+
+Node.js 22.13+, Xcode 26.3 with an iPhone simulator, and CocoaPods. Rust as
+well for the desktop app. Expo Go cannot run this: XMTP, TDLib, SQLCipher and
+the hardware wallet transports are all native modules.
 
 ```bash
-npm install
-./scripts/setup.sh
+npm install          # also applies patches/ and copies the XMTP wasm bundle
+./scripts/setup.sh   # checks the toolchain; --install fixes what it safely can
 npx expo run:ios
 ```
 
-`npm install` applies the patches in `patches/`, which make the Expo SDK 57
-sources compile under Swift 6.2.4. Expo modules are built from source rather
-than from Expo's precompiled frameworks for the same reason; `docs/deploying.md`
-has the details and the crash reports behind that choice.
-
-WalletConnect needs a project ID from Reown Cloud in
-`expo.extra.walletConnectProjectId`. LI.FI and KLIPY keys are optional and
-entered per account inside the app, as are the Telegram API ID and hash from
-my.telegram.org: each user registers their own, and nothing is shared. Token
-balances need no key: `src/lib/evm/token-list.json` is the Uniswap Labs Default
-list from tokenlists.org, trimmed to the chains the wallet sends on and read
-with one multicall against the endpoint already in use. `npm run tokens:build`
-refreshes it, and `/tokens add <contract>` covers what it does not carry.
-Solana discovers its own tokens through `getTokenAccountsByOwner`;
-`src/plugins/wallet/solana/token-list.json` is Jupiter's verified list, kept
-only to name a mint, and `npm run tokens:build:solana` refreshes it.
-
-Android has not been built or run yet. The native project generates, but
-nothing has been checked on a device or emulator. Telegram in particular is
-iOS-only for now: `react-native-tdlib`'s Android side does not expose the raw
-`td_json_client` calls `src/protocols/telegram/td-client.ts` relies on.
-Matrix ships Android binaries with `@unomed/react-native-matrix-sdk`, but
-that side is equally unchecked.
-
-Matrix asks for the homeserver URL and Matrix ID per account and the
-password once; the session token then lives in the keychain. The homeserver
-must support simplified sliding sync (MSC4186: Synapse 1.114+, the Conduit
-family), as Element X requires; homeservers that have moved to OAuth-only
-sign-in (matrix.org since MAS) are not supported yet.
-Bridges are the homeserver's business: run one of the
-[mautrix](https://github.com/mautrix) bridges against your own homeserver and
-its rooms show up as ordinary Matrix DMs.
-
-`npm run desktop` opens the desktop app with live reload; `npm run
-desktop:build` produces the `.app`. `docs/desktop.md` explains how the desktop
-differs, what the Rust side does and where its data lives.
-
-## Development
-
 ```bash
-npm start              # Metro
-npm run typecheck
-npm run lint
-npm test               # Jest
-npm run test:e2e       # Maestro, on a booted iOS simulator with Metro running
-npm run test:all       # all of the above
+npm start            # Metro
+npm run desktop      # Metro on 8082 plus a Tauri window that reloads on save
+npm run typecheck && npm run lint && npm test
+npm run test:e2e     # Maestro, against a booted simulator with Metro running
+npm run test:all     # all four, in that order
 ```
 
-The e2e flows and their conventions are in `e2e/README.md`. To test against
-networks you control instead of production relays, `local-net/` runs Nostr and
-Waku locally; its README explains why that exists.
+`scripts/setup.sh` is a doctor, not an installer: it reports what is missing and
+the command that fixes it, and only installs when you pass `--install`. Add
+`--android` to include that toolchain in the check.
 
-Three kinds of file are generated and should not be edited by hand:
+### Keys and configuration
 
-- `src/global.css` from `src/design/tokens.ts`, with `npm run theme:build`.
-- `assets/brand/mark.svg` and every icon, splash and store graphic, from
-  `assets/brand/status-logo-2018.png`, with `npm run brand:build` (needs
-  `brew install librsvg`). A test fails if the SVG or the brand colour drifts
-  from the source image.
-- `ios/` and `android/`, from `app.json`, with `npx expo prebuild`.
-- `src-tauri/icons/`, from `assets/images/icon-desktop.png`, also by
-  `npm run brand:build`.
-- `public/xmtp/bindings_wasm_bg.wasm`, copied from `node_modules` on install.
+Nothing secret ships in the repository, and the app works without any of it.
 
-## Store submission
+| What | Where | Needed for |
+| --- | --- | --- |
+| WalletConnect project id | `expo.extra.walletConnectProjectId` in `app.json` | connecting dapps |
+| Telegram API id and hash | Settings → Protocols → Telegram, per account | Telegram sign-in ([my.telegram.org](https://my.telegram.org)) |
+| Matrix homeserver and ID | Settings → Protocols → Matrix, per account | Matrix sign-in |
+| LI.FI key | Settings → Trades, per account | optional; raises the quote rate limit |
+| KLIPY key | Settings → GIFs, per account | GIF search |
 
-`store/` holds everything App Store Connect and Google Play ask for: listing
-text, privacy answers, the export compliance reasoning, review notes and
-screenshots. `store/screenshots/capture.sh` regenerates the screenshots from
-an erased simulator; the ones above are the same files. `docs/deploying.md`
-lists what is done and what only the account holder can do.
+Token balances need no key at all. `src/lib/evm/token-list.json` is the Uniswap
+Labs Default list trimmed to the five chains the wallet sends on (829 entries),
+read with one multicall against the endpoint already in use; `/tokens add
+<contract>` covers anything it misses. Solana enumerates its own holdings
+through `getTokenAccountsByOwner`, with Jupiter's verified list bundled only to
+put a name to a mint. `npm run tokens:build` and `npm run tokens:build:solana`
+refresh them.
 
-## Security notes
+## Documentation
 
-- Recovery phrases are stored `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; key protection
-  adds biometric authentication. On the desktop they sit in an encrypted file
-  whose key is in the operating system's credential store; the web build never
-  keeps secrets in browser storage.
-- Database keys are separate from recovery phrases and from protocol database
-  keys.
-- Transactions are signed on the device. Hardware accounts sign on the
-  connected device.
-- `index.js` installs `crypto.getRandomValues` before Expo Router loads
-  modules that snapshot `globalThis.crypto`. Keep that order.
+| For | Where |
+| --- | --- |
+| Using the app | [alaibe.github.io/status-original](https://alaibe.github.io/status-original/) (`docs/`) |
+| Working on the code | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Reporting a vulnerability | [`SECURITY.md`](SECURITY.md) |
+| What leaves your device | [`PRIVACY.md`](PRIVACY.md) |
+| What the developer is not responsible for | [`DISCLAIMER.md`](DISCLAIMER.md) |
+| Releasing, and what the stores ask for | [`store/`](store/README.md) |
+| Why each dependency is patched | [`patches/README.md`](patches/README.md) |
+| End-to-end tests | [`e2e/README.md`](e2e/README.md) |
+| Running Nostr and Waku locally | [`local-net/README.md`](local-net/README.md) |
+| Writing a bot | [`examples/echo-bot/`](examples/echo-bot/README.md) |
 
-Report a vulnerability through GitHub's private security advisory for the
-repository, not a public issue.
+## License
 
-## Contributing and privacy
-
-See `CONTRIBUTING.md` for how to work on the code and `PRIVACY.md` for what
-the app sends where. Licensed under MIT; see `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).

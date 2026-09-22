@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "targets": ["app"],
+    "createUpdaterArtifacts": false,
+    "category": "SocialNetworking",
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "files": {
+        "embedded.provisionprofile": "embedded.provisionprofile"
+      }
+    }
+  },
+  "app": {
+    "security": {
+      "capabilities": ["default"]
+    }
+  }
+}

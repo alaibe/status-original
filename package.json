@@ -57,6 +57,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-updates": "~57.0.23",
     "expo-web-browser": "~57.0.3",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
@@ -120,8 +121,11 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "@xmtp/react-native-sdk"
-        ]
+          "@xmtp/react-native-sdk",
+          "react-native-tdlib",
+          "@unomed/react-native-matrix-sdk"
+        ],
+        "listUnknownPackages": false
       }
     }
   },

@@ -1,11 +1,12 @@
 import { configLines } from '@/core/messaging/config';
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
+import { guideUrl } from '@/lib/guide';
 
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.nostr.net'].join('\n');
 
 export const NOSTR_PROTOCOL = {
   id: 'nostr',
-  docsUrl: 'https://nostr.com',
+  docsUrl: guideUrl('networks', 'nostr'),
   label: 'Nostr',
   description: 'Sealed direct messages relayed by servers that never learn who sent them.',
   recipient: {

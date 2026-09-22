@@ -10,7 +10,6 @@
         "EXPO_PUBLIC_XMTP_ENV": "production"
       }
     },
-
     "development": {
       "extends": "base",
       "developmentClient": true,
@@ -19,31 +18,44 @@
       "env": {
         "EXPO_PUBLIC_XMTP_ENV": "dev"
       },
-      "ios": { "simulator": true },
-      "android": { "buildType": "apk" }
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
-
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "channel": "preview",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
-
     "production": {
       "extends": "base",
       "channel": "production",
       "autoIncrement": true,
       "uploadSourceMaps": true,
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "github": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
-
   "submit": {
     "production": {
       "ios": {
         "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID"
+        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID",
+        "metadataPath": "./store/ios/store.config.json"
       },
       "android": {
         "serviceAccountKeyPath": "./secrets/play-service-account.json",

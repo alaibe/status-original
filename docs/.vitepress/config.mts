@@ -1,20 +1,20 @@
 import { defineConfig } from 'vitepress';
 
 // Served from https://alaibe.github.io/status-original/ by .github/workflows/docs.yml.
-// This is the user guide; developer notes stay in the repository (README,
-// CONTRIBUTING, docs/desktop.md, docs/deploying.md).
+// Everything here is the user guide. Developer documentation lives outside this
+// folder, in README.md and CONTRIBUTING.md.
 export default defineConfig({
   title: 'Status Original',
   description: 'How to use Status Original, the self-custodial messenger.',
   base: '/status-original/',
   lastUpdated: true,
   cleanUrls: true,
-  srcExclude: ['desktop.md', 'deploying.md', 'screenshots/**'],
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/account' },
       { text: 'FAQ', link: '/faq' },
       { text: 'Privacy', link: '/privacy' },
+      { text: 'Disclaimer', link: '/disclaimer' },
     ],
     sidebar: [
       {
@@ -36,6 +36,7 @@ export default defineConfig({
         items: [
           { text: 'FAQ', link: '/faq' },
           { text: 'Privacy', link: '/privacy' },
+          { text: 'Disclaimer', link: '/disclaimer' },
           { text: 'For developers', link: 'https://github.com/alaibe/status-original#readme' },
         ],
       },

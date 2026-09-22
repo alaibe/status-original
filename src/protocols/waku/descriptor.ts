@@ -1,8 +1,9 @@
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
+import { guideUrl } from '@/lib/guide';
 
 export const WAKU_PROTOCOL = {
   id: 'waku',
-  docsUrl: 'https://waku.org',
+  docsUrl: guideUrl('networks', 'waku'),
   label: 'Waku',
   description: 'Store-and-forward messaging through an nwaku node you supply.',
   recipient: {

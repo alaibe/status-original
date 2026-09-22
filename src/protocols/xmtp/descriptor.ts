@@ -1,11 +1,12 @@
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
+import { guideUrl } from '@/lib/guide';
 import { loadDbEncryptionKey } from '@/core/identity/keyring';
 
 export const XMTP_PROTOCOL = {
   id: 'xmtp',
   label: 'XMTP',
   description: 'Messages addressed to Ethereum accounts, encrypted with MLS.',
-  docsUrl: 'https://xmtp.org',
+  docsUrl: guideUrl('networks', 'xmtp'),
   recipient: {
     label: 'Address or ENS name',
     placeholder: 'vitalik.eth or 0x…',

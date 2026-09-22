@@ -1,5 +1,6 @@
 # Captures the screenshots the user docs show, from the clean simulator
-# `capture.sh` prepares. Same idea as store/screenshots/capture.yaml: nothing
+# `scripts/capture-screenshots.sh docs` prepares. Same idea as
+# store/ios/capture.yaml: nothing
 # visible comes from a device someone has used.
 appId: com.statusoriginal.app
 ---

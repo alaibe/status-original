@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Replace TEAMID with the Apple Developer team identifier before building. -->
+    <key>com.apple.application-identifier</key>
+    <string>TEAMID.com.statusoriginal.app</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>TEAMID</string>
+
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!-- Relays, homeservers, blockchain endpoints and link previews. -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- A Ledger connects over USB HID on the desktop. -->
+    <key>com.apple.security.device.usb</key>
+    <true/>
+
+    <!-- Read on the device to suggest who to invite. Never uploaded. -->
+    <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
+
+    <!-- Attaching a file to a message, and saving one that arrives. -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+</dict>
+</plist>

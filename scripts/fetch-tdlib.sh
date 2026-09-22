@@ -1,19 +1,56 @@
 #!/usr/bin/env bash
 #
-# Builds src-tauri/frameworks/libtdjson.dylib, the TDLib the desktop app opens
-# at runtime. Swiftgram publishes TDLib for Apple platforms as a static archive
-# with OpenSSL and SQLite inside; linking it into the app would clash with the
-# SQLCipher rusqlite bundles, so it becomes its own dylib that exports only the
-# td_json_client entry points and depends on nothing but the system.
+# Puts TDLib where the desktop app can open it at runtime, for whichever
+# platform this is. Both routes land on TDLib 1.8.67.
+#
+# macOS builds it: Swiftgram publishes TDLib for Apple platforms as a static
+# archive with OpenSSL and SQLite inside, and linking that into the app would
+# clash with the SQLCipher rusqlite bundles, so it becomes its own dylib
+# exporting only the td_json_client entry points.
+#
+# Linux and Windows download it from the prebuilt-tdlib npm packages, which
+# publish the same version already built. Those carry their OpenSSL statically
+# too, but export its symbols, so the app must keep opening them with
+# RTLD_LOCAL (libloading's default) to stop TDLib's OpenSSL interposing on the
+# one SQLCipher uses.
 set -euo pipefail
 
 VERSION="1.8.67-d1085f9c"
+# TDLib 1.8.67, in prebuilt-tdlib's own numbering.
+PREBUILT="0.1008067.0"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/src-tauri/frameworks"
 STAMP="$DEST/libtdjson.version"
 
-if [ -f "$DEST/libtdjson.dylib" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$VERSION" ]; then
-  echo "libtdjson.dylib is already at TDLib $VERSION"
+case "$(uname -s)" in
+  Darwin)  LIB="libtdjson.dylib"; PKG="" ;;
+  Linux)   LIB="libtdjson.so"
+           case "$(uname -m)" in
+             aarch64|arm64) PKG="linux-arm64-glibc" ;;
+             *)             PKG="linux-x64-glibc" ;;
+           esac ;;
+  MINGW*|MSYS*|CYGWIN*)
+           LIB="tdjson.dll"; PKG="win32-x64" ;;
+  *)       echo "No TDLib for $(uname -s); Telegram will report itself unavailable." >&2
+           exit 0 ;;
+esac
+
+if [ -f "$DEST/$LIB" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$VERSION" ]; then
+  echo "$LIB is already at TDLib $VERSION"
+  exit 0
+fi
+
+# Everything but macOS takes the prebuilt library as published.
+if [ -n "$PKG" ]; then
+  TMP="$(mktemp -d)"
+  trap 'rm -rf "$TMP"' EXIT
+  echo "Downloading @prebuilt-tdlib/$PKG@$PREBUILT…"
+  (cd "$TMP" && npm pack "@prebuilt-tdlib/$PKG@$PREBUILT" --silent >/dev/null)
+  tar xzf "$TMP"/*.tgz -C "$TMP"
+  mkdir -p "$DEST"
+  cp "$TMP/package/$LIB" "$DEST/$LIB"
+  echo "$VERSION" > "$STAMP"
+  echo "Installed $DEST/$LIB from TDLib $VERSION"
   exit 0
 fi
 

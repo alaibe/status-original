@@ -3,3 +3,6 @@
 /target/
 /gen/schemas
 /frameworks/
+
+# Account-specific, downloaded from the Apple Developer portal.
+embedded.provisionprofile

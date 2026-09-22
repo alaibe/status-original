@@ -1,5 +1,9 @@
-//! Telegram through TDLib's JSON interface. The library is `libtdjson.dylib`
-//! next to the app (`scripts/fetch-tdlib.sh` builds it), opened on first use.
+//! Telegram through TDLib's JSON interface. `scripts/fetch-tdlib.sh` puts the
+//! library where the bundle can reach it, and it is opened on first use:
+//! `libtdjson.dylib` in the macOS bundle's Frameworks directory, `tdjson.dll`
+//! or `libtdjson.so` as a bundled resource elsewhere. The prebuilt Linux and
+//! Windows builds export their static OpenSSL, so `Library::new` must stay on
+//! the default RTLD_LOCAL or it would interpose on SQLCipher's.
 //! The page drives `td_json_client_*` the way the phone does through
 //! react-native-tdlib: one client at a time, requests and replies correlated
 //! by `@extra` on the JavaScript side.
@@ -9,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use libloading::Library;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
@@ -29,17 +33,34 @@ struct Api {
 
 static API: OnceLock<Result<Api, String>> = OnceLock::new();
 
-fn api() -> Result<&'static Api, String> {
-    API.get_or_init(load).as_ref().map_err(Clone::clone)
+fn api(app: &AppHandle) -> Result<&'static Api, String> {
+    API.get_or_init(|| load(app)).as_ref().map_err(Clone::clone)
 }
 
-fn library_path() -> Option<PathBuf> {
+fn library_name() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "libtdjson.dylib"
+    } else if cfg!(target_os = "windows") {
+        "tdjson.dll"
+    } else {
+        "libtdjson.so"
+    }
+}
+
+fn library_path(app: &AppHandle) -> Option<PathBuf> {
+    let name = library_name();
     let mut candidates = Vec::new();
     if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(PathBuf::from)) {
-        candidates.push(dir.join("../Frameworks/libtdjson.dylib"));
+        candidates.push(dir.join("../Frameworks").join(name));
+        candidates.push(dir.join(name));
+    }
+    // Where the bundler puts it on Linux and Windows, which differs per package
+    // format, so ask Tauri rather than guess.
+    if let Ok(dir) = app.path().resource_dir() {
+        candidates.push(dir.join(name));
     }
     if cfg!(debug_assertions) {
-        candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frameworks/libtdjson.dylib"));
+        candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frameworks").join(name));
     }
     candidates.into_iter().find(|path| path.exists())
 }
@@ -48,9 +69,9 @@ unsafe fn symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, String> {
     library.get::<T>(name).map(|found| *found).map_err(|e| e.to_string())
 }
 
-fn load() -> Result<Api, String> {
-    let path = library_path()
-        .ok_or_else(|| "TDLib is not part of this build: `npm run desktop` fetches it.".to_string())?;
+fn load(app: &AppHandle) -> Result<Api, String> {
+    let path = library_path(app)
+        .ok_or_else(|| "TDLib is not part of this build: `scripts/fetch-tdlib.sh` fetches it.".to_string())?;
     unsafe {
         let library = Library::new(&path).map_err(|e| e.to_string())?;
         Ok(Api {
@@ -99,8 +120,8 @@ async fn discard(api: &'static Api, client: Option<Arc<Client>>) -> Result<(), S
 }
 
 #[tauri::command]
-pub async fn td_create(state: State<'_, Telegram>) -> Result<(), String> {
-    let api = api()?;
+pub async fn td_create(app: AppHandle, state: State<'_, Telegram>) -> Result<(), String> {
+    let api = api(&app)?;
     let previous = state.0.lock().unwrap().take();
     discard(api, previous).await?;
 
@@ -112,8 +133,8 @@ pub async fn td_create(state: State<'_, Telegram>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn td_send(state: State<'_, Telegram>, request: String) -> Result<(), String> {
-    let api = api()?;
+pub async fn td_send(app: AppHandle, state: State<'_, Telegram>, request: String) -> Result<(), String> {
+    let api = api(&app)?;
     let client = current(&state)?;
     let request = CString::new(request).map_err(|e| e.to_string())?;
     unsafe { (api.send)(client.ptr, request.as_ptr()) };
@@ -122,8 +143,8 @@ pub async fn td_send(state: State<'_, Telegram>, request: String) -> Result<(), 
 
 /// Blocks for up to `timeout` seconds; `None` means TDLib had nothing to say.
 #[tauri::command]
-pub async fn td_receive(state: State<'_, Telegram>, timeout: f64) -> Result<Option<String>, String> {
-    let api = api()?;
+pub async fn td_receive(app: AppHandle, state: State<'_, Telegram>, timeout: f64) -> Result<Option<String>, String> {
+    let api = api(&app)?;
     let client = current(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
         let gone = client.gone.lock().unwrap();
@@ -141,8 +162,8 @@ pub async fn td_receive(state: State<'_, Telegram>, timeout: f64) -> Result<Opti
 }
 
 #[tauri::command]
-pub async fn td_destroy(state: State<'_, Telegram>) -> Result<(), String> {
-    let api = api()?;
+pub async fn td_destroy(app: AppHandle, state: State<'_, Telegram>) -> Result<(), String> {
+    let api = api(&app)?;
     let client = state.0.lock().unwrap().take();
     discard(api, client).await
 }

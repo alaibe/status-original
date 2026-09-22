@@ -92,7 +92,7 @@ export default function ProtocolConfigScreen() {
               <Text variant="micro">{describeProtocol(descriptor.meta)}</Text>
               {descriptor.docsUrl ? (
                 <Button
-                  label={`Read about ${descriptor.label}`}
+                  label={`How to set up ${descriptor.label}`}
                   tone="neutral"
                   size="sm"
                   onPress={() => openExternal(descriptor.docsUrl!).catch(() => {})}

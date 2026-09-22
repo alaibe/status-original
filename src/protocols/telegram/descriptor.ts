@@ -1,13 +1,14 @@
 import Constants from 'expo-constants';
 
 import type { ProtocolDescriptor } from '@/core/messaging/registry';
+import { guideUrl } from '@/lib/guide';
 import { accountTdlibDatabaseKey } from '@/storage/vault';
 
 import { DEVICE, databaseDirectory, eraseDatabase } from './host';
 
 export const TELEGRAM_PROTOCOL = {
   id: 'telegram',
-  docsUrl: 'https://core.telegram.org/api/obtaining_api_id',
+  docsUrl: guideUrl('networks', 'telegram'),
   label: 'Telegram',
   description: 'Your Telegram account: private chats and groups, signed in with your phone number.',
   recipient: {

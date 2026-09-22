@@ -36,7 +36,20 @@
           "$APPDATA/tdlib/**",
           "$APPDATA/matrix/**"
         ]
-      }
+      },
+      "capabilities": [
+        "default",
+        {
+          "identifier": "updater",
+          "description": "Lets the app update itself. Left out of the App Store build, which may not.",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "updater:default"
+          ]
+        }
+      ]
     }
   },
   "bundle": {
@@ -52,6 +65,15 @@
     "macOS": {
       "frameworks": [
         "frameworks/libtdjson.dylib"
+      ],
+      "minimumSystemVersion": "15.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/alaibe/status-original/releases/latest/download/latest.json"
       ]
     }
   }

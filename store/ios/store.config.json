@@ -1,0 +1,53 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Anthony Laibe",
+    "categories": [
+      "SOCIAL_NETWORKING",
+      "UTILITIES"
+    ],
+    "info": {
+      "en-US": {
+        "title": "Status Original",
+        "subtitle": "Encrypted chat, your own keys",
+        "description": "A messenger with no company in the middle.\n\nYour account is a twelve-word recovery phrase held on your device. There is no sign-up, no phone number, no email address, and no account on a server that could be seized, sold or breached.\n\nFIVE NETWORKS, ONE INBOX\n\u2022 End-to-end encrypted one-to-one and group chats over XMTP, Nostr or Waku\n\u2022 Your own Telegram and Matrix accounts in the same list, signed in with your own credentials\n\u2022 A Matrix server running a bridge brings WhatsApp, Signal, Slack or iMessage along with it\n\u2022 Every conversation says which network it is on and what that network actually protects. Telegram is not end-to-end encrypted, and the app says so on the chat.\n\nMESSAGING\n\u2022 Message requests, folders, search, replies, reactions, forwarding, pin, archive and mute\n\u2022 Photos, files, GIFs and voice notes\n\u2022 Links unfurl into a card fetched by your device, not by a server, and you can switch that off\n\u2022 No last seen and no typing indicator, on any network, on purpose\n\nTHE SAME PHRASE IS A WALLET\n\u2022 Ethereum, Base, Optimism, Arbitrum, Polygon, Bitcoin and Solana\n\u2022 Check a balance, send, swap or bridge, ask someone to pay you, or split a bill inside the conversation where it came up\n\u2022 Every send and every signature shows a review step first, and nothing is signed until you confirm\n\u2022 Connect a Ledger, Trezor or Keystone and the key never touches this phone\n\nSTARTS EMPTY, BY DESIGN\nA new install is a messenger and nothing else. The wallet, market alerts, the dapp browser and bots are plugins that ship switched off. Each one says what it adds and what it is allowed to reach before you turn it on.\n\nNO ACCOUNTS, NO KEYS\nThe app ships with no API keys of its own. Where a feature needs one you supply it, and it stays on your device. Your address book is read on the device to suggest who to invite and is never uploaded.\n\nWHAT THIS COSTS YOU\nNobody can reset your account. Write the twelve words down and keep them offline. If you lose them, they are gone. That is what having no company in the middle means.",
+        "keywords": [
+          "messenger,encrypted,e2ee,xmtp,nostr,matrix,wallet,ethereum,bitcoin,solana,private,keys"
+        ],
+        "releaseNotes": "First release.",
+        "promoText": "Encrypted messaging where the account is a key you hold. No phone number, no email, no server with your name on it.",
+        "privacyPolicyUrl": "https://alaibe.github.io/status-original/privacy",
+        "supportUrl": "https://github.com/alaibe/status-original/issues",
+        "marketingUrl": "https://alaibe.github.io/status-original/"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": true,
+      "seventeenPlus": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": true
+    },
+    "review": {
+      "firstName": "REPLACE-ME",
+      "lastName": "REPLACE-ME",
+      "email": "REPLACE-ME@example.com",
+      "phone": "+00 000 000 0000",
+      "notes": "See store/review-notes.md in the repository for the full text; paste it here."
+    }
+  }
+}
