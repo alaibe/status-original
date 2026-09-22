@@ -1,24 +1,17 @@
-import { encodeFunctionData, formatUnits, parseUnits, type Address, type Hex } from 'viem';
-import { arbitrum, base, mainnet, optimism, polygon } from 'viem/chains';
+import {
+  encodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  parseUnits,
+  type Address,
+  type Hex,
+} from 'viem';
 
-import { jsonRpc } from '@/lib/json-rpc';
-
-const NETWORK: Record<number, string> = {
-  [mainnet.id]: 'eth-mainnet',
-  [base.id]: 'base-mainnet',
-  [optimism.id]: 'opt-mainnet',
-  [arbitrum.id]: 'arb-mainnet',
-  [polygon.id]: 'polygon-mainnet',
-};
+import { publicClientFor } from './chains';
+import { listedToken, listedTokens, type ListedToken } from './token-list';
 
 export function supportsTokens(chainId: number): boolean {
-  return chainId in NETWORK;
-}
-
-export function alchemyUrl(chainId: number, key: string): string {
-  const network = NETWORK[chainId];
-  if (!network) throw new Error('That chain has no token index.');
-  return `https://${network}.g.alchemy.com/v2/${key}`;
+  return listedTokens(chainId).length > 0;
 }
 
 export interface TokenBalance {
@@ -30,98 +23,108 @@ export interface TokenBalance {
   amount: string;
 }
 
-function rpc<T>(url: string, method: string, params: unknown[]): Promise<T> {
-  return jsonRpc<T>(url, method, params, {
-    onStatus: (status) =>
-      status === 401 || status === 403
-        ? 'That Alchemy key was rejected. Check it in Settings.'
-        : undefined,
+/**
+ * viem splits the calls by this and runs the parts together. Its default of
+ * 1024 bytes would make dozens of requests per chain; this is about a hundred
+ * calls apiece.
+ */
+const BATCH_BYTES = 24_000;
+
+async function balancesOf(
+  chainId: number,
+  address: Address,
+  tokens: ListedToken[]
+): Promise<{ token: ListedToken; raw: bigint }[]> {
+  const results = await publicClientFor(chainId).multicall({
+    allowFailure: true,
+    batchSize: BATCH_BYTES,
+    contracts: tokens.map((token) => ({
+      address: token.address,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [address] as const,
+    })),
   });
-}
 
-interface RawBalances {
-  tokenBalances: { contractAddress: Address; tokenBalance: Hex | null }[];
-}
-
-interface RawMetadata {
-  name: string | null;
-  symbol: string | null;
-  decimals: number | null;
-}
-
-export interface TokenMeta {
-  name: string;
-  symbol: string;
-  decimals: number;
-}
-
-const metaCache = new Map<string, TokenMeta>();
-
-const metaKey = (chainId: number, contract: Address) =>
-  `${chainId}:${contract.toLowerCase()}`;
-
-export function primeTokenMeta(chainId: number, entries: Record<string, TokenMeta>): void {
-  for (const [contract, meta] of Object.entries(entries)) {
-    metaCache.set(metaKey(chainId, contract as Address), meta);
-  }
-}
-
-export function tokenMetaFor(chainId: number): Record<string, TokenMeta> {
-  const prefix = `${chainId}:`;
-  return Object.fromEntries(
-    [...metaCache.entries()]
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([key, meta]) => [key.slice(prefix.length), meta])
+  return results.flatMap((result, i) =>
+    result.status === 'success' && result.result > 0n
+      ? [{ token: tokens[i], raw: result.result }]
+      : []
   );
 }
 
-export function clearTokenMeta(): void {
-  metaCache.clear();
+export async function describeToken(
+  chainId: number,
+  contract: Address
+): Promise<ListedToken | null> {
+  const listed = listedToken(chainId, contract);
+  if (listed) return listed;
+
+  const client = publicClientFor(chainId);
+  const token = { address: contract, abi: erc20Abi } as const;
+
+  const [symbol, name, decimals] = await client.multicall({
+    allowFailure: true,
+    contracts: [
+      { ...token, functionName: 'symbol' },
+      { ...token, functionName: 'name' },
+      { ...token, functionName: 'decimals' },
+    ],
+  });
+
+  if (decimals.status !== 'success') return null;
+  return {
+    address: contract,
+    symbol: symbol.status === 'success' ? symbol.result : '???',
+    name: name.status === 'success' ? name.result : 'Unknown token',
+    decimals: decimals.result,
+  };
 }
 
+/** Long enough that a card and the form opened from it cost one scan. */
+const FRESH_MS = 30_000;
+
+/** A balance card is a list, not an inventory. */
+const MOST = 25;
+
+function withoutAny(listed: ListedToken[], extra: ListedToken[]): ListedToken[] {
+  const added = new Set(extra.map((token) => token.address.toLowerCase()));
+  return listed.filter((token) => !added.has(token.address.toLowerCase()));
+}
+
+const recent = new Map<string, { at: number; tokens: TokenBalance[] }>();
+
+export function clearTokenCache(): void {
+  recent.clear();
+}
+
+/** `extra` is what the account added by hand, on top of the bundled list. */
 export async function fetchTokens(
   chainId: number,
   address: Address,
-  key: string,
-  { limit = 25 }: { limit?: number } = {}
+  { extra = [] }: { extra?: ListedToken[] } = {}
 ): Promise<TokenBalance[]> {
-  const url = alchemyUrl(chainId, key);
-  const balances = await rpc<RawBalances>(url, 'alchemy_getTokenBalances', [address]);
+  const cacheKey = `${chainId}:${address.toLowerCase()}:${extra.map((t) => t.address).join(',')}`;
+  const cached = recent.get(cacheKey);
+  if (cached && Date.now() - cached.at < FRESH_MS) return cached.tokens;
 
-  const held = balances.tokenBalances
-    .map((entry) => ({ contract: entry.contractAddress, raw: BigInt(entry.tokenBalance ?? '0x0') }))
-    .filter((entry) => entry.raw > 0n)
-    .slice(0, limit);
+  const listed = listedTokens(chainId);
+  const candidates = extra.length ? [...extra, ...withoutAny(listed, extra)] : listed;
+  if (candidates.length === 0) return [];
 
-  const unknown = held.filter((entry) => !metaCache.has(metaKey(chainId, entry.contract)));
-  const fetched = await Promise.all(
-    unknown.map((entry) =>
-      rpc<RawMetadata>(url, 'alchemy_getTokenMetadata', [entry.contract]).catch(() => null)
-    )
-  );
+  const held = await balancesOf(chainId, address, candidates);
 
-  unknown.forEach((entry, i) => {
-    const raw = fetched[i];
-    if (!raw || raw.decimals === null) return;
-    metaCache.set(metaKey(chainId, entry.contract), {
-      name: raw.name ?? 'Unknown token',
-      symbol: raw.symbol ?? '???',
-      decimals: raw.decimals,
-    });
-  });
+  const tokens = held.slice(0, MOST).map(({ token, raw }) => ({
+    contract: token.address,
+    symbol: token.symbol,
+    name: token.name,
+    decimals: token.decimals,
+    raw,
+    amount: formatUnits(raw, token.decimals),
+  }));
 
-  return held.flatMap((entry) => {
-    const meta = metaCache.get(metaKey(chainId, entry.contract));
-    if (!meta) return [];
-    return [
-      {
-        contract: entry.contract,
-        ...meta,
-        raw: entry.raw,
-        amount: formatUnits(entry.raw, meta.decimals),
-      },
-    ];
-  });
+  recent.set(cacheKey, { at: Date.now(), tokens });
+  return tokens;
 }
 
 export function encodeTransfer(to: Address, amount: bigint): Hex {

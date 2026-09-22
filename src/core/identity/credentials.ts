@@ -1,6 +1,6 @@
 import { accountCredentialsKey, vaultDelete, vaultGet, vaultSet } from '@/storage/vault';
 
-export type CredentialId = 'gifs' | 'tokens' | 'trades';
+export type CredentialId = 'gifs' | 'trades';
 
 export type Credentials = Partial<Record<CredentialId, string>>;
 

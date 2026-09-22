@@ -2,7 +2,8 @@ import type { PluginContext } from '@/core/plugins/types';
 import type { Widget } from '@/design/widgets';
 import { publicClientFor } from '@/lib/evm/chains';
 import { walletClientFor } from '@/lib/evm/wallet';
-import { LIFI_NATIVE, LifiError, lifiQuote, lifiStatus, lifiToken, type LifiQuote, type LifiToken } from '@/lib/lifi';
+import { permittedCall, planPermit } from '@/lib/evm/permit';
+import { LIFI_NATIVE, LifiError, lifiPermitTargets, lifiQuote, lifiStatus, lifiToken, type LifiQuote, type LifiToken } from '@/lib/lifi';
 
 import { EVM_CHAINS, evmStrategy } from './chains/evm';
 import { registerChainStrategy } from './chains/strategy';
@@ -18,6 +19,12 @@ jest.mock('@/lib/lifi', () => ({
   lifiToken: jest.fn(),
   lifiQuote: jest.fn(),
   lifiStatus: jest.fn(),
+  lifiPermitTargets: jest.fn(),
+}));
+jest.mock('@/lib/evm/permit', () => ({
+  ...jest.requireActual('@/lib/evm/permit'),
+  planPermit: jest.fn(),
+  permittedCall: jest.fn(),
 }));
 jest.mock('@/lib/evm/wallet', () => ({ walletClientFor: jest.fn() }));
 jest.mock('@/lib/evm/chains', () => ({
@@ -56,6 +63,11 @@ function quoteFor(from: LifiToken, fromAmount: string): LifiQuote {
 const token = jest.mocked(lifiToken);
 const quote = jest.mocked(lifiQuote);
 const status = jest.mocked(lifiStatus);
+const targets = jest.mocked(lifiPermitTargets);
+const plan = jest.mocked(planPermit);
+const permitted = jest.mocked(permittedCall);
+const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as const;
+const PROXY = '0x89c6340B1a1f4b25D36cd8B063D49045caF3f818' as const;
 const reads = { getBalance: jest.fn(), readContract: jest.fn(), waitForTransactionReceipt: jest.fn() };
 const sendTransaction = jest.fn();
 
@@ -76,12 +88,17 @@ async function run(args: string[]) {
     },
   });
   const card = widgets.at(-1);
+  const titles = widgets.flatMap((w) => (w.kind === 'card' && w.title ? [w.title] : []));
   const children = card?.kind === 'card' ? card.children : [];
   const find = <K extends Widget['kind']>(kind: K) =>
     children.find((c): c is Extract<Widget, { kind: K }> => c.kind === kind);
   return {
     result,
     title: card?.kind === 'card' ? card.title : undefined,
+    titles,
+    texts: widgets.flatMap((w) =>
+      w.kind === 'card' ? w.children.flatMap((c) => (c.kind === 'text' ? [c.text] : [])) : []
+    ),
     message: result.type === 'error' ? result.message : '',
     form: find('form'),
     stat: find('stat'),
@@ -104,7 +121,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const id of ['base', 'arbitrum']) {
     const chain = evmStrategy(EVM_CHAINS.find((spec) => spec.id === id)!);
-    chain.transfer!.assets = async () => [{ symbol: 'USDC', id: USDC_BASE, held: '12' }];
+    chain.holdings = async () => [{ symbol: 'USDC', id: USDC_BASE, amount: '12' }];
     disposers.push(registerChainStrategy(chain));
   }
   jest.mocked(publicClientFor).mockReturnValue(reads as never);
@@ -114,6 +131,9 @@ beforeEach(() => {
   reads.waitForTransactionReceipt.mockResolvedValue({ status: 'success' });
   sendTransaction.mockReset().mockResolvedValueOnce(APPROVAL).mockResolvedValueOnce(HASH);
   token.mockImplementation(async (chainId) => usdc(chainId, chainId === 8453 ? USDC_BASE : USDC_ARB));
+  // A chain with no proxy by default, so each test says which lane it takes.
+  targets.mockResolvedValue(null);
+  plan.mockResolvedValue(null);
   quote.mockImplementation(async (params) => quoteFor(eth(params.fromChain), params.fromAmount.toString()));
 });
 
@@ -135,8 +155,38 @@ describe('/trade', () => {
         { label: 'USDC', value: USDC_BASE, when: { from: 'base' } },
       ])
     );
-    expect(form?.submit.command).toBe('/trade {amount} {token} {receive} --from {from} --to {to}');
+    expect(form?.submit.command).toBe(
+      '/trade {amount} {token} {receive} --from {from} --to {to} --recipient {recipient}'
+    );
+    // Blank means your own address, so the form can be submitted without it.
+    expect(field(form, 'recipient')?.optional).toBe(true);
     expect(links).toContainEqual(expect.objectContaining({ label: 'Powered by LI.FI', url: 'https://li.fi' }));
+    expect(quote).not.toHaveBeenCalled();
+  });
+
+  it('quotes to your own address when no recipient is given', async () => {
+    const { rows } = await run(['0.001', 'native', 'usdc']);
+
+    expect(quote).toHaveBeenCalledWith(expect.objectContaining({ toAddress: me }), null);
+    // Nothing on the card claims a destination when it is simply yours.
+    expect(rows?.some((row) => row.label === 'Lands in')).toBe(false);
+  });
+
+  it('quotes to the recipient asked for, and says so on the review', async () => {
+    const other = '0x00000000000000000000000000000000000000AA' as const;
+    const { rows, actions } = await run(['0.001', 'native', 'usdc', '--recipient', other]);
+
+    expect(quote).toHaveBeenCalledWith(expect.objectContaining({ toAddress: other }), null);
+    expect(rows).toContainEqual(expect.objectContaining({ label: 'Lands in', tone: 'warning' }));
+    // Confirming has to carry it, or the second quote would land in your own.
+    expect(actions?.[0].command).toContain(`--recipient ${other}`);
+  });
+
+  it('refuses a recipient that is not an address rather than quoting', async () => {
+    const { result, message } = await run(['0.001', 'native', 'usdc', '--recipient', 'not-an-address']);
+
+    expect(result.type).toBe('error');
+    expect(message).toMatch(/could not be resolved to a Base address/i);
     expect(quote).not.toHaveBeenCalled();
   });
 
@@ -159,7 +209,7 @@ describe('/trade', () => {
     expect(result).toEqual({ type: 'handled' });
     expect(token).toHaveBeenCalledTimes(1);
     expect(quote).toHaveBeenCalledWith(
-      expect.objectContaining({ fromChain: 8453, toChain: 42161, fromToken: LIFI_NATIVE, toToken: USDC_ARB, fromAmount: 10n ** 15n, fromAddress: me }),
+     expect.objectContaining({ fromChain: 8453, toChain: 42161, fromToken: LIFI_NATIVE, toToken: USDC_ARB, fromAmount: 10n ** 15n, fromAddress: me, toAddress: me }),
       null
     );
     expect(title).toBe('Bridge Base → Arbitrum One');
@@ -249,6 +299,85 @@ describe('/trade', () => {
     expect(reads.waitForTransactionReceipt).toHaveBeenCalledWith(expect.objectContaining({ hash: APPROVAL }));
     expect(sendTransaction.mock.calls[1][0]).toEqual(expect.objectContaining({ to: ROUTER }));
     expect(codes).toEqual([APPROVAL, HASH]);
+  });
+
+  it('says the approval is out while it waits, so the room is not just a spinner', async () => {
+    quote.mockImplementation(usdcToEth);
+    reads.readContract.mockImplementation(async ({ functionName }: { functionName: string }) =>
+      functionName === 'balanceOf' ? 12_000_000n : 0n
+    );
+
+    const { titles } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+
+    expect(titles).toEqual(['Approval sent', 'Swapped']);
+  });
+
+  it('does not claim a trade when the approval has not confirmed in time', async () => {
+    quote.mockImplementation(usdcToEth);
+    reads.readContract.mockImplementation(async ({ functionName }: { functionName: string }) =>
+      functionName === 'balanceOf' ? 12_000_000n : 0n
+    );
+    reads.waitForTransactionReceipt.mockRejectedValueOnce(new Error('timed out'));
+
+    const { result, message } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+
+    expect(result.type).toBe('error');
+    expect(message).toMatch(/still waiting to confirm.*nothing was traded/i);
+    // The swap must not go out on an allowance that may not exist yet.
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('signs the allowance away instead of sending one when Permit2 is ready', async () => {
+    quote.mockImplementation(usdcToEth);
+    reads.readContract.mockImplementation(async ({ functionName }: { functionName: string }) =>
+      functionName === 'balanceOf' ? 12_000_000n : 0n
+    );
+    targets.mockResolvedValue({ permit2: PERMIT2, proxy: PROXY });
+    plan.mockResolvedValue({ kind: 'permit2' });
+    permitted.mockResolvedValue({ to: PROXY, data: '0xfeed' });
+    sendTransaction.mockReset().mockResolvedValueOnce(HASH);
+
+    const { result, texts } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base', '--confirm']);
+
+    expect(result).toEqual({ type: 'handled' });
+    // One transaction, to the proxy, carrying the signature.
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+    expect(sendTransaction.mock.calls[0][0]).toEqual(expect.objectContaining({ to: PROXY, data: '0xfeed' }));
+    expect(permitted).toHaveBeenCalledWith(
+      8453,
+      expect.anything(),
+      { permit2: PERMIT2, proxy: PROXY },
+      { kind: 'permit2' },
+      expect.objectContaining({ token: USDC_BASE, diamondCalldata: '0x4c279d6b' })
+    );
+    expect(texts.join(' ')).not.toMatch(/approval/i);
+  });
+
+  it('approves Permit2 once, not the router on every trade', async () => {
+    quote.mockImplementation(usdcToEth);
+    reads.readContract.mockImplementation(async ({ functionName }: { functionName: string }) =>
+      functionName === 'balanceOf' ? 12_000_000n : 0n
+    );
+    targets.mockResolvedValue({ permit2: PERMIT2, proxy: PROXY });
+    plan.mockResolvedValue({ kind: 'permit2', approve: { spender: PERMIT2, amount: 2n ** 256n - 1n } });
+    permitted.mockResolvedValue({ to: PROXY, data: '0xfeed' });
+
+    const { texts } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base']);
+
+    // The review says which approval it is before anything is signed.
+    expect(texts.join(' ')).toMatch(/one approval first, to Permit2, and never again/i);
+  });
+
+  it('tells the router itself when there is no proxy to sign through', async () => {
+    quote.mockImplementation(usdcToEth);
+    reads.readContract.mockImplementation(async ({ functionName }: { functionName: string }) =>
+      functionName === 'balanceOf' ? 12_000_000n : 0n
+    );
+
+    const { texts } = await run(['5', USDC_BASE, 'native', '--from', 'base', '--to', 'base']);
+
+    expect(texts.join(' ')).toMatch(/one-time approval first: a second transaction/i);
+    expect(permitted).not.toHaveBeenCalled();
   });
 
   it('skips the approval when the allowance already covers the amount', async () => {

@@ -114,9 +114,16 @@ than from Expo's precompiled frameworks for the same reason; `docs/deploying.md`
 has the details and the crash reports behind that choice.
 
 WalletConnect needs a project ID from Reown Cloud in
-`expo.extra.walletConnectProjectId`. Alchemy, LI.FI and KLIPY keys are optional
-and entered per account inside the app, as are the Telegram API ID and hash from
-my.telegram.org: each user registers their own, and nothing is shared.
+`expo.extra.walletConnectProjectId`. LI.FI and KLIPY keys are optional and
+entered per account inside the app, as are the Telegram API ID and hash from
+my.telegram.org: each user registers their own, and nothing is shared. Token
+balances need no key: `src/lib/evm/token-list.json` is the Uniswap Labs Default
+list from tokenlists.org, trimmed to the chains the wallet sends on and read
+with one multicall against the endpoint already in use. `npm run tokens:build`
+refreshes it, and `/tokens add <contract>` covers what it does not carry.
+Solana discovers its own tokens through `getTokenAccountsByOwner`;
+`src/plugins/wallet/solana/token-list.json` is Jupiter's verified list, kept
+only to name a mint, and `npm run tokens:build:solana` refreshes it.
 
 Android has not been built or run yet. The native project generates, but
 nothing has been checked on a device or emulator. Telegram in particular is

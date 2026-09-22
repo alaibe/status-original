@@ -82,7 +82,12 @@ describe('buildTransferMessage', () => {
 
   it('refuses a blockhash that is not 32 bytes', () => {
     expect(() =>
-      buildTransferMessage({ from: FROM, to: TO, lamports: 1n, blockhash: base58.encode(FROM.slice(0, 8)) })
+      buildTransferMessage({
+        from: FROM,
+        to: TO,
+        lamports: 1n,
+        blockhash: base58.encode(FROM.slice(0, 8)),
+      })
     ).toThrow(/32 bytes/);
   });
 });

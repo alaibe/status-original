@@ -14,7 +14,7 @@ your chat list or makes a network request until you do.
 | Plugin | What it adds |
 | --- | --- |
 | **Status Assistant** | Your on-device space for notes, commands and discovering features. On from the start; it is the Status room. |
-| **Wallet** | Balances, sends and payment requests on the networks you switch on. See [Wallet](./wallet). |
+| **Wallet** | Balances, sends, trades and payment requests on the networks you switch on. See [Wallet](./wallet). |
 | **Browser** | Bookmarked sites, opened in your system browser and connected to your wallet over WalletConnect. |
 | **Markets** | Spot prices, and a chat that tells you when one crosses a level or moves by a percentage: `/price btc`, `/alert eth above 3000`. |
 | **Names & addresses** | `/address` shares your address in a chat; `/ens name.eth` shows what a name points at. |
@@ -41,6 +41,8 @@ Some commands worth knowing:
 | `/whoami` | Your addresses and public keys |
 | `/networks` | Chains on, off, and the default |
 | `/send`, `/request`, `/split`, `/balance` | The wallet |
+| `/trade`, `/swap`, `/bridge` | Swap a token, or bridge it to another network |
+| `/tokens` | The tokens a network is watched for, and adding your own |
 | `/open`, `/scan`, `/connected` | Sites and WalletConnect |
 | `/price`, `/alert`, `/alerts` | Markets |
 | `/members`, `/invite`, `/remove`, `/rename`, `/leave` | This group |

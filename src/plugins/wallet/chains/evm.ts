@@ -12,10 +12,8 @@ import {
   sepolia,
 } from 'viem/chains';
 
-import { loadTokenKey } from '@/core/identity/token-key';
 import type { PluginContext } from '@/core/plugins/types';
 import type { IconName } from '@/design';
-import { W } from '@/design/widgets';
 import { publicClientFor, rpcOverrideFor, trimDecimals } from '@/lib/evm/chains';
 import { looksLikeEnsName, resolveName } from '@/lib/evm/ens';
 import {
@@ -28,6 +26,7 @@ import {
 import { estimateTransfer, sendNative, walletClientFor } from '@/lib/evm/wallet';
 
 import { checkRpcUrl, saveRpcOverride } from './rpc';
+import { readCustomTokens } from './token-storage';
 import type { ChainStrategy } from './strategy';
 
 export interface ChainSpec {
@@ -52,9 +51,8 @@ export async function tokensFor(
   context: PluginContext
 ): Promise<TokenBalance[]> {
   if (!supportsTokens(chainId)) return [];
-  const accountId = context.identity.accountId;
-  const key = accountId ? await loadTokenKey(accountId) : null;
-  return key ? fetchTokens(chainId, address, key) : [];
+  const extra = await readCustomTokens(context, chainId).catch(() => []);
+  return fetchTokens(chainId, address, { extra });
 }
 
 async function tokenById(
@@ -129,40 +127,21 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
       return trimDecimals(formatEther(wei));
     },
 
-    async detail(context, address) {
+    async holdings(context, address) {
       const tokens = await tokensFor(chain.id, address as `0x${string}`, context).catch(() => []);
-      if (tokens.length === 0) return [];
-      return [
-        W.rows(
-          tokens.map((token) => ({
-            label: token.symbol,
-            value: trimDecimals(token.amount),
-            actions: [
-              {
-                label: `Send ${token.symbol}`,
-                command: `/draft /send  --chain ${spec.id} --token ${token.contract}`,
-              },
-            ],
-          }))
-        ),
-      ];
+      return tokens.map((token) => ({
+        symbol: token.symbol,
+        amount: trimDecimals(token.amount),
+        id: token.contract,
+      }));
     },
+
     explorer: {
       name: chain.blockExplorers?.default.name ?? 'the explorer',
       addressUrl: (address) => explorerUrl(chain, address) ?? '',
     },
     transfer: {
       symbol: native,
-
-      async assets(context) {
-        const address = context.identity.address as `0x${string}`;
-        const tokens = await tokensFor(chain.id, address, context).catch(() => []);
-        return tokens.map((token) => ({
-          symbol: token.symbol,
-          id: token.contract,
-          held: trimDecimals(token.amount),
-        }));
-      },
 
       async quote(context, { amount, to, asset }) {
         const [token, recipient] = await Promise.all([
@@ -176,7 +155,9 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
           try {
             units = toTokenUnits(amount, token.decimals);
           } catch {
-            return { error: `"${amount}" is not a valid ${token.symbol} amount. Enter a number greater than 0 using up to ${token.decimals} decimal places.` };
+            return {
+              error: `"${amount}" is not a valid ${token.symbol} amount. Enter a number greater than 0 using up to ${token.decimals} decimal places.`,
+            };
           }
           if (units > token.raw) {
             return {
@@ -198,7 +179,9 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
         try {
           parseEther(amount);
         } catch {
-          return { error: `"${amount}" is not a valid ${native} amount. Enter a number greater than 0 using up to 18 decimal places.` };
+          return {
+            error: `"${amount}" is not a valid ${native} amount. Enter a number greater than 0 using up to 18 decimal places.`,
+          };
         }
 
         if (!recipient) return { error: badRecipient(to) };
@@ -223,7 +206,10 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
           symbol: native,
           rows: [
             { label: 'Network', value: chain.name },
-            { label: 'Est. fee', value: `${trimDecimals(quoted.formatted.fee)} ${native}` },
+            {
+              label: 'Est. fee',
+              value: `${trimDecimals(quoted.formatted.fee)} ${native}`,
+            },
           ],
         };
       },

@@ -8,7 +8,7 @@ import type {
   PluginContext,
   SlashCommand,
 } from '@/core/plugins/types';
-import { W } from '@/design/widgets';
+import { W, type WidgetOption } from '@/design/widgets';
 
 import { chainFromArgs, chainSlug, SUPPORTED_CHAINS, trimDecimals } from '@/lib/evm/chains';
 import {
@@ -19,6 +19,8 @@ import {
 } from './types';
 import {
   chainStrategies,
+  holdingRows,
+  holdingsOf,
   selfAddressOf,
   targetAddress,
   type AddressLookup,
@@ -51,26 +53,29 @@ export const withoutConfirm = (rest: string[]) => rest.filter((a) => a !== '--co
 
 /**
  * What a form can offer to send: each network's coin, then the tokens held
- * there. An option follows the form field `networkField` names.
+ * there. Balances are read once, and `options` then follows whichever form
+ * field names the network.
  */
-export async function assetField(chains: ChainStrategy[], context: PluginContext, networkField: string) {
+export async function assetField(chains: ChainStrategy[], context: PluginContext) {
   const assets = await Promise.all(
     chains.map(async (c) => ({
       chain: c,
-      extra: (await c.transfer!.assets?.(context).catch(() => [])) ?? [],
+      // A holding with no id is one the chain reports but cannot spend.
+      extra: (await holdingsOf(c, context).catch(() => [])).filter((t) => t.id !== undefined),
     }))
   );
   return {
-    options: assets.flatMap(({ chain: c, extra }) => [
-      { label: c.transfer!.symbol, value: 'native', when: { [networkField]: c.id } },
-      ...extra.map((a) => ({ label: a.symbol, value: a.id, when: { [networkField]: c.id } })),
-    ]),
+    options: (networkField: string): WidgetOption[] =>
+      assets.flatMap(({ chain: c, extra }) => [
+        { label: c.transfer!.symbol, value: 'native', when: { [networkField]: c.id } },
+        ...extra.map((a) => ({ label: a.symbol, value: a.id!, when: { [networkField]: c.id } })),
+      ]),
     /** The held token `given` names on `chainId`, by id or symbol. */
     held: (chainId: string, given: string | undefined) => {
       const wanted = given?.toLowerCase();
       return assets
         .find((a) => a.chain.id === chainId)
-        ?.extra.find((a) => a.id.toLowerCase() === wanted || a.symbol.toLowerCase() === wanted);
+        ?.extra.find((a) => a.id!.toLowerCase() === wanted || a.symbol.toLowerCase() === wanted);
     },
   };
 }
@@ -103,9 +108,12 @@ async function balanceDetail(
   const { address } = target;
 
   try {
-    const amount = (await chain.balance?.(context, address)) ?? '—';
+    const [amount = '—', tokens, detail = []] = await Promise.all([
+      chain.balance?.(context, address),
+      chain.holdings?.(context, address).catch(() => []) ?? [],
+      chain.detail?.(context, address),
+    ]);
     const symbol = chain.transfer?.symbol ?? '';
-    const detail = (await chain.detail?.(context, address)) ?? [];
 
     await respond({
       kind: 'widget',
@@ -119,6 +127,7 @@ async function balanceDetail(
               ? [{ label: `Send ${symbol}`, command: `/draft /send  --chain ${chain.id}` }]
               : undefined,
           }),
+          ...(tokens.length ? [W.rows(holdingRows(chain.id, tokens))] : []),
           ...detail,
           W.link(
             `View on ${chain.explorer.name}`,
@@ -143,11 +152,15 @@ async function balanceOverview(
   const readings = await Promise.all(
     chains.map(async (chain) => {
       try {
-        if (chain.unavailable?.(context)) return { chain, amount: null };
+        if (chain.unavailable?.(context)) return { chain, amount: null, tokens: [] };
         const address = chain.selfAddress(context);
-        return { chain, amount: (await chain.balance?.(context, address)) ?? null };
+        const [amount, tokens] = await Promise.all([
+          chain.balance?.(context, address),
+          chain.holdings?.(context, address).catch(() => []) ?? [],
+        ]);
+        return { chain, amount: amount ?? null, tokens };
       } catch {
-        return { chain, amount: null };
+        return { chain, amount: null, tokens: [] };
       }
     })
   );
@@ -160,28 +173,31 @@ async function balanceOverview(
     widget: W.card(
       [
         W.rows(
-          readings.map((r) => ({
-            label: r.chain.name,
-            value:
-              r.amount === null
-                ? 'unavailable'
-                : `${r.amount} ${r.chain.transfer?.symbol ?? ''}`.trim(),
-            tone: r.amount === null ? ('warning' as const) : undefined,
-            actions:
-              r.amount === null
-                ? [{ label: 'Why unavailable?', command: `/balance --chain ${r.chain.id}` }]
-                : [
-                    { label: 'Detail', command: `/balance --chain ${r.chain.id}` },
-                    ...(r.chain.transfer
-                      ? [
-                          {
-                            label: `Send ${r.chain.transfer.symbol}`,
-                            command: `/draft /send  --chain ${r.chain.id}`,
-                          },
-                        ]
-                      : []),
-                  ],
-          }))
+          readings.flatMap((r) => [
+            {
+              label: r.chain.name,
+              value:
+                r.amount === null
+                  ? 'unavailable'
+                  : `${r.amount} ${r.chain.transfer?.symbol ?? ''}`.trim(),
+              tone: r.amount === null ? ('warning' as const) : undefined,
+              actions:
+                r.amount === null
+                  ? [{ label: 'Why unavailable?', command: `/balance --chain ${r.chain.id}` }]
+                  : [
+                      { label: 'Detail', command: `/balance --chain ${r.chain.id}` },
+                      ...(r.chain.transfer
+                        ? [
+                            {
+                              label: `Send ${r.chain.transfer.symbol}`,
+                              command: `/draft /send  --chain ${r.chain.id}`,
+                            },
+                          ]
+                        : []),
+                    ],
+            },
+            ...holdingRows(r.chain.id, r.tokens, true),
+          ])
         ),
         W.text('Only the networks you have switched on. /networks changes that.'),
       ],
@@ -227,7 +243,11 @@ export const walletCommands: SlashCommand[] = [
       const { amount, recipient } = sendPositionals(rest);
 
       if (!amount || !recipient) {
-        const assets = await assetField(chains, context, 'chain');
+        const assets = await assetField(chains, context);
+        // The one recipient the app already knows. A hardware account that
+        // cannot derive this chain has none, and starts empty.
+        const self = selfAddressOf(chain, context);
+        const mine = 'address' in self ? self.address : '';
 
         await respond({
           kind: 'widget',
@@ -246,7 +266,8 @@ export const walletCommands: SlashCommand[] = [
                     id: 'token',
                     label: 'Asset',
                     value: assets.held(chain.id, token)?.id ?? 'native',
-                    options: assets.options,
+                    options: assets.options('chain'),
+                    select: true,
                   },
                   {
                     id: 'amount',
@@ -259,7 +280,7 @@ export const walletCommands: SlashCommand[] = [
                     id: 'to',
                     label: 'To',
                     placeholder: '{chain} address',
-                    value: recipient ?? '',
+                    value: recipient ?? mine,
                   },
                 ],
                 { label: 'Review', command: '/send {amount} {to} --chain {chain} --token {token}' }

@@ -15,6 +15,7 @@ import {
   syncStrategies,
 } from './networks';
 import { chainRoomCommands, endpointCard } from './room-commands';
+import { tokensCommand } from './tokens';
 import { tradeCommand } from './trade';
 import { watchCommands, watchedCard } from './chains/watch-commands';
 import { hydrateRpcOverrides } from './chains/rpc';
@@ -63,6 +64,7 @@ export const walletPlugin: Plugin = {
       commands: [
         ...walletCommands,
         tradeCommand,
+        tokensCommand,
         ...chainRoomCommands(context, views),
         ...watchCommands((args) => pickEvm(context, args), views),
         networksCommand(context, views),

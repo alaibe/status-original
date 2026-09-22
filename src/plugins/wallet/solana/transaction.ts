@@ -40,7 +40,12 @@ export function transferData(lamports: bigint): Uint8Array {
   return data;
 }
 
-export function buildTransferMessage({ from, to, lamports, blockhash }: TransferParams): Uint8Array {
+export function buildTransferMessage({
+  from,
+  to,
+  lamports,
+  blockhash,
+}: TransferParams): Uint8Array {
   if (from.length !== 32 || to.length !== 32) throw new Error('Keys must be 32 bytes');
 
   const recent = base58.decode(blockhash);

@@ -23,6 +23,7 @@ describe('the LI.FI client', () => {
         fromToken: LIFI_NATIVE,
         toToken: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
         fromAddress: me,
+        toAddress: me,
         fromAmount: 10n ** 15n,
         slippage: 0.005,
       },
@@ -34,6 +35,8 @@ describe('the LI.FI client', () => {
     expect(url.searchParams.get('fromAmount')).toBe('1000000000000000');
     expect(url.searchParams.get('integrator')).toBe('status-original');
     expect(url.searchParams.get('slippage')).toBe('0.005');
+    // Where the bought token lands is always stated, never left to a default.
+    expect(url.searchParams.get('toAddress')).toBe(me);
     expect(calls[0].headers).toBeUndefined();
   });
 

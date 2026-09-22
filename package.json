@@ -101,6 +101,8 @@
     "desktop:build": "./scripts/fetch-tdlib.sh && tauri build",
     "lint": "expo lint",
     "theme:build": "node ./scripts/generate-theme-css.js",
+    "tokens:build": "node ./scripts/fetch-token-list.js",
+    "tokens:build:solana": "node ./scripts/fetch-solana-tokens.js",
     "pattern:build": "node ./scripts/generate-chat-pattern.js",
     "brand:build": "node ./scripts/trace-brand-mark.js && node ./scripts/generate-brand-assets.js && tauri icon assets/images/icon-desktop.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
     "typecheck": "tsc --noEmit",

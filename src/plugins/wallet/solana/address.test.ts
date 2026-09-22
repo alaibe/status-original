@@ -1,15 +1,9 @@
 import { deriveEd25519 } from '@/core/identity/slip10';
 import { mnemonicToSeedSync } from '@scure/bip39';
 
-import {
-  formatSol,
-  looksLikeSolanaAddress,
-  solanaAddress,
-  SOLANA_ACCOUNT_PATH,
-} from './address';
+import { formatSol, looksLikeSolanaAddress, solanaAddress, SOLANA_ACCOUNT_PATH } from './address';
 
-const MNEMONIC =
-  'test test test test test test test test test test test junk';
+const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const key = () => deriveEd25519(mnemonicToSeedSync(MNEMONIC), SOLANA_ACCOUNT_PATH);
 

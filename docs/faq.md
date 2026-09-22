@@ -22,6 +22,13 @@ and bots are plugins that ship switched off, each saying what it adds and what
 it may reach. Turn them on under Settings → **Plugins**. Nothing makes a
 network request until you do.
 
+## Can I swap tokens, or move them to another chain?
+
+Yes, once the wallet plugin is on. `/trade 25 usdc eth` quotes a swap, and
+`--from base --to arbitrum` bridges between EVM networks. The quote comes
+from LI.FI, which works without an account; the transaction itself is signed
+on your device. [Wallet](./guide/wallet#swap-and-bridge) has the details.
+
 ## Why does Telegram ask me for an API ID?
 
 Telegram requires every client to identify itself with a developer's API ID

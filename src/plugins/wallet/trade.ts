@@ -1,16 +1,28 @@
-import { encodeFunctionData, erc20Abi, formatUnits, parseUnits, type Chain, type Hex } from 'viem';
+import {
+  encodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  parseUnits,
+  type Address,
+  type Chain,
+  type Hex,
+} from 'viem';
 
 import { flagValue, withoutFlag } from '@/core/commands/flags';
+import { shortAddress } from '@/core/identity/keyring';
 import { loadTradeKey } from '@/core/identity/trade-key';
 import type { CommandInvocation, CommandResult, PluginContext, SlashCommand } from '@/core/plugins/types';
-import { W, type Widget, type WidgetRow, type WidgetTone } from '@/design/widgets';
+import { W, type Widget, type WidgetOption, type WidgetRow, type WidgetTone } from '@/design/widgets';
 import { publicClientFor, trimDecimals } from '@/lib/evm/chains';
+import { popularTokens } from '@/lib/evm/token-list';
+import { planPermit, permittedCall, type PermitPlan, type PermitTargets } from '@/lib/evm/permit';
 import { explorerUrlFor } from '@/lib/evm/transactions';
 import { walletClientFor } from '@/lib/evm/wallet';
 import {
   LIFI_NATIVE,
   LifiError,
   lifiExplorerUrl,
+  lifiPermitTargets,
   lifiQuote,
   lifiStatus,
   lifiToken,
@@ -20,7 +32,12 @@ import {
   type LifiToken,
 } from '@/lib/lifi';
 
-import { chainStrategies, sendableChains, type ChainStrategy } from './chains/strategy';
+import {
+  chainStrategies,
+  sendableChains,
+  targetAddress,
+  type ChainStrategy,
+} from './chains/strategy';
 import { assetField, withoutConfirm } from './commands';
 import { sentPaymentErrorMessage, walletErrorMessage } from './errors';
 import { activeNetwork, defaultChain, networkById, NO_NETWORK_ON, pickStrategy } from './networks';
@@ -30,6 +47,24 @@ type Respond = CommandInvocation['respond'];
 const SLIPPAGE = 0.005;
 
 const POWERED_BY = W.link('Powered by LI.FI', 'https://li.fi');
+
+/** One entry per label on a chain, so a held token does not repeat a listed one. */
+function receiveOptions(chains: TradeChain[], held: WidgetOption[]): WidgetOption[] {
+  const common = chains.flatMap((c) =>
+    popularTokens(c.evm.id).map((token) => ({
+      label: token.symbol,
+      value: token.address,
+      when: { to: c.id },
+    }))
+  );
+  const seen = new Set<string>();
+  return [...common, ...held].filter((option) => {
+    const key = `${option.when?.to}:${option.label.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 type TradeChain = ChainStrategy & { evm: Chain };
 
@@ -80,6 +115,7 @@ interface Given {
   amount?: string;
   token?: string;
   receive?: string;
+  recipient?: string;
 }
 
 async function tradeForm(
@@ -90,7 +126,7 @@ async function tradeForm(
   context: PluginContext,
   respond: Respond
 ): Promise<CommandResult> {
-  const assets = await assetField(chains, context, 'from');
+  const assets = await assetField(chains, context);
   const networks = chains.map((c) => ({ label: c.name, value: c.id }));
 
   await respond({
@@ -105,7 +141,8 @@ async function tradeForm(
               id: 'token',
               label: 'Asset',
               value: assets.held(from.id, given.token)?.id ?? 'native',
-              options: assets.options,
+              options: assets.options('from'),
+              select: true,
             },
             {
               id: 'amount',
@@ -118,12 +155,24 @@ async function tradeForm(
             {
               id: 'receive',
               label: 'Receive',
-              placeholder: 'USDC',
               value: given.receive ?? '',
-              hint: 'A symbol or contract address on {to}.',
+              options: receiveOptions(chains, assets.options('to')),
+              select: true,
+              hint: 'Any other token: type it after /trade, as a symbol or a contract address.',
+            },
+            {
+              id: 'recipient',
+              label: 'Recipient',
+              placeholder: 'Your own address',
+              value: given.recipient ?? '',
+              optional: true,
+              hint: 'Leave it blank to keep the trade. Your address is the same on every EVM network.',
             },
           ],
-          { label: 'Get a quote', command: '/trade {amount} {token} {receive} --from {from} --to {to}' }
+          {
+            label: 'Get a quote',
+            command: '/trade {amount} {token} {receive} --from {from} --to {to} --recipient {recipient}',
+          }
         ),
         W.text(
           'The same network on both sides is a swap; different networks, a bridge. LI.FI finds ' +
@@ -142,6 +191,11 @@ interface Trade {
   fromToken: LifiToken;
   toToken: LifiToken;
   needsApproval: boolean;
+  permit?: PermitPlan;
+  targets?: PermitTargets;
+  /** Where the bought token lands: the account's own address unless asked otherwise. */
+  recipient: Address;
+  sendsAway: boolean;
 }
 
 type Prepared = Trade | { error: string };
@@ -171,7 +225,7 @@ async function prepare(
   context: PluginContext,
   from: TradeChain,
   to: TradeChain,
-  { amount = '', token = '', receive = '' }: Given,
+  { amount = '', token = '', receive = '', recipient }: Given,
   key: string | null
 ): Promise<Prepared> {
   if (!/^\d*\.?\d+$/.test(amount)) return { error: `"${amount}" is not a valid amount.` };
@@ -187,6 +241,10 @@ async function prepare(
   if (fromAmount <= 0n) return { error: 'The amount must be greater than 0.' };
 
   const address = context.identity.address;
+  const wanted = await targetAddress(from, context, recipient?.trim(), { resolve: true });
+  if ('error' in wanted) return { error: wanted.error };
+  const landsIn = wanted.address as Address;
+
   const client = publicClientFor(from.evm.id);
   const native = fromToken.address === LIFI_NATIVE;
   const symbol = fromToken.symbol;
@@ -216,6 +274,7 @@ async function prepare(
         fromToken: fromToken.address,
         toToken: toToken.address,
         fromAddress: address,
+        toAddress: landsIn,
         fromAmount,
         slippage: SLIPPAGE,
       },
@@ -225,6 +284,14 @@ async function prepare(
     if (error instanceof LifiError) return { error: error.message };
     throw error;
   }
+
+  const trade = {
+    quote,
+    fromToken,
+    toToken,
+    recipient: landsIn,
+    sendsAway: landsIn !== address,
+  };
 
   if (native) {
     const gas = (quote.estimate.gasCosts ?? []).reduce((sum, cost) => sum + BigInt(cost.amount), 0n);
@@ -236,25 +303,61 @@ async function prepare(
           `Lower the amount or add ${symbol} on ${from.name}.`,
       };
     }
-    return { quote, fromToken, toToken, needsApproval: false };
+    return { ...trade, needsApproval: false };
   }
 
-  const allowance = quote.estimate.skipApproval
-    ? fromAmount
-    : await client.readContract({
-        address: fromToken.address,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [address, quote.estimate.approvalAddress],
-      });
-  return { quote, fromToken, toToken, needsApproval: allowance < fromAmount };
+  if (quote.estimate.skipApproval) return { ...trade, needsApproval: false };
+
+  // Tried before an approval, which costs a transaction and a wait for it.
+  const targets = await lifiPermitTargets(from.evm.id).catch(() => null);
+  const permit = await planPermit(from.evm.id, fromToken.address, address, fromAmount, targets, {
+    canSignTypedData: canSign(context),
+  }).catch(() => null);
+
+  if (permit && targets) {
+    return { ...trade, needsApproval: permit.approve !== undefined, permit, targets };
+  }
+
+  const allowance = await client.readContract({
+    address: fromToken.address,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: [address, quote.estimate.approvalAddress],
+  });
+  return { ...trade, needsApproval: allowance < fromAmount };
+}
+
+function canSign(context: PluginContext): boolean {
+  try {
+    return typeof context.identity.account().signTypedData === 'function';
+  } catch {
+    return false;
+  }
+}
+
+/** What the trade still has to send before it can swap, in plain words. */
+function approvalNote(
+  symbol: string,
+  chain: string,
+  needsApproval: boolean,
+  permit: PermitPlan | undefined
+): string {
+  if (!needsApproval) {
+    return permit
+      ? ` No approval is needed: ${symbol} is released by a signature you make here, for this amount only.`
+      : '';
+  }
+  return permit?.approve
+    ? ` ${symbol} needs one approval first, to Permit2, and never again on ${chain}. ` +
+        'After that a signature releases each trade.'
+    : ` ${symbol} needs a one-time approval first: a second transaction on ${chain} before the trade.`;
 }
 
 function reviewCard(
   from: TradeChain,
   to: TradeChain,
   given: Given,
-  { quote, fromToken, toToken, needsApproval }: Trade
+  { quote, fromToken, toToken, needsApproval, permit, recipient, sendsAway }: Trade
 ): Widget {
   const { estimate } = quote;
   const same = from.id === to.id;
@@ -265,6 +368,9 @@ function reviewCard(
 
   const rows: WidgetRow[] = [
     { label: 'You send', value: `${amount} ${fromToken.symbol} on ${from.name}` },
+    ...(sendsAway
+      ? [{ label: 'Lands in', value: shortAddress(recipient), tone: 'warning' as const }]
+      : []),
     { label: 'Route', value: quote.toolDetails.name },
     { label: 'Takes about', value: duration(estimate.executionDuration) },
     ...(gas ? [{ label: 'Network fee', value: gas }] : []),
@@ -283,15 +389,16 @@ function reviewCard(
       W.actions([
         {
           label: same ? 'Confirm and swap' : 'Confirm and bridge',
-          command: `/trade ${given.amount} ${given.token} ${given.receive} --from ${from.id} --to ${to.id} --confirm`,
+          command:
+            `/trade ${given.amount} ${given.token} ${given.receive} --from ${from.id} --to ${to.id}` +
+            `${sendsAway ? ` --recipient ${recipient}` : ''} --confirm`,
         },
       ]),
       W.text(
-        'The quote is taken again when you confirm, so the amount can move a little with the ' +
+        (sendsAway ? `This lands in ${shortAddress(recipient)}, not your own address. ` : '') +
+          'The quote is taken again when you confirm, so the amount can move a little with the ' +
           'market. Nothing is signed until then.' +
-          (needsApproval
-            ? ` ${fromToken.symbol} needs a one-time approval first: a second transaction on ${from.name} before the trade.`
-            : '')
+          approvalNote(fromToken.symbol, from.name, needsApproval, permit)
       ),
       POWERED_BY,
     ],
@@ -304,16 +411,33 @@ function reviewCard(
 }
 
 /** Approves the route's contract when the allowance is short, then sends the quoted transaction. */
+/** Thrown while an approval is still in flight: the trade has not started. */
+class ApprovalPending extends Error {
+  constructor(symbol: string, chain: string) {
+    super(
+      `The ${symbol} approval is still waiting to confirm on ${chain}, so nothing was traded. ` +
+        'Run the trade again once it has.'
+    );
+    this.name = 'ApprovalPending';
+  }
+}
+
 async function execute(
   context: PluginContext,
   from: TradeChain,
-  { quote, fromToken, needsApproval }: Trade
+  { quote, fromToken, needsApproval, permit, targets }: Trade,
+  respond: Respond
 ): Promise<{ approval?: Hex; hash: Hex }> {
   const account = context.identity.account();
   const client = walletClientFor(account, from.evm.id);
   let approval: Hex | undefined;
 
   if (needsApproval) {
+    // Permit2 is approved once, for everything: the allowance after this is
+    // spent only against a signature naming the amount and a deadline.
+    const spender = permit?.approve?.spender ?? quote.estimate.approvalAddress;
+    const allowed = permit?.approve?.amount ?? BigInt(quote.action.fromAmount);
+
     approval = await client.sendTransaction({
       account,
       chain: null,
@@ -321,26 +445,62 @@ async function execute(
       data: encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
-        args: [quote.estimate.approvalAddress, BigInt(quote.action.fromAmount)],
+        args: [spender, allowed],
       }),
     });
-    const receipt = await publicClientFor(from.evm.id).waitForTransactionReceipt({
-      hash: approval,
-      timeout: 120_000,
+
+    // Two transactions look like one long wait from here, so the first one says
+    // it is out rather than leaving the room on a spinner.
+    const follow = explorerUrlFor(from.evm.id, approval);
+    await respond({
+      kind: 'widget',
+      fallback: `Approving ${fromToken.symbol} on ${from.name}`,
+      widget: W.card(
+        [
+          W.stat(`Approving ${fromToken.symbol}`, {
+            label: `On ${from.name}`,
+            caption: 'The swap goes out as soon as this confirms, usually within a minute.',
+            tone: 'brand',
+          }),
+          W.code(approval, { label: 'Approval' }),
+          ...(follow ? [W.link(`View on ${from.explorer.name}`, follow)] : []),
+        ],
+        { title: 'Approval sent', icon: 'time-outline', tone: 'brand' }
+      ),
     });
+
+    let receipt;
+    try {
+      receipt = await publicClientFor(from.evm.id).waitForTransactionReceipt({
+        hash: approval,
+        timeout: 120_000,
+      });
+    } catch {
+      throw new ApprovalPending(fromToken.symbol, from.name);
+    }
     if (receipt.status === 'reverted') {
       throw new Error(`The ${fromToken.symbol} approval was rejected on ${from.name}. Nothing was traded.`);
     }
   }
 
   const tx = quote.transactionRequest;
+  const call =
+    permit && targets
+      ? await permittedCall(from.evm.id, account, targets, permit, {
+          token: fromToken.address,
+          amount: BigInt(quote.action.fromAmount),
+          diamondCalldata: tx.data,
+        })
+      : { to: tx.to, data: tx.data };
+
   const hash = await client.sendTransaction({
     account,
     chain: null,
-    to: tx.to,
-    data: tx.data,
+    to: call.to,
+    data: call.data,
     value: tx.value ? BigInt(tx.value) : undefined,
-    gas: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
+    // The proxy adds its own work, so the router's estimate no longer covers it.
+    gas: permit ? undefined : tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
   });
   return { approval, hash };
 }
@@ -421,7 +581,8 @@ export const tradeCommand: SlashCommand = {
   aliases: ['swap', 'bridge'],
   description: 'Swap a token, or bridge it to another network, through LI.FI',
   showIn: ['channel'],
-  usage: '/trade <amount> <asset> <asset to receive> [--from base] [--to arbitrum]',
+  usage:
+    '/trade <amount> <asset> <asset to receive> [--from base] [--to arbitrum] [--recipient 0x…]',
   async run({ args, context, respond }) {
     const chains = tradeChains();
     if (chains.length === 0) {
@@ -437,9 +598,13 @@ export const tradeCommand: SlashCommand = {
     const fromId = flagValue(args, '--from');
     const toId = flagValue(args, '--to');
     const status = flagValue(args, '--status');
+    const recipient = flagValue(args, '--recipient');
     const confirmed = args.includes('--confirm');
     const [amount, token, receive] = withoutConfirm(
-      ['--from', '--to', '--status'].reduce((rest, flag) => withoutFlag(rest, flag), args)
+      ['--from', '--to', '--status', '--recipient'].reduce(
+        (rest, flag) => withoutFlag(rest, flag),
+        args
+      )
     );
 
     const from = fromId
@@ -449,7 +614,7 @@ export const tradeCommand: SlashCommand = {
     const to = toId ? chainNamed(chains, toId) : from;
     if ('error' in to) return { type: 'error', message: to.error };
 
-    const given: Given = { amount, token, receive };
+    const given: Given = { amount, token, receive, recipient };
     if (!status && (!amount || !token || !receive)) {
       return tradeForm(chains, from, to, given, context, respond);
     }
@@ -487,7 +652,7 @@ export const tradeCommand: SlashCommand = {
 
     let sent: { approval?: Hex; hash: Hex } | undefined;
     try {
-      sent = await execute(context, from, prepared);
+      sent = await execute(context, from, prepared, respond);
       await respond({
         kind: 'widget',
         fallback: `Sent ${amount} ${prepared.fromToken.symbol} for ${prepared.toToken.symbol}`,
@@ -495,6 +660,7 @@ export const tradeCommand: SlashCommand = {
       });
       return { type: 'handled' };
     } catch (error) {
+      if (error instanceof ApprovalPending) return { type: 'error', message: error.message };
       return {
         type: 'error',
         message: sent

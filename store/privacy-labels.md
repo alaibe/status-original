@@ -55,7 +55,7 @@ reader will want to know.
 | Address book | Read on device to suggest invitations. Never uploaded. | `src/app/invite.tsx` |
 | Blockchain reads and sends | Direct from the device to a public endpoint, or the user's own if set. That endpoint sees the addresses looked at. Said in the app under `/rpc`. | `src/lib/evm/chains.ts`, `src/plugins/wallet/{bitcoin,solana}` |
 | Prices | Public market endpoint, no account, no identifier. | `src/plugins/markets/api.ts` |
-| Token balances | Alchemy, only if the user supplies their own key. | `src/lib/evm/tokens.ts` |
+| Token balances | Read from the same public endpoint as everything else: EVM by calling each contract on a bundled token list, Solana by asking the node what the address holds. No third party and no key. | `src/lib/evm/tokens.ts`, `src/plugins/wallet/solana/tokens.ts` |
 | Swaps and bridges | LI.FI quotes and routes `/trade`; it sees the address, tokens and amount asked about. Works without a key; a user-supplied key only raises the rate limit. | `src/lib/lifi.ts`, `src/plugins/wallet/trade.ts` |
 | GIF search | KLIPY, only if the user supplies their own key. | `src/features/chat/attachments/gifs.ts` |
 | Link previews | The page behind a link is fetched straight from the linked site, which sees the device's network address. Off switch under Settings → Privacy; results cached on the device for a week. | `src/core/messaging/link-preview.ts`, `link-preview-cache.ts` |

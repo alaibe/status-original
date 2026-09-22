@@ -19,7 +19,6 @@ export const SETTINGS_PAGES = [
   'identity',
   'appearance',
   'privacy',
-  'tokens',
   'trades',
   'gifs',
   'devices',
@@ -144,15 +143,6 @@ export function SettingsSections({
           trailing={chevron}
           selected={selected === 'privacy'}
           onPress={() => openTab('/settings/privacy')}
-        />
-        <ListItem
-          testID="settings-tokens"
-          title="Tokens"
-          subtitle={hint(keys.tokens ? 'Showing tokens you hold' : 'Add an Alchemy key to see tokens')}
-          leading={<RowIcon name="diamond-outline" tone="teal" />}
-          trailing={chevron}
-          selected={selected === 'tokens'}
-          onPress={() => openTab('/settings/tokens')}
         />
         <ListItem
           testID="settings-trades"

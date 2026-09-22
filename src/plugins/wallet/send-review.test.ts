@@ -2,6 +2,8 @@ import { EstimateGasExecutionError, RpcRequestError, TransactionRejectedRpcError
 
 import type { PluginContext } from '@/core/plugins/types';
 import type { Widget } from '@/design/widgets';
+import { stubMulticall } from '@/lib/evm/testing/multicall';
+import { clearTokenCache } from '@/lib/evm/tokens';
 import { estimateTransfer } from '@/lib/evm/wallet';
 
 import { EVM_CHAINS, evmStrategy } from './chains/evm';
@@ -19,6 +21,12 @@ jest.mock('@/lib/evm/wallet', () => ({
   sendNative: jest.fn(() => { throw new Error('Broadcast forbidden in review'); }),
   walletClientFor: jest.fn(() => { throw new Error('Signing forbidden in review'); }),
 }));
+
+// Balances are read from the chain now, so a form listing assets needs one.
+beforeEach(() => {
+  clearTokenCache();
+  stubMulticall();
+});
 
 const recipient = '0x0000000000000000000000000000000000000001';
 const sender = '0x0000000000000000000000000000000000000002';
@@ -77,6 +85,27 @@ describe('/send errors and confirmation', () => {
 
   afterEach(() => {
     dispose();
+  });
+
+  it('starts the recipient on your own address, which is the one it knows', async () => {
+    let widget: Widget | undefined;
+    const args = ['--chain', 'ethereum'];
+    await walletCommands.find((command) => command.name === 'send')!.run({
+      args,
+      rest: args.join(' '),
+      conversationId: 'local-status',
+      context: {
+        identity: { address: sender, account: () => ({ address: sender }) },
+      } as unknown as PluginContext,
+      respond: async (content) => {
+        if (typeof content !== 'string' && content.kind === 'widget') widget = content.widget;
+      },
+    });
+
+    const form = widget?.kind === 'card' ? widget.children.find((c) => c.kind === 'form') : undefined;
+    const to = form?.kind === 'form' ? form.fields.find((f) => f.id === 'to') : undefined;
+
+    expect(to?.value).toBe(sender);
   });
 
 

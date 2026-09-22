@@ -22,8 +22,9 @@
 
 - **Appearance** sets light, dark or system, and the chat wallpaper.
 - **Privacy** is below.
-- **Tokens** takes an Alchemy key for token balances. It is optional; see
-  [Wallet](./wallet#balance).
+- **Trades** takes a LI.FI key for swaps and bridges. They work without
+  one; the key only raises how often you can ask for a quote. See
+  [Wallet](./wallet#swap-and-bridge).
 - **GIFs** takes a KLIPY key for GIF search, optional too and under the same
   rule: no key ships with the app, and yours stays on this device.
 - **Devices** lists the phones and computers signed in to your XMTP inbox,

@@ -45,12 +45,17 @@ for that network, or to one you set with `/rpc`. That endpoint sees the
 addresses you look at and the transactions you send.
 
 Prices come from a public market data endpoint with no account and no
-identifier. Token balances use Alchemy and GIF search uses KLIPY, each only if
-you enter your own key for it. `/trade` asks LI.FI for a quote, which shows
+identifier. Token balances are read from the blockchain endpoint above, by
+asking each contract on a token list that ships with the app, so no third
+party is told what you hold. GIF search uses KLIPY, only if you enter your own
+key for it. `/trade` asks LI.FI for a quote, which shows
 them your address, the tokens and the amount; that works without a key, and a
 LI.FI key you enter only raises how often you can ask. The trade itself is
 signed on your device and sent to the blockchain endpoint like any other
-transaction.
+transaction. Releasing a token to the route is usually a signature made on
+your device rather than a transaction, either the token's own permit or
+Uniswap's Permit2; neither tells anyone anything more than the trade already
+does.
 
 Link previews fetch the page behind a link in a message directly from that
 site, to show its title, description and picture (for YouTube, its small

@@ -3,7 +3,18 @@ import { View } from 'react-native';
 
 import { useState } from 'react';
 
-import { ActionSheet, Badge, Button, Eyebrow, Field, Pressable, Text } from '../components';
+import {
+  ActionSheet,
+  Badge,
+  Button,
+  Eyebrow,
+  Field,
+  FieldShell,
+  FIELD_BOX,
+  MANY_OPTIONS,
+  Pressable,
+  Text,
+} from '../components';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { Icon } from '../icon';
 import { cn } from '../lib/cn';
@@ -16,6 +27,7 @@ import {
   visibleOptions,
   type Widget,
   type WidgetAction,
+  type WidgetField,
   type WidgetTone,
 } from './schema';
 
@@ -377,6 +389,60 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
   }
 }
 
+/** A field whose options sit behind a sheet, for lists too long to wear as chips. */
+function SelectField({
+  field,
+  answers,
+  display,
+  onPick,
+}: {
+  field: WidgetField;
+  answers: Record<string, string>;
+  display: Record<string, string>;
+  onPick: (value: string) => void;
+}) {
+  const colors = useThemeColors();
+  const [picking, setPicking] = useState(false);
+
+  const label = fillText(field.label, display);
+  const options = visibleOptions(field, answers);
+  const chosen = options.find((option) => option.value === answers[field.id]);
+
+  return (
+    <FieldShell label={label} hint={field.hint ? fillText(field.hint, display) : undefined}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${chosen?.label ?? 'none chosen'}`}
+        onPress={() => setPicking(true)}
+        style={{ borderCurve: 'continuous' }}
+        className={cn(FIELD_BOX, 'flex-row items-center gap-2 border-line')}>
+        <Text
+          className={cn('min-w-0 flex-1 text-body', chosen ? 'text-content' : 'text-content-subtle')}>
+          {chosen?.label ?? field.placeholder ?? 'Choose'}
+        </Text>
+        <Icon name="chevron-down" size={16} color={colors['content-subtle']} />
+      </Pressable>
+
+      <ActionSheet
+        visible={picking}
+        onClose={() => setPicking(false)}
+        title={label}
+        searchFor={label.toLowerCase()}
+        // Built only while open: the form above re-renders on every keystroke.
+        actions={
+          picking
+            ? options.map((option) => ({
+                label: option.label,
+                selected: option.value === answers[field.id],
+                onPress: () => onPick(option.value),
+              }))
+            : []
+        }
+      />
+    </FieldShell>
+  );
+}
+
 function FormWidget({
   widget,
   onCommand,
@@ -398,7 +464,16 @@ function FormWidget({
   return (
     <View className="gap-3" style={{ minWidth: 260 }}>
       {widget.fields.map((field) =>
-        field.options ? (
+        field.options &&
+        (field.select || visibleOptions(field, answers).length >= MANY_OPTIONS) ? (
+          <SelectField
+            key={field.id}
+            field={field}
+            answers={answers}
+            display={display}
+            onPick={(value) => setValues({ ...answers, [field.id]: value })}
+          />
+        ) : field.options ? (
           <View key={field.id} className="gap-1.5">
             <Text variant="caption">{fillText(field.label, display)}</Text>
             <View className="flex-row flex-wrap gap-1.5">

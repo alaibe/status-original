@@ -22,7 +22,7 @@ features:
   - title: Your Telegram and Matrix, in the same list
     details: Sign in with your own accounts. A Matrix server with a bridge brings WhatsApp, Signal, Slack, iMessage or Discord along too.
   - title: The same phrase is a wallet
-    details: Ethereum, Bitcoin and Solana. Check a balance, send, ask someone to pay you or split a bill in the conversation where it came up.
+    details: Ethereum, Bitcoin and Solana. Check a balance, send, swap, ask someone to pay you or split a bill in the conversation where it came up.
   - title: Starts empty, by design
     details: A new install is a messenger and nothing else. Wallet, market alerts, the dapp browser and bots are plugins you switch on when you want them.
 ---

@@ -4,16 +4,18 @@ import { errorMessage } from '@/core/errors';
 import type { BotContext } from '@/core/messaging/bots';
 import type { CommandResult, PluginContext } from '@/core/plugins/types';
 import type { IconName } from '@/design';
-import type { Widget } from '@/design/widgets';
+import type { Widget, WidgetRow } from '@/design/widgets';
 
 export type Say = BotContext['say'];
 
 export type RpcCheck = { ok: true } | { ok: false; reason: string };
 
-export interface TransferAsset {
+export interface Holding {
   symbol: string;
-  id: string;
-  held?: string;
+  /** Ready to show, with the token's own decimals. */
+  amount: string;
+  /** What `--token` names it, where sending it is possible. */
+  id?: string;
 }
 
 export interface TransferParams {
@@ -50,6 +52,8 @@ export interface ChainStrategy {
 
   detail?(context: PluginContext, address: string): Promise<Widget[]>;
 
+  holdings?(context: PluginContext, address: string): Promise<Holding[]>;
+
   balance?(context: PluginContext, address: string): Promise<string>;
 
   fees?(context: PluginContext): Promise<ChainFees>;
@@ -62,7 +66,6 @@ export interface ChainStrategy {
 
   transfer?: {
     symbol: string;
-    assets?(context: PluginContext): Promise<TransferAsset[]>;
     quote(context: PluginContext, params: TransferParams): Promise<TransferQuote>;
     commit(context: PluginContext, params: TransferParams): Promise<string>;
   };
@@ -96,11 +99,36 @@ export function sendableChains(): ChainStrategy[] {
 
 export type AddressLookup = { address: string } | { error: string };
 
+export function holdingsOf(chain: ChainStrategy, context: PluginContext): Promise<Holding[]> {
+  const mine = selfAddressOf(chain, context);
+  return 'error' in mine
+    ? Promise.resolve([])
+    : (chain.holdings?.(context, mine.address) ?? Promise.resolve([]));
+}
+
+/** A token the chain cannot send carries no action rather than one that would fail. */
+export function holdingRows(chainId: string, holdings: Holding[], indent = false): WidgetRow[] {
+  return holdings.map((token) => ({
+    label: indent ? `  ${token.symbol}` : token.symbol,
+    value: token.amount,
+    actions: token.id
+      ? [
+          {
+            label: `Send ${token.symbol}`,
+            command: `/draft /send  --chain ${chainId} --token ${token.id}`,
+          },
+        ]
+      : undefined,
+  }));
+}
+
 export function selfAddressOf(chain: ChainStrategy, context: PluginContext): AddressLookup {
   try {
     return { address: chain.selfAddress(context) };
   } catch (error) {
-    return { error: errorMessage(error, `Could not read your ${chain.name} address.`) };
+    return {
+      error: errorMessage(error, `Could not read your ${chain.name} address.`),
+    };
   }
 }
 
@@ -123,7 +151,9 @@ export async function targetAddress(
       };
 }
 
-export function derivationUnavailable(chainName: string): NonNullable<ChainStrategy['unavailable']> {
+export function derivationUnavailable(
+  chainName: string
+): NonNullable<ChainStrategy['unavailable']> {
   return (context) =>
     context.identity.capabilities.otherChains
       ? null

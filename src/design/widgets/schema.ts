@@ -49,6 +49,8 @@ export interface WidgetField {
   hint?: string;
   optional?: boolean;
   options?: WidgetOption[];
+  /** Options behind a picker instead of a row of chips, for lists that grow. */
+  select?: boolean;
 }
 
 export type Widget =

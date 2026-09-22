@@ -27,11 +27,22 @@ Sepolia say so on every card, because their coins are worth nothing.
 or `/balance 0x…` looks someone else up. The card has the address, the amount
 and a link to the block explorer.
 
-Token balances need an Alchemy key, which you enter under Settings →
-**Tokens**. Without it, native balances and sends still work; only the list of
-tokens you hold is missing. That is a deliberate choice: the app ships with
-no keys of its own, so no third party sees your addresses unless you decide
-they should.
+Token balances come from a list of about 830 tokens that ships with the app,
+the Uniswap Labs Default list from [tokenlists.org](https://tokenlists.org).
+The app asks each of those contracts what you hold, in one batched call to the
+same endpoint it already uses for everything else, so nothing about your
+addresses reaches a third party and there is no key to enter.
+
+`/tokens` says how many are watched on a network. A token the list does not
+carry is `/tokens add <contract address>`: the app reads its symbol and
+decimals from the contract and watches it from then on, and `/tokens remove`
+drops it again.
+
+Solana needs none of that. One call to the same endpoint returns every token
+the address holds, with the amount, so `/balance --chain solana` lists them
+all. A second bundled list, Jupiter's verified one, only puts a name to a
+mint; anything it does not know shows its mint address instead. Sending a
+Solana token is not in yet, only SOL itself.
 
 ## Send
 
@@ -43,6 +54,48 @@ device.
 
 Sending in a chat with the person is the natural way: the address is already
 there. In a group, `/split 30 dinner` asks everyone for their share.
+
+## Swap and bridge
+
+`/trade 25 usdc eth` quotes a swap and shows what you would get for it.
+`/swap` and `/bridge` are the same command under other names. It works
+between the EVM networks you have switched on, so Ethereum, Base, Optimism,
+Arbitrum and Polygon; Bitcoin and Solana are not part of it.
+
+Stay on one network for a swap, or add `--from base --to arbitrum` to move a
+token across. `/trade` on its own opens a form with the networks, the assets
+you hold and the amount.
+
+The review card says how much you receive, the least you would accept if the
+price moves (0.5% slippage), which route it takes, how long that route
+usually needs, and the network and route fees. The quote is taken again when
+you confirm, so the amount can move a little with the market, and nothing is
+signed until then.
+
+Letting the router take the token costs no transaction in most cases. A token
+that understands `permit` (USDC and many newer ones) is released by a
+signature made on your device, for that amount and half an hour only. Any
+other token goes through Uniswap's Permit2, which needs one approval the
+first time you trade it and never again; after that each trade is a signature
+too. The card says which of the three applies before you confirm, and an
+approval that is needed appears as its own message with a link to follow it.
+
+A trade lands in your own address, which is the same address on every EVM
+network. To send the result somewhere else, fill in **Recipient** on the form
+or add `--recipient 0x…` (an ENS name works too). The review then says where
+it lands, and nothing about it is guessed: the address is sent with the quote
+rather than left to a default.
+
+A bridge takes a few minutes to arrive. The card that confirms it has a
+**Check status** button, and the same question later is
+`/trade --status <transaction> --from base --to arbitrum`. Both say how far
+along it is and link to the transaction on each side.
+
+Quotes come from [LI.FI](https://li.fi), which sees the address, the tokens
+and the amount you ask about. No key is needed: it allows this device about
+75 quotes every two hours. Your own key, entered under Settings →
+**Trades**, raises that to 100 a minute. As with every other key, none ships
+with the app.
 
 ## Request
 

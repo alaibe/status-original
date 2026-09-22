@@ -37,7 +37,7 @@ requires a physical device and cannot be exercised in the Simulator.
 
 NO ACCOUNTS OR KEYS SHIP WITH THE APP
 
-Optional integrations (Alchemy for token balances, KLIPY for GIF search, your
+Optional integrations (KLIPY for GIF search, your
 own blockchain endpoint) require an API key that the user supplies and that is
 stored only on their device. Those features are inert until a key is entered,
 which is why they appear to do nothing on a fresh install. Swaps and bridges

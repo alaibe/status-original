@@ -17,6 +17,7 @@ import {
   setRpcUrl,
   SIGNATURE_FEE,
 } from './rpc';
+import { fetchSplTokens } from './tokens';
 import { buildTransferMessage, signTransaction } from './transaction';
 import { derivationUnavailable, type ChainStrategy } from '../chains/strategy';
 
@@ -56,6 +57,11 @@ export const solanaStrategy: ChainStrategy = {
 
   async balance(_context, address) {
     return formatSol(await getBalance(rpcUrl(), address));
+  },
+
+  async holdings(_context, address) {
+    const tokens = await fetchSplTokens(rpcUrl(), address).catch(() => []);
+    return tokens.map((token) => ({ symbol: token.symbol, amount: token.amount }));
   },
 
   explorer: { name: 'Solscan', addressUrl: (address) => `${EXPLORER}/${address}` },

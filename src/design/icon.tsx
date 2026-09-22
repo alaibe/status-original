@@ -32,6 +32,7 @@ const ICONS = {
   'checkmark-done': glyph('checkmark.rectangle.stack.fill', 'done_all'),
   'checkmark-done-outline': glyph('checkmark.rectangle.stack', 'done_all'),
   'chevron-back': glyph('chevron.left', 'chevron_left'),
+  'chevron-down': glyph('chevron.down', 'expand_more'),
   'chevron-forward': glyph('chevron.right', 'chevron_right'),
   close: glyph('xmark', 'close'),
   'close-circle': glyph('xmark.circle.fill', 'cancel'),

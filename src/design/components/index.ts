@@ -1,4 +1,9 @@
-export { ActionSheet, type ActionSheetProps, type SheetAction } from './action-sheet';
+export {
+  ActionSheet,
+  MANY_OPTIONS,
+  type ActionSheetProps,
+  type SheetAction,
+} from './action-sheet';
 export { Avatar, type AvatarProps } from './avatar';
 export { BackHeader } from './back-header';
 export { Badge } from './badge';
@@ -12,7 +17,7 @@ export { ChatBackground, type ChatBackgroundProps } from './chat-background';
 export type { ChatPatternName } from './chat-pattern-tile';
 export { EmptyState } from './empty-state';
 export { Eyebrow } from './eyebrow';
-export { Field } from './field';
+export { Field, FieldShell, FIELD_BOX } from './field';
 export { IconButton } from './icon-button';
 export { Glow } from './glow';
 export { ListItem } from './list-item';
