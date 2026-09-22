@@ -1,9 +1,11 @@
-import type { Root } from 'hast';
+import type { Element, Root } from 'hast';
+import { toString } from 'hast-util-to-string';
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 import Link from 'next/link';
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 
 import { Callout } from '@/docs/Callout';
+import { CodePanel } from '@/docs/CodePanel';
 import { Heading } from '@/docs/Heading';
 
 type Props<T extends keyof React.JSX.IntrinsicElements> = React.ComponentPropsWithoutRef<T> & {
@@ -66,12 +68,25 @@ function H3({ node: _, id = '', ...props }: Props<'h3'>) {
   return <Heading level={3} id={id} {...props} />;
 }
 
+function Pre({ node }: Props<'pre'> & { node?: Element }) {
+  let code = node?.children.find(
+    (child): child is Element => child.type === 'element' && child.tagName === 'code'
+  );
+  let className = code?.properties.className;
+  let language = Array.isArray(className)
+    ? String(className.find((name) => String(name).startsWith('language-')) ?? '').slice(9)
+    : undefined;
+  return (
+    <CodePanel language={language || undefined} code={toString(code ?? node!).replace(/\n$/, '')} />
+  );
+}
+
 export function Markdown({ tree }: { tree: Root }) {
   return toJsxRuntime(tree, {
     Fragment,
     jsx,
     jsxs,
-    passNode: false,
+    passNode: true,
     components: {
       a: Anchor,
       div: Div,
@@ -81,6 +96,7 @@ export function Markdown({ tree }: { tree: Root }) {
       table: Table,
       h2: H2,
       h3: H3,
+      pre: Pre,
     },
   });
 }

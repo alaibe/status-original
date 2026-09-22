@@ -11,6 +11,7 @@ import { ChatBubbleIcon } from '@/docs/icons/ChatBubbleIcon';
 import { CogIcon } from '@/docs/icons/CogIcon';
 import { EnvelopeIcon } from '@/docs/icons/EnvelopeIcon';
 import { LinkIcon } from '@/docs/icons/LinkIcon';
+import { PackageIcon } from '@/docs/icons/PackageIcon';
 import { ShapesIcon } from '@/docs/icons/ShapesIcon';
 import { SquaresPlusIcon } from '@/docs/icons/SquaresPlusIcon';
 import { UserIcon } from '@/docs/icons/UserIcon';
@@ -28,6 +29,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   messages: EnvelopeIcon,
   networks: ShapesIcon,
   bridges: LinkIcon,
+  homeserver: PackageIcon,
   wallet: BoltIcon,
   plugins: SquaresPlusIcon,
   settings: CogIcon,
