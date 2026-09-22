@@ -171,11 +171,11 @@ export const withoutChain = (args: string[]) => withoutFlag(args, '--chain', CHA
 export const NO_NETWORK_ON = 'No network is switched on. /networks turns one on.';
 const notSwitchedOn = (named: string) => `${named} is not switched on. See /networks.`;
 
-export function defaultChain(
-  chains: ChainStrategy[],
+export function defaultChain<T extends ChainStrategy>(
+  chains: T[],
   recipient?: string,
   configuredDefault?: string
-): ChainStrategy {
+): T {
   const matches = recipient ? chains.filter((c) => c.isAddress(recipient)) : [];
   const from = matches.length > 0 ? matches : chains;
   return from.find((c) => c.id === configuredDefault) ??
@@ -184,10 +184,10 @@ export function defaultChain(
 }
 
 /** The strategy `--chain` names, from those switched on. */
-export function pickStrategy(
-  chains: ChainStrategy[],
+export function pickStrategy<T extends ChainStrategy>(
+  chains: T[],
   named: string
-): { chain: ChainStrategy } | { error: string } {
+): { chain: T } | { error: string } {
   const chain = chains.find((c) => c.id === named);
   return chain ? { chain } : { error: notSwitchedOn(named) };
 }

@@ -33,6 +33,11 @@ export function makeWalletBot(context: PluginContext): Bot {
                 actions: [{ label: 'Start one', command: '/send' }],
               },
               {
+                title: '/trade',
+                subtitle: 'Swap a token or bridge it to another network, through LI.FI',
+                actions: [{ label: 'Start one', command: '/trade' }],
+              },
+              {
                 title: '/gas',
                 subtitle: 'What a transaction costs on a network right now',
                 actions: [{ label: 'Check', command: '/gas' }],
@@ -70,10 +75,10 @@ export function makeWalletBot(context: PluginContext): Bot {
     }),
 
     async onMessage(text, ctx) {
-      const asked = /\b(balance|how much|hold|send|pay|gas|fee|explorer|rpc|node|watch)\b/i.test(text);
+      const asked = /\b(balance|how much|hold|send|pay|swap|bridge|trade|gas|fee|explorer|rpc|node|watch)\b/i.test(text);
       await ctx.say(
         asked
-          ? 'Try /balance, /send, /gas, /watch, /explorer or /rpc. Add --chain to mean a different network.'
+          ? 'Try /balance, /send, /trade, /gas, /watch, /explorer or /rpc. Add --chain to mean a different network.'
           : 'This room is money: /balance to start, /networks to choose which chains, or / to see the rest.'
       );
     },

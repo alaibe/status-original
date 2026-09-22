@@ -12,11 +12,15 @@ import { errorMessage } from '@/core/errors';
 
 import type { ChainStrategy } from './chains/strategy';
 
+/** `before`: nothing has been signed. `after`: it may have been broadcast. `lookup`: a read. */
 const ACTIONS = {
-  review: 'review this transfer',
-  send: 'complete this payment',
-  balance: 'load the balance',
-  fees: 'load network fees',
+  review: { verb: 'review this transfer', stage: 'before' },
+  send: { verb: 'complete this payment', stage: 'after' },
+  balance: { verb: 'load the balance', stage: 'lookup' },
+  fees: { verb: 'load network fees', stage: 'lookup' },
+  quote: { verb: 'quote this trade', stage: 'before' },
+  trade: { verb: 'complete this trade', stage: 'after' },
+  status: { verb: 'check this bridge', stage: 'lookup' },
 } as const;
 
 export function walletErrorMessage(
@@ -26,9 +30,9 @@ export function walletErrorMessage(
 ): string {
   const network = chain?.name ?? 'the selected network';
   const currency = chain?.transfer?.symbol ?? 'the native currency';
-  const action = ACTIONS[operation];
-  const reviewStatus = operation === 'review' ? ' Nothing was sent.' : '';
-  const uncertainStatus = operation === 'send'
+  const { verb: action, stage } = ACTIONS[operation];
+  const reviewStatus = stage === 'before' ? ' Nothing was sent.' : '';
+  const uncertainStatus = stage === 'after'
     ? ' The payment may have been submitted. Check your transaction history or the network explorer before trying again to avoid sending twice.'
     : reviewStatus;
   const causes: { message?: unknown; name?: unknown; code?: unknown; status?: unknown; cause?: unknown }[] = [];
@@ -67,10 +71,10 @@ export function walletErrorMessage(
     return `The ${network} request was cancelled. Review the request details and approve only if you want to continue.${reviewStatus}`;
   }
   if (reverted) {
-    if (operation === 'balance' || operation === 'fees') {
+    if (stage === 'lookup') {
       return `Could not ${action} on ${network} because the network rejected the lookup. Check the selected network and token, then try the lookup again.`;
     }
-    return operation === 'review'
+    return stage === 'before'
       ? `This transfer would be rejected on ${network}. Check the recipient, amount and token; the recipient contract may not accept this transfer. Nothing was sent.`
       : `The transfer was rejected or reverted on ${network}. Check the recipient, amount and token before continuing; a reverted transaction may still cost ${currency} in network fees.`;
   }
@@ -98,6 +102,6 @@ export function walletErrorMessage(
   return `Could not ${action} on ${network} because the network service returned an unexpected error. Check the selected network and wait for the service to recover.${uncertainStatus}`;
 }
 
-export function sentPaymentErrorMessage(chainName: string, hash: string): string {
-  return `Your payment was sent on ${chainName}, but its confirmation could not be posted in the chat. Do not send it again. Check the network explorer for its status. Transaction hash: ${hash}`;
+export function sentPaymentErrorMessage(chainName: string, hash: string, noun = 'payment'): string {
+  return `Your ${noun} was sent on ${chainName}, but its confirmation could not be posted in the chat. Do not send it again. Check the network explorer for its status. Transaction hash: ${hash}`;
 }

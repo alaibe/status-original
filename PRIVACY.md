@@ -46,7 +46,11 @@ addresses you look at and the transactions you send.
 
 Prices come from a public market data endpoint with no account and no
 identifier. Token balances use Alchemy and GIF search uses KLIPY, each only if
-you enter your own key for it.
+you enter your own key for it. `/trade` asks LI.FI for a quote, which shows
+them your address, the tokens and the amount; that works without a key, and a
+LI.FI key you enter only raises how often you can ask. The trade itself is
+signed on your device and sent to the blockchain endpoint like any other
+transaction.
 
 Link previews fetch the page behind a link in a message directly from that
 site, to show its title, description and picture (for YouTube, its small

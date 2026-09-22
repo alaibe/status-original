@@ -82,6 +82,7 @@ export function evmStrategy(spec: ChainSpec): ChainStrategy {
     id: spec.id,
     name: chain.name,
     icon: spec.icon,
+    evm: chain,
     selfAddress: (context) => context.identity.address,
     isAddress: (value) => /^0x[0-9a-fA-F]{40}$/.test(value),
     addressHint: 'vitalik.eth or 0x…',

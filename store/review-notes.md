@@ -40,7 +40,9 @@ NO ACCOUNTS OR KEYS SHIP WITH THE APP
 Optional integrations (Alchemy for token balances, KLIPY for GIF search, your
 own blockchain endpoint) require an API key that the user supplies and that is
 stored only on their device. Those features are inert until a key is entered,
-which is why they appear to do nothing on a fresh install.
+which is why they appear to do nothing on a fresh install. Swaps and bridges
+(/trade) are quoted by LI.FI's public API and need no key; an optional one only
+raises the rate limit.
 
 CONTACTS PERMISSION
 

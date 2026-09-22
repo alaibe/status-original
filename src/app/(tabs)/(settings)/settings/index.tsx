@@ -14,7 +14,7 @@ export default function SettingsScreen() {
       setFocusCount((n) => n + 1);
     }, []),
   );
-  const { gifKey, tokenKey } = useSettingsKeys(focusCount);
+  const keys = useSettingsKeys(focusCount);
   const ensName = useEnsName(focusCount);
 
   return (
@@ -23,7 +23,7 @@ export default function SettingsScreen() {
 
       <ScrollView contentInsetAdjustmentBehavior="automatic">
         <SettingsProfile ensName={ensName} />
-        <SettingsSections gifKey={gifKey} tokenKey={tokenKey} />
+        <SettingsSections keys={keys} />
       </ScrollView>
     </Screen>
   );

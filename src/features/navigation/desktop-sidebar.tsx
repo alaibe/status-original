@@ -60,7 +60,7 @@ export function DesktopSidebar() {
 
   // Keys and the ENS name can only change on a settings page, so that is when they reload.
   const revision = tab === 'settings' ? (settingsPage ?? 'settings') : null;
-  const { gifKey, tokenKey } = useSettingsKeys(revision);
+  const keys = useSettingsKeys(revision);
   const ensName = useEnsName(revision);
 
   return (
@@ -111,7 +111,7 @@ export function DesktopSidebar() {
         {tab === 'settings' ? (
           <ScrollView>
             <SettingsProfile ensName={ensName} />
-            <SettingsSections gifKey={gifKey} tokenKey={tokenKey} selected={settingsPage} compact />
+            <SettingsSections keys={keys} selected={settingsPage} compact />
           </ScrollView>
         ) : tab === 'contacts' ? (
           <ContactList

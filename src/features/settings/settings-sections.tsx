@@ -20,6 +20,7 @@ export const SETTINGS_PAGES = [
   'appearance',
   'privacy',
   'tokens',
+  'trades',
   'gifs',
   'devices',
   'plugins',
@@ -32,13 +33,9 @@ export type SettingsPage = (typeof SETTINGS_PAGES)[number];
  * Which optional keys the account has. Reloaded whenever `revision` changes,
  * which a screen ties to focus and the desktop sidebar to navigation.
  */
-export function useSettingsKeys(revision: unknown) {
+export function useSettingsKeys(revision: unknown): Credentials {
   const activeAccountId = useIdentityStore((s) => s.activeAccountId);
-  const [keys, setKeys] = useState<{
-    accountId: string;
-    gifKey: string | null;
-    tokenKey: string | null;
-  } | null>(null);
+  const [keys, setKeys] = useState<{ accountId: string; credentials: Credentials } | null>(null);
 
   useEffect(() => {
     if (!activeAccountId) return;
@@ -46,8 +43,8 @@ export function useSettingsKeys(revision: unknown) {
     const accountId = activeAccountId;
     readCredentials(accountId)
       .catch((): Credentials => ({}))
-      .then(({ gifs, tokens }) => {
-        if (!cancelled) setKeys({ accountId, gifKey: gifs ?? null, tokenKey: tokens ?? null });
+      .then((credentials) => {
+        if (!cancelled) setKeys({ accountId, credentials });
       });
     return () => {
       cancelled = true;
@@ -55,19 +52,15 @@ export function useSettingsKeys(revision: unknown) {
   }, [activeAccountId, revision]);
 
   // Another account's keys never show, not even for the moment a load takes.
-  return keys && keys.accountId === activeAccountId
-    ? { gifKey: keys.gifKey, tokenKey: keys.tokenKey }
-    : { gifKey: null, tokenKey: null };
+  return keys?.accountId === activeAccountId ? keys.credentials : {};
 }
 
 export function SettingsSections({
-  gifKey,
-  tokenKey,
+  keys,
   selected,
   compact = false,
 }: {
-  gifKey: string | null;
-  tokenKey: string | null;
+  keys: Credentials;
   selected?: SettingsPage;
   /** Titles only, for a narrow column. */
   compact?: boolean;
@@ -155,16 +148,25 @@ export function SettingsSections({
         <ListItem
           testID="settings-tokens"
           title="Tokens"
-          subtitle={hint(tokenKey ? 'Showing tokens you hold' : 'Add an Alchemy key to see tokens')}
+          subtitle={hint(keys.tokens ? 'Showing tokens you hold' : 'Add an Alchemy key to see tokens')}
           leading={<RowIcon name="diamond-outline" tone="teal" />}
           trailing={chevron}
           selected={selected === 'tokens'}
           onPress={() => openTab('/settings/tokens')}
         />
         <ListItem
+          testID="settings-trades"
+          title="Trades"
+          subtitle={hint(keys.trades ? 'Swaps and bridges use your LI.FI key' : 'Swap and bridge through LI.FI')}
+          leading={<RowIcon name="swap-horizontal-outline" tone="blue" />}
+          trailing={chevron}
+          selected={selected === 'trades'}
+          onPress={() => openTab('/settings/trades')}
+        />
+        <ListItem
           testID="settings-gifs"
           title="GIFs"
-          subtitle={hint(gifKey ? 'Search is on' : 'Add a KLIPY key to search GIFs')}
+          subtitle={hint(keys.gifs ? 'Search is on' : 'Add a KLIPY key to search GIFs')}
           leading={<RowIcon name="happy-outline" tone="green" />}
           trailing={chevron}
           selected={selected === 'gifs'}

@@ -1,3 +1,5 @@
+import type { Chain } from 'viem';
+
 import { errorMessage } from '@/core/errors';
 import type { BotContext } from '@/core/messaging/bots';
 import type { CommandResult, PluginContext } from '@/core/plugins/types';
@@ -37,6 +39,7 @@ export interface ChainStrategy {
   id: string;
   name: string;
   icon: IconName;
+  evm?: Chain;
 
   selfAddress(context: PluginContext): string;
   isAddress(value: string): boolean;

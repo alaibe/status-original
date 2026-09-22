@@ -47,7 +47,33 @@ function tokenMismatch(chain: ChainStrategy, token: string | undefined): string 
   return `${chain.name} sends ${chain.transfer!.symbol}, not ${token}.`;
 }
 
-const withoutConfirm = (rest: string[]) => rest.filter((a) => a !== '--confirm');
+export const withoutConfirm = (rest: string[]) => rest.filter((a) => a !== '--confirm');
+
+/**
+ * What a form can offer to send: each network's coin, then the tokens held
+ * there. An option follows the form field `networkField` names.
+ */
+export async function assetField(chains: ChainStrategy[], context: PluginContext, networkField: string) {
+  const assets = await Promise.all(
+    chains.map(async (c) => ({
+      chain: c,
+      extra: (await c.transfer!.assets?.(context).catch(() => [])) ?? [],
+    }))
+  );
+  return {
+    options: assets.flatMap(({ chain: c, extra }) => [
+      { label: c.transfer!.symbol, value: 'native', when: { [networkField]: c.id } },
+      ...extra.map((a) => ({ label: a.symbol, value: a.id, when: { [networkField]: c.id } })),
+    ]),
+    /** The held token `given` names on `chainId`, by id or symbol. */
+    held: (chainId: string, given: string | undefined) => {
+      const wanted = given?.toLowerCase();
+      return assets
+        .find((a) => a.chain.id === chainId)
+        ?.extra.find((a) => a.id.toLowerCase() === wanted || a.symbol.toLowerCase() === wanted);
+    },
+  };
+}
 
 /** `/send 0.1 0x…` in full, or just `/send 0x…` to fill the recipient and ask for the rest. */
 function sendPositionals(rest: string[]): { amount?: string; recipient?: string } {
@@ -201,16 +227,7 @@ export const walletCommands: SlashCommand[] = [
       const { amount, recipient } = sendPositionals(rest);
 
       if (!amount || !recipient) {
-        const assets = await Promise.all(
-          chains.map(async (c) => ({
-            chain: c,
-            extra: (await c.transfer!.assets?.(context).catch(() => [])) ?? [],
-          }))
-        );
-
-        const held = assets
-          .flatMap(({ chain: c, extra }) => extra.map((a) => ({ ...a, chainId: c.id })))
-          .find((a) => a.id === token || a.symbol === token);
+        const assets = await assetField(chains, context, 'chain');
 
         await respond({
           kind: 'widget',
@@ -228,15 +245,8 @@ export const walletCommands: SlashCommand[] = [
                   {
                     id: 'token',
                     label: 'Asset',
-                    value: held?.id ?? 'native',
-                    options: assets.flatMap(({ chain: c, extra }) => [
-                      { label: c.transfer!.symbol, value: 'native', when: { chain: c.id } },
-                      ...extra.map((a) => ({
-                        label: a.symbol,
-                        value: a.id,
-                        when: { chain: c.id },
-                      })),
-                    ]),
+                    value: assets.held(chain.id, token)?.id ?? 'native',
+                    options: assets.options,
                   },
                   {
                     id: 'amount',

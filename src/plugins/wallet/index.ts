@@ -15,6 +15,7 @@ import {
   syncStrategies,
 } from './networks';
 import { chainRoomCommands, endpointCard } from './room-commands';
+import { tradeCommand } from './trade';
 import { watchCommands, watchedCard } from './chains/watch-commands';
 import { hydrateRpcOverrides } from './chains/rpc';
 
@@ -23,7 +24,7 @@ export const walletPlugin: Plugin = {
     id: 'wallet',
     name: 'Wallet',
     description:
-      'Balances, sends and payment requests, on the networks you switch on.',
+      'Balances, sends, trades and payment requests, on the networks you switch on.',
     version: '2.0.0',
     icon: 'wallet-outline',
     permissions: [
@@ -61,6 +62,7 @@ export const walletPlugin: Plugin = {
 
       commands: [
         ...walletCommands,
+        tradeCommand,
         ...chainRoomCommands(context, views),
         ...watchCommands((args) => pickEvm(context, args), views),
         networksCommand(context, views),
@@ -93,6 +95,13 @@ export const walletPlugin: Plugin = {
           label: 'Send',
           icon: 'arrow-up-circle-outline',
           command: '/send',
+          showIn: ['channel'],
+        },
+        {
+          id: 'trade',
+          label: 'Trade',
+          icon: 'swap-horizontal-outline',
+          command: '/trade',
           showIn: ['channel'],
         },
         {

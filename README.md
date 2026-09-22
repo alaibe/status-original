@@ -48,8 +48,10 @@ the same commands.
 
 Some commands worth knowing: `/networks` turns chains on and off and picks the
 default, `/send` and `/request` start on that default unless you pass
-`--chain`, `/scan` reads a WalletConnect code, and `/open matcha` opens a
-bookmark. Sending shows a review step first and signs nothing until you confirm.
+`--chain`, `/trade` (also `/swap`, `/bridge`) quotes a swap or a bridge
+between EVM networks through LI.FI, `/scan` reads a WalletConnect code, and
+`/open matcha` opens a bookmark. Sending and trading show a review step first
+and sign nothing until you confirm.
 
 ## Architecture
 
@@ -112,8 +114,8 @@ than from Expo's precompiled frameworks for the same reason; `docs/deploying.md`
 has the details and the crash reports behind that choice.
 
 WalletConnect needs a project ID from Reown Cloud in
-`expo.extra.walletConnectProjectId`. Alchemy and KLIPY keys are optional and
-entered per account inside the app, as are the Telegram API ID and hash from
+`expo.extra.walletConnectProjectId`. Alchemy, LI.FI and KLIPY keys are optional
+and entered per account inside the app, as are the Telegram API ID and hash from
 my.telegram.org: each user registers their own, and nothing is shared.
 
 Android has not been built or run yet. The native project generates, but
