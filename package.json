@@ -91,8 +91,7 @@
     "jest-expo": "^57.0.5",
     "patch-package": "^8.0.1",
     "tailwindcss": "^3.4.19",
-    "typescript": "~6.0.3",
-    "vitepress": "^1.6.4"
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -113,9 +112,8 @@
     "test:e2e": "./e2e/run.sh",
     "test:all": "npm run format:check && npm run typecheck && npm test && npm run test:e2e",
     "setup": "./scripts/setup.sh",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
+    "site:dev": "npm --prefix site run dev",
+    "site:build": "npm --prefix site run build",
     "format": "biome check . --write && cargo fmt --manifest-path src-tauri/Cargo.toml --all",
     "format:check": "biome ci . && cargo fmt --manifest-path src-tauri/Cargo.toml --all --check"
   },

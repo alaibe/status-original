@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   prepare:
@@ -191,3 +192,4 @@ jobs:
         run: |
           gh release edit "v${{ needs.prepare.outputs.version }}" \
             --repo "${{ github.repository }}" --draft=false
+          gh workflow run site.yml --repo "${{ github.repository }}" --ref main

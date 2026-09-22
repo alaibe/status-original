@@ -14,8 +14,8 @@ module.exports = {
    * project. Without this, every suite runs once per worktree — inflating the
    * counts and reporting on code that is not in this tree.
    */
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
-  modulePathIgnorePatterns: ['/.claude/'],
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '<rootDir>/site/'],
+  modulePathIgnorePatterns: ['/.claude/', '<rootDir>/site/'],
   // Mirrors the "@/assets/*" and "@/*" aliases from tsconfig.json, in that order.
   moduleNameMapper: {
     '^@/assets/(.*)$': '<rootDir>/assets/$1',

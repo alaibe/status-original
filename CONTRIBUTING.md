@@ -173,10 +173,20 @@ screenshots under `distribution/ios/screenshots/6.9/` are stale. Regenerate them
 
 ## Documentation
 
-The site at `docs/` is the **user guide** and nothing else: no architecture, no
+The pages in `docs/` are the **user guide** and nothing else: no architecture, no
 decision records, no build instructions. Developer documentation stays in the
-repository, in `README.md` and this file. `PRIVACY.md` is included into
-`docs/privacy.md`, so editing it changes the published policy.
+repository, in `README.md` and this file. `PRIVACY.md` and `DISCLAIMER.md` are
+included into `docs/privacy.md` and `docs/disclaimer.md`, so editing them changes
+the published pages.
+
+`site/` is the public website: the landing page and the guide, rendered from
+`docs/` at build time (`npm run site:dev`, `npm run site:build`). It is its own
+package with its own lockfile. `site/public/` is generated from
+`docs/public/` and `assets/brand/mark.svg` on every build. The download buttons
+read the latest GitHub release when the site builds, and the release workflow
+redeploys the site once a release is published. Guide URLs are linked from the
+app (`src/lib/guide.ts`) and the App Store listing, so keep `/guide/<page>`,
+`/privacy` and the heading anchors stable.
 
 ## Commits and pull requests
 

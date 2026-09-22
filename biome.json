@@ -10,8 +10,11 @@
       "!src-tauri/**",
       "!public/**",
       "!patches/**",
-      "!docs/.vitepress/cache/**",
-      "!docs/.vitepress/dist/**",
+      "!site/node_modules/**",
+      "!site/.next/**",
+      "!site/out/**",
+      "!site/public/**",
+      "!site/next-env.d.ts",
       "!src/global.css",
       "!**/token-list.json",
       "!package-lock.json"
@@ -31,6 +34,11 @@
       "trailingCommas": "es5",
       "arrowParentheses": "always",
       "bracketSameLine": true
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "json": {

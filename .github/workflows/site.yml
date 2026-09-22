@@ -1,16 +1,15 @@
-name: Docs
+name: Site
 
 on:
   push:
     branches: [main]
     paths:
-      # PRIVACY.md is included into docs/privacy.md; the other root documents
-      # are for the repository, not the site.
+      - 'site/**'
       - 'docs/**'
       - 'PRIVACY.md'
-      - '.github/workflows/docs.yml'
-      - 'package.json'
-      - 'package-lock.json'
+      - 'DISCLAIMER.md'
+      - 'assets/brand/mark.svg'
+      - '.github/workflows/site.yml'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +17,6 @@ permissions:
   pages: write
   id-token: write
 
-# One deployment at a time; a newer push cancels an older queued one.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -26,21 +24,26 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      # The app's postinstall patches native packages this job does not need.
-      - run: npm ci --ignore-scripts
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - run: npm run docs:build
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - id: pages
+        uses: actions/configure-pages@v5
+      - run: npm run build
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/.vitepress/dist
+          path: site/out
 
   deploy:
     needs: build
