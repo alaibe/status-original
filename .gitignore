@@ -18,6 +18,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Docs site
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Metro
 .metro-health-check*
 

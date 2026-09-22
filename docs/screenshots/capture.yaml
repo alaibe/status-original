@@ -1,0 +1,213 @@
+# Captures the screenshots the user docs show, from the clean simulator
+# `capture.sh` prepares. Same idea as store/screenshots/capture.yaml: nothing
+# visible comes from a device someone has used.
+appId: com.statusoriginal.app
+---
+- launchApp:
+    stopApp: true
+
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+
+# The dev client explains its developer menu once per install, then opens it.
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+      - waitForAnimationToEnd
+      - tapOn:
+          point: "50%,15%"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Ready for Apple Intelligence"
+    commands:
+      - swipe:
+          start: "50%,15%"
+          end: "50%,2%"
+
+- extendedWaitUntil:
+    visible: ".*Create an account.*"
+    timeout: 90000
+- waitForAnimationToEnd
+- takeScreenshot: welcome
+
+- tapOn: ".*Create an account.*"
+- extendedWaitUntil:
+    visible: "Reveal recovery phrase"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: recovery-phrase-hidden
+- tapOn: "Reveal recovery phrase"
+- waitForAnimationToEnd
+- tapOn: ".*written it down.*"
+- extendedWaitUntil:
+    visible: "Chats"
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "conversation-local-status"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: chats
+
+- tapOn:
+    id: "conversation-local-status"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: status-room
+- tapOn:
+    id: "composer-input"
+- inputText: "Remember to book the train tomorrow"
+- tapOn:
+    id: "composer-send"
+- tapOn:
+    point: "50%,25%"
+- waitForAnimationToEnd
+- longPressOn: "Remember to book the train tomorrow"
+- waitForAnimationToEnd
+- takeScreenshot: message-actions
+- tapOn:
+    point: "50%,10%"
+- waitForAnimationToEnd
+
+- openLink: "statusoriginal://new-chat"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "new-chat-input"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: new-chat
+
+- openLink: "statusoriginal://settings"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "settings-erase-account"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: settings
+
+- openLink: "statusoriginal://settings/protocols"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- waitForAnimationToEnd
+- takeScreenshot: protocols
+
+- openLink: "statusoriginal://settings/protocol/matrix"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "protocol-field-homeserver"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: protocol-matrix
+
+- openLink: "statusoriginal://settings/protocol/telegram"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "protocol-field-apiId"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: protocol-telegram
+
+- openLink: "statusoriginal://settings/privacy"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- waitForAnimationToEnd
+- takeScreenshot: privacy
+
+- openLink: "statusoriginal://settings/plugins"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "plugin-wallet"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: plugins
+
+- openLink: "statusoriginal://chat/local-status"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
+    timeout: 20000
+- tapOn:
+    id: "composer-input"
+- inputText: "/enable wallet"
+- tapOn:
+    id: "composer-send"
+- waitForAnimationToEnd
+- openLink: "statusoriginal://chat/local-wallet"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "composer-input"
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: wallet
+- tapOn:
+    id: "composer-input"
+- inputText: "/send"
+- tapOn:
+    id: "composer-send"
+- extendedWaitUntil:
+    visible: "Review"
+    timeout: 20000
+- tapOn:
+    point: "50%,25%"
+- waitForAnimationToEnd
+- takeScreenshot: wallet-send
+
+- openLink: "statusoriginal://contacts"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- waitForAnimationToEnd
+- takeScreenshot: contacts

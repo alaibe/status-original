@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "documentation-and-adrs": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/documentation-and-adrs/SKILL.md",
+      "computedHash": "f13054e8bd32a432df3e0e68240758cf61a9e8817aa8540f9d9831f427c47e0e"
+    },
     "eas-app-stores": {
       "source": "expo/skills",
       "sourceType": "github",
