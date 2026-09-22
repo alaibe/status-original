@@ -12,7 +12,7 @@ import type {
   Unsubscribe,
 } from '@/core/messaging/types';
 import { TdRequestError, type TdApi, type TdObject } from './api';
-import { localFileUri } from './host';
+import { localFileUri, pathOfFileUri } from '@/storage/media';
 import type {
   TdAuthorizationState,
   TdBasicGroup,
@@ -141,12 +141,12 @@ export class TelegramSession implements ChatSession {
           ? { '@type': 'checkAuthenticationCode', code: value.trim() }
           : { '@type': 'checkAuthenticationPassword', password: value };
 
-    this.setLogin({ step: current.step, hint: current.hint });
+    this.setLogin({ ...current, error: undefined });
     try {
       await this.api.send(request);
     } catch (error) {
       const message = describeAuthError(error);
-      this.setLogin({ step: current.step, hint: current.hint, error: message });
+      this.setLogin({ ...current, error: message });
       throw new Error(message);
     }
   }
@@ -171,11 +171,16 @@ export class TelegramSession implements ChatSession {
         return;
       }
       case 'authorizationStateWaitCode':
-        this.setLogin({ step: 'code', hint: describeCodeDelivery(state.code_info?.type['@type']) });
+        this.setLogin({
+          step: 'code',
+          title: 'Enter the code',
+          hint: describeCodeDelivery(state.code_info?.type['@type']),
+        });
         return;
       case 'authorizationStateWaitPassword':
         this.setLogin({
           step: 'password',
+          title: 'Two-step verification',
           hint: state.password_hint
             ? `Your two-step verification password. Hint: ${state.password_hint}`
             : 'Your two-step verification password.',
@@ -1027,7 +1032,7 @@ function formatted(text: string): TdObject {
 }
 
 function localFile(uri: string): TdObject {
-  return { '@type': 'inputFileLocal', path: decodeURI(uri.replace(/^file:\/\//, '')) };
+  return { '@type': 'inputFileLocal', path: pathOfFileUri(uri) };
 }
 
 function describeCodeDelivery(type: string | undefined): string {

@@ -21,6 +21,7 @@
     "@tauri-apps/plugin-http": "^2.6.1",
     "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-opener": "^2.5.5",
+    "@unomed/react-native-matrix-sdk": "^0.10.0",
     "@walletconnect/core": "^2.24.0",
     "@walletconnect/react-native-compat": "^2.24.0",
     "@walletconnect/utils": "^2.24.0",

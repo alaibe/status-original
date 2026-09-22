@@ -14,7 +14,15 @@ export const VaultKey = {
 export type VaultKeyName = (typeof VaultKey)[keyof typeof VaultKey] | AccountScopedKey;
 
 type AccountScopedKey =
-  `account.${string}.${'mnemonic' | 'dbKey' | 'appDbKey' | 'tdlibDbKey' | 'protocols' | 'credentials'}`;
+  `account.${string}.${
+    | 'mnemonic'
+    | 'dbKey'
+    | 'appDbKey'
+    | 'tdlibDbKey'
+    | 'matrixStoreKey'
+    | 'matrixSession'
+    | 'protocols'
+    | 'credentials'}`;
 
 export function accountMnemonicKey(accountId: string): AccountScopedKey {
   return `account.${accountId}.mnemonic`;
@@ -34,6 +42,15 @@ export function accountTdlibDbKeyName(accountId: string): AccountScopedKey {
   return `account.${accountId}.tdlibDbKey`;
 }
 
+// Matrix's SDK store has its own passphrase; the session (access token) sits beside it.
+export function accountMatrixStoreKeyName(accountId: string): AccountScopedKey {
+  return `account.${accountId}.matrixStoreKey`;
+}
+
+export function accountMatrixSessionKey(accountId: string): AccountScopedKey {
+  return `account.${accountId}.matrixSession`;
+}
+
 export function accountProtocolConfigsKey(accountId: string): AccountScopedKey {
   return `account.${accountId}.protocols`;
 }
@@ -48,6 +65,8 @@ export function accountScopedKeys(accountId: string): VaultKeyName[] {
     accountDbKeyName(accountId),
     accountAppDbKeyName(accountId),
     accountTdlibDbKeyName(accountId),
+    accountMatrixStoreKeyName(accountId),
+    accountMatrixSessionKey(accountId),
     accountProtocolConfigsKey(accountId),
     accountCredentialsKey(accountId),
   ];
@@ -95,27 +114,35 @@ export function vaultDelete(key: VaultKeyName): Promise<void> {
   return store.remove(key);
 }
 
-export async function accountDatabaseKey(accountId: string): Promise<string> {
-  const name = accountAppDbKeyName(accountId);
-
+/** A random secret under `name`, created on first use; `valid` rejects a stored value that no longer fits. */
+async function accountSecret(
+  name: AccountScopedKey,
+  fresh: () => string,
+  valid: (value: string) => boolean = () => true,
+): Promise<string> {
   const existing = await vaultGet(name);
-  if (existing && /^[0-9a-f]{64}$/.test(existing)) return existing;
+  if (existing && valid(existing)) return existing;
 
-  const fresh = toHex(Crypto.getRandomBytes(32));
-  await vaultSet(name, fresh);
-  return fresh;
+  const value = fresh();
+  await vaultSet(name, value);
+  return value;
+}
+
+const randomHex = () => toHex(Crypto.getRandomBytes(32));
+
+export function accountDatabaseKey(accountId: string): Promise<string> {
+  return accountSecret(accountAppDbKeyName(accountId), randomHex, (value) => /^[0-9a-f]{64}$/.test(value));
 }
 
 /** Base64, which is how TDLib's JSON interface takes bytes. */
-export async function accountTdlibDatabaseKey(accountId: string): Promise<string> {
-  const name = accountTdlibDbKeyName(accountId);
+export function accountTdlibDatabaseKey(accountId: string): Promise<string> {
+  return accountSecret(accountTdlibDbKeyName(accountId), () =>
+    globalThis.btoa(String.fromCharCode(...Crypto.getRandomBytes(32))),
+  );
+}
 
-  const existing = await vaultGet(name);
-  if (existing) return existing;
-
-  const fresh = globalThis.btoa(String.fromCharCode(...Crypto.getRandomBytes(32)));
-  await vaultSet(name, fresh);
-  return fresh;
+export function accountMatrixStorePassphrase(accountId: string): Promise<string> {
+  return accountSecret(accountMatrixStoreKeyName(accountId), randomHex);
 }
 
 export async function vaultWipe(accountIds: string[] = []): Promise<void> {

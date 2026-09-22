@@ -21,6 +21,11 @@ the same code as a web export inside a Tauri window.
 - Your Telegram account in the same inbox, as a real client over TDLib:
   private chats and groups, signed in with your phone number. Telegram is
   not end-to-end encrypted, and the app says so on the conversation.
+- Your Matrix account too, over matrix-rust-sdk (the crate behind Element X):
+  encrypted rooms and DMs on any homeserver, invitations as message requests,
+  and whatever the homeserver bridges in — a self-hosted mautrix bridge puts
+  WhatsApp, Signal, Slack, iMessage or Discord chats in the same list with no
+  code for them in the app.
 - Message requests, search, filters, replies, reactions, forwarding, photos,
   files, GIFs and voice messages. Links unfurl into a card (YouTube with a
   poster, maps links into a place that opens in Maps); phone numbers, email
@@ -57,20 +62,21 @@ src/
     messaging/  chat domain, persistence sessions, history, projections
     commands/   command parsing and shared group commands
     plugins/    plugin contracts, registry, storage and host
-  protocols/    XMTP, Nostr, Waku and Telegram descriptors and adapters
+  protocols/    XMTP, Nostr, Waku, Telegram and Matrix descriptors and adapters
   storage/      account-scoped storage, SQLCipher, vault, media, erase
   design/       tokens, components, motion and widget rendering
   features/     chat and protocol UI
   plugins/      the bundled plugins
   desktop/      what the web build swaps in for the desktop window
-src-tauri/      the desktop window: Rust commands for SQLCipher, the vault and Ledger
+src-tauri/      the desktop window: Rust commands for SQLCipher, the vault, Ledger, TDLib and Matrix
 ```
 
 A file ending in `.web.tsx` or `.web.ts` is the desktop version of its
 neighbour; `docs/desktop.md` lists them.
 
 `ChatSession` is the messaging contract the app talks to. XMTP implements it
-on the SDK's own encrypted database, and Telegram on TDLib's; Nostr and Waku
+on the SDK's own encrypted database, Telegram on TDLib's and Matrix on
+matrix-rust-sdk's; Nostr and Waku
 use `StoreBackedSession` over the app's `MessageStore`, so transport code
 stays separate from local persistence. A session that signs in interactively
 reports the step it is waiting on, and the protocol's settings screen walks
@@ -114,6 +120,17 @@ Android has not been built or run yet. The native project generates, but
 nothing has been checked on a device or emulator. Telegram in particular is
 iOS-only for now: `react-native-tdlib`'s Android side does not expose the raw
 `td_json_client` calls `src/protocols/telegram/td-client.ts` relies on.
+Matrix ships Android binaries with `@unomed/react-native-matrix-sdk`, but
+that side is equally unchecked.
+
+Matrix asks for the homeserver URL and Matrix ID per account and the
+password once; the session token then lives in the keychain. The homeserver
+must support simplified sliding sync (MSC4186: Synapse 1.114+, the Conduit
+family), as Element X requires; homeservers that have moved to OAuth-only
+sign-in (matrix.org since MAS) are not supported yet.
+Bridges are the homeserver's business: run one of the
+[mautrix](https://github.com/mautrix) bridges against your own homeserver and
+its rooms show up as ordinary Matrix DMs.
 
 `npm run desktop` opens the desktop app with live reload; `npm run
 desktop:build` produces the `.app`. `docs/desktop.md` explains how the desktop

@@ -4,35 +4,25 @@ import { Button, Card, Field, Text, toast } from '@/design';
 import { errorMessage } from '@/core/errors';
 import type { ChatSession, LoginState } from '@/core/messaging/protocol';
 
-const COPY: Record<
-  LoginState['step'],
-  { title: string; label: string; placeholder: string; action: string }
-> = {
-  phone: {
-    title: 'Sign in to Telegram',
-    label: 'Phone number',
-    placeholder: '+44 7700 900123',
-    action: 'Send code',
-  },
-  code: {
-    title: 'Enter the code',
-    label: 'Code',
-    placeholder: '12345',
-    action: 'Continue',
-  },
-  password: {
-    title: 'Two-step verification',
-    label: 'Password',
-    placeholder: 'Your Telegram password',
-    action: 'Sign in',
-  },
+const COPY: Record<LoginState['step'], { label: string; placeholder: string; action: string }> = {
+  phone: { label: 'Phone number', placeholder: '+44 7700 900123', action: 'Send code' },
+  code: { label: 'Code', placeholder: '12345', action: 'Continue' },
+  password: { label: 'Password', placeholder: 'Your password', action: 'Sign in' },
 };
 
 /**
  * One step of an interactive sign-in, driven by whatever the session is
  * waiting on. Key it by step so the field starts empty at each one.
  */
-export function LoginStep({ login, session }: { login: LoginState; session: ChatSession | undefined }) {
+export function LoginStep({
+  login,
+  session,
+  label,
+}: {
+  login: LoginState;
+  session: ChatSession | undefined;
+  label: string;
+}) {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const copy = COPY[login.step];
@@ -43,7 +33,7 @@ export function LoginStep({ login, session }: { login: LoginState; session: Chat
     try {
       await session.submitLogin(value);
     } catch (e) {
-      toast.error(errorMessage(e, 'Telegram did not accept that'));
+      toast.error(errorMessage(e, `${label} did not accept that`));
     }
     setBusy(false);
   }
@@ -51,7 +41,7 @@ export function LoginStep({ login, session }: { login: LoginState; session: Chat
   return (
     <Card className="gap-3" testID="protocol-login">
       <Text variant="footnote" className="font-semibold">
-        {copy.title}
+        {login.title ?? `Sign in to ${label}`}
       </Text>
       <Field
         testID={`protocol-login-${login.step}`}

@@ -33,7 +33,8 @@
         "enable": true,
         "scope": [
           "$APPDATA/media/**",
-          "$APPDATA/tdlib/**"
+          "$APPDATA/tdlib/**",
+          "$APPDATA/matrix/**"
         ]
       }
     }

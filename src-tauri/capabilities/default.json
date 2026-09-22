@@ -25,6 +25,9 @@
         },
         {
           "path": "$APPDATA/tdlib/**"
+        },
+        {
+          "path": "$APPDATA/matrix/**"
         }
       ]
     },

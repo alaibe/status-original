@@ -9,9 +9,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use libloading::Library;
-use tauri::{AppHandle, State};
+use tauri::State;
 
-use crate::paths::{data_dir, safe_component};
 
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
 type SendFn = unsafe extern "C" fn(*mut c_void, *const c_char);
@@ -146,22 +145,4 @@ pub async fn td_destroy(state: State<'_, Telegram>) -> Result<(), String> {
     let api = api()?;
     let client = state.0.lock().unwrap().take();
     discard(api, client).await
-}
-
-#[tauri::command]
-pub async fn td_database_directory(app: AppHandle, account_id: String) -> Result<String, String> {
-    safe_component(&account_id, "account")?;
-    let dir = data_dir(&app, "tdlib")?.join(&account_id);
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-pub async fn td_erase(app: AppHandle, account_id: String) -> Result<(), String> {
-    safe_component(&account_id, "account")?;
-    match std::fs::remove_dir_all(data_dir(&app, "tdlib")?.join(&account_id)) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
 }

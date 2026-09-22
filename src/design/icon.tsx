@@ -58,6 +58,7 @@ const ICONS = {
   'git-merge-outline': glyph('arrow.triangle.merge', 'merge'),
   'git-network-outline': glyph('point.3.connected.trianglepath.dotted', 'hub'),
   'globe-outline': glyph('globe', 'language'),
+  'grid-outline': glyph('square.grid.2x2', 'grid_view'),
   'hand-left-outline': glyph('hand.raised', 'back_hand'),
   'happy-outline': glyph('face.smiling', 'mood'),
   'hardware-chip-outline': glyph('cpu', 'memory'),

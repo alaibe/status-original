@@ -60,6 +60,7 @@ const TONE: Record<string, RowIconTone> = {
   nostr: 'purple',
   waku: 'teal',
   telegram: 'blue',
+  matrix: 'green',
 };
 
 const ICON: Record<string, IconName> = {
@@ -67,6 +68,7 @@ const ICON: Record<string, IconName> = {
   nostr: 'flash-outline',
   waku: 'radio-outline',
   telegram: 'paper-plane-outline',
+  matrix: 'grid-outline',
 };
 
 function describeStatus(

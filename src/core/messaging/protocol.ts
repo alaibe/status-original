@@ -17,6 +17,8 @@ import type { HistoryState } from './history';
  */
 export interface LoginState {
   step: 'phone' | 'code' | 'password';
+  /** Replaces the generic "Sign in to …" heading when the step means something more specific. */
+  title?: string;
   hint?: string;
   error?: string;
 }

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use base64::prelude::*;
 use tauri::AppHandle;
 
-use crate::paths::{data_dir, safe_component};
+use crate::paths::{data_dir, remove_dir, safe_component};
 
 fn media_path(app: &AppHandle, account_id: &str, area: &str, name: &str) -> Result<PathBuf, String> {
     safe_component(account_id, "account")?;
@@ -51,10 +51,5 @@ pub async fn media_stat(
 #[tauri::command]
 pub async fn media_erase(app: AppHandle, account_id: String) -> Result<(), String> {
     safe_component(&account_id, "account")?;
-    let dir = data_dir(&app, "media")?.join(&account_id);
-    match std::fs::remove_dir_all(&dir) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
+    remove_dir(&data_dir(&app, "media")?.join(&account_id))
 }

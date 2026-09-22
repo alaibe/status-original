@@ -110,7 +110,12 @@ export default function ProtocolConfigScreen() {
             ) : null}
 
             {connection?.login ? (
-              <LoginStep key={connection.login.step} login={connection.login} session={session} />
+              <LoginStep
+                key={connection.login.step}
+                login={connection.login}
+                session={session}
+                label={descriptor.label}
+              />
             ) : session?.subscribeLogin && session.self.address ? (
               <SignedIn session={session} label={descriptor.label} />
             ) : null}

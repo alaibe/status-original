@@ -20,7 +20,7 @@ export function namespacedId(protocol: ProtocolId, nativeId: string): Conversati
   if (!NATIVE_ID.test(nativeId)) {
     throw new Error(
       `Conversation id "${nativeId}" is not URL-safe. ` +
-        'Adapters must hash ids outside [A-Za-z0-9_-] before returning them.'
+        'Adapters must hash or encode ids outside [A-Za-z0-9_-] before returning them.'
     );
   }
   return `${protocol}-${nativeId}`;

@@ -30,6 +30,14 @@ base64 = "0.22"
 ledger-transport-hid = "0.11"
 ledger-apdu = "0.11"
 libloading = "0.8"
+matrix-sdk = { version = "0.19", default-features = false, features = ["e2e-encryption", "automatic-room-key-forwarding", "sqlite", "rustls-aws-lc-rs"] }
+matrix-sdk-ui = { version = "0.19", default-features = false, features = ["rustls-aws-lc-rs"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["sync", "time"] }
+sha2 = "0.10"
+# Routes matrix-sdk's tracing into the app log.
+tracing = { version = "0.1", features = ["log"] }
+mime = "0.3"
 
 # SQLCipher from source. macOS gets CommonCrypto; everything else compiles its
 # own OpenSSL so the build has no system dependency.

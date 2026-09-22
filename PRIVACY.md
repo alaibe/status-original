@@ -31,6 +31,15 @@ and the app registers itself there under the API ID and hash you supply. The
 Telegram database on this device is encrypted with its own key in the
 keychain and is deleted when you sign out or erase the account.
 
+Matrix is only on if you sign in to it. Messages go to the homeserver you
+name; rooms that have encryption on are end-to-end encrypted with Olm and
+Megolm, and the homeserver still sees who talks to whom and when. If your
+homeserver runs a bridge to another network, the bridge decrypts what it
+relays. Signing in sends your Matrix ID and password to that homeserver once;
+the app keeps the session token, and the SDK's local store (history, keys,
+downloaded media) encrypted with its own key from the keychain. Both are
+deleted when you sign out or erase the account.
+
 Blockchain reads and transactions go from your device to a public endpoint
 for that network, or to one you set with `/rpc`. That endpoint sees the
 addresses you look at and the transactions you send.

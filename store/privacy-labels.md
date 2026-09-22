@@ -23,8 +23,8 @@ label agree.
 `expo-observe` is installed and active. It sends startup and navigation
 timings to EAS, and while the app launches it watches network requests and
 attaches the host of the slowest one to what it uploads. For this app the
-hosts are XMTP and Nostr relays, Telegram if the user signed in, and, if the
-user set one, their own blockchain endpoint. That is metadata about which services a device talks to, leaving
+hosts are XMTP and Nostr relays, Telegram or a Matrix homeserver if the user
+signed in, and, if the user set one, their own blockchain endpoint. That is metadata about which services a device talks to, leaving
 the device, and `expo-observe@57.0.21` has no switch to turn it off.
 
 The decision was to keep it and say so. `PRIVACY.md` at the repository root
@@ -49,8 +49,9 @@ reader will want to know.
 |---|---|---|
 | Messages | End-to-end encrypted to the relay network the conversation is on (XMTP, Nostr or Waku). Relays see ciphertext and routing metadata. | `src/protocols/*/adapter.ts` |
 | Telegram | Only if the user signs in. Plaintext to Telegram's servers, as with the official client; the phone number is the sign-in. The user supplies their own API ID and hash. | `src/protocols/telegram/adapter.ts` |
+| Matrix | Only if the user signs in. To the homeserver the user names; encrypted rooms are end-to-end encrypted, the homeserver sees metadata, a bridge it runs sees plaintext. The Matrix ID and password are the sign-in; the session token stays in the keychain. | `src/protocols/matrix/adapter.ts` |
 | Recovery phrase and keys | iOS Keychain, optionally sealed behind Face ID. Never transmitted. | `src/storage/vault.ts` |
-| Message history | Per-account SQLCipher databases, erased with the account. Telegram history lives in TDLib's own encrypted database, keyed from the keychain and erased the same way. | `src/storage/database.ts`, `src/protocols/xmtp/adapter.ts`, `src/protocols/telegram/descriptor.ts` |
+| Message history | Per-account SQLCipher databases, erased with the account. Telegram history lives in TDLib's own encrypted database and Matrix history in matrix-rust-sdk's, each keyed from the keychain and erased the same way. | `src/storage/database.ts`, `src/protocols/xmtp/adapter.ts`, `src/protocols/telegram/descriptor.ts`, `src/protocols/matrix/descriptor.ts` |
 | Address book | Read on device to suggest invitations. Never uploaded. | `src/app/invite.tsx` |
 | Blockchain reads and sends | Direct from the device to a public endpoint, or the user's own if set. That endpoint sees the addresses looked at. Said in the app under `/rpc`. | `src/lib/evm/chains.ts`, `src/plugins/wallet/{bitcoin,solana}` |
 | Prices | Public market endpoint, no account, no identifier. | `src/plugins/markets/api.ts` |

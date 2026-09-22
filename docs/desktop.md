@@ -67,6 +67,8 @@ phone gets from a native package:
 | `core/notifications` | expo-notifications | `tauri-plugin-notification` |
 | `lib/open-url` | in-app browser / `Linking` | `tauri-plugin-opener` (the window cannot open URLs itself) |
 | `lib/share` | the share sheet | the clipboard; invites also open Messages with the recipients through `sms:` |
+| `protocols/telegram/td-client` | `react-native-tdlib` | `tdlib.rs`: `libtdjson.dylib` opened with `libloading`, one `td_json_client` at a time |
+| `protocols/matrix/client` | `@unomed/react-native-matrix-sdk` (uniffi bindings) | `matrix.rs`: the `matrix-sdk` and `matrix-sdk-ui` crates in-process, one client at a time; rooms from the sliding-sync room list, messages from live SDK timelines, updates pushed as `matrix://update` events |
 
 XMTP uses `@xmtp/browser-sdk` (`src/protocols/xmtp/adapter.web.ts`), which
 runs libxmtp as WebAssembly in a Web Worker with its database in the origin's
@@ -80,7 +82,8 @@ Everything is keyed by the bundle identifier `com.statusoriginal.app`, so a
 new build or a moved `.app` keeps it.
 
 - `~/Library/Application Support/com.statusoriginal.app/`: `vault.bin`,
-  `databases/account-<id>.db`, and in debug builds `vault.key`.
+  `databases/account-<id>.db`, `tdlib/<account>/` and `matrix/<account>/`
+  (the SDK stores plus downloaded media), and in debug builds `vault.key`.
 - Keychain item `com.statusoriginal.app` / `vault-key` in release builds.
 - `~/Library/WebKit/com.statusoriginal.app/`: preferences (AsyncStorage),
   XMTP's own database, WalletConnect sessions. This store is per origin, so a
