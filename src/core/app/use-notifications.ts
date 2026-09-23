@@ -20,10 +20,14 @@ export function useMessageNotifications() {
 
   useEffect(() => {
     const badge = (state: ChatState) =>
-      setBadgeCount(totalUnread(state.conversations, state.readAt));
+      setBadgeCount(totalUnread(state.conversations, state.readAt, state.chatPrefs));
     badge(useChatStore.getState());
     const unsubscribe = useChatStore.subscribe((state, previous) => {
-      if (state.conversations !== previous.conversations || state.readAt !== previous.readAt) {
+      if (
+        state.conversations !== previous.conversations ||
+        state.readAt !== previous.readAt ||
+        state.chatPrefs !== previous.chatPrefs
+      ) {
         badge(state);
       }
       if (state.conversations === previous.conversations) return;
@@ -37,6 +41,7 @@ export function useMessageNotifications() {
       const message = conversation.lastMessage;
       if (message.fromMe) return;
       if (message.content.kind === 'system') return;
+      if (state.chatPrefs[conversation.id]?.muted) return;
       if (isLocalConversation(conversation.id) && !wasProactive(message.id)) return;
 
       notifyMessage({

@@ -58,7 +58,12 @@ describe('totalUnread', () => {
       conversation({ id: 'c2', lastMessage: message({ sentAt: 2_000 }) }),
       conversation({ id: 'c3', lastMessage: message({ fromMe: true, sentAt: 3_000 }) }),
     ];
-    expect(totalUnread(conversations, { c1: 5_000 })).toBe(1);
+    expect(totalUnread(conversations, { c1: 5_000 }, {})).toBe(1);
+  });
+
+  it('leaves muted conversations out', () => {
+    const conversations = [conversation({ id: 'c1' }), conversation({ id: 'c2' })];
+    expect(totalUnread(conversations, {}, { c2: { muted: true } })).toBe(1);
   });
 });
 

@@ -1,3 +1,4 @@
+import type { ChatPrefsMap } from './chat-prefs';
 import type { ChatMessage, Conversation, ConversationId } from './types';
 
 function arrivedUnread(message: ChatMessage, since: number): boolean {
@@ -18,7 +19,8 @@ export function unreadCount(messages: ChatMessage[], since: number): number {
 
 export function totalUnread(
   conversations: Conversation[],
-  readAt: Record<ConversationId, number>
+  readAt: Record<ConversationId, number>,
+  prefs: ChatPrefsMap
 ): number {
-  return conversations.filter((c) => isUnread(c, readAt)).length;
+  return conversations.filter((c) => !prefs[c.id]?.muted && isUnread(c, readAt)).length;
 }

@@ -15,6 +15,8 @@ import {
 } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { orderConversations } from '@/core/messaging/chat-prefs';
+import { isUnreadHere, networkOf } from '@/core/messaging/folders';
+import { protocolLabel } from '@/features/protocols/presentation';
 import type { Conversation } from '@/core/messaging/types';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
 import { openChat, openTab } from '@/features/navigation/open';
@@ -79,23 +81,27 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
   const conversations = useChatStore((s) => s.conversations);
   const sessions = useChatStore((s) => s.sessions);
   const chatPrefs = useChatStore((s) => s.chatPrefs);
+  const readAt = useChatStore((s) => s.readAt);
   const { nameFor } = useDisplayNames(usePeers(conversations));
 
   const entries = useMemo<{ heading: string; items: Entry[] }[]>(() => {
     const allowed = conversations.filter((c) => c.consent === 'allowed');
+    const context = { prefs: chatPrefs, readAt };
     const ordered = orderConversations(allowed, chatPrefs);
+    const unread = ordered.filter((c) => isUnreadHere(c, context));
     const selfIdOf = (conversation: Conversation) => selfIdFor({ sessions }, conversation.protocol);
-    const chats: Entry[] = ordered.map((conversation) => ({
-      id: conversation.id,
-      title: conversationTitle(conversation, selfIdOf(conversation), nameFor),
-      subtitle:
-        conversation.protocol && conversation.protocol !== 'local'
-          ? conversation.protocol.toUpperCase()
-          : undefined,
-      conversation,
-      selfId: selfIdOf(conversation),
-      run: () => openChat(conversation.id),
-    }));
+    const entry = (conversation: Conversation): Entry => {
+      const network = networkOf(conversation);
+      return {
+        id: conversation.id,
+        title: conversationTitle(conversation, selfIdOf(conversation), nameFor),
+        subtitle: network ? protocolLabel(network) : undefined,
+        conversation,
+        selfId: selfIdOf(conversation),
+        run: () => openChat(conversation.id),
+      };
+    };
+    const chats = [...unread, ...ordered.filter((c) => !unread.includes(c))].map(entry);
     const commands: Entry[] = [
       {
         id: 'new',
@@ -123,16 +129,17 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
     const q = query.trim().toLowerCase();
     if (!q) {
       return [
-        { heading: 'Recent', items: chats.slice(0, RECENT) },
+        { heading: 'Unread', items: chats.slice(0, unread.length) },
+        { heading: 'Recent', items: chats.slice(unread.length, unread.length + RECENT) },
         { heading: 'Commands', items: commands },
-      ];
+      ].filter((section) => section.items.length > 0);
     }
     const matches = (entry: Entry) => entry.title.toLowerCase().includes(q);
     return [
       { heading: 'Chats', items: chats.filter(matches) },
       { heading: 'Commands', items: commands.filter(matches) },
     ].filter((section) => section.items.length > 0);
-  }, [conversations, chatPrefs, sessions, nameFor, query, router]);
+  }, [conversations, chatPrefs, readAt, sessions, nameFor, query, router]);
 
   const flat = entries.flatMap((section) => section.items);
   const highlighted = Math.min(index, Math.max(flat.length - 1, 0));
