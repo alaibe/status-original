@@ -26,7 +26,7 @@ interface FoundBridge {
 
 export function MatrixBridges({ session }: { session: ChatSession & Partial<MatrixCapabilities> }) {
   const resolvePeer = useChatStore((s) => s.resolvePeer);
-  useChatStore((s) => s.conversations);
+  const conversations = useChatStore((s) => s.conversations);
   const [found, setFound] = useState<FoundBridge[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const self = session.self.address;
@@ -90,7 +90,7 @@ export function MatrixBridges({ session }: { session: ChatSession & Partial<Matr
           </Text>
           {found.map((item) => {
             const connected = item.accounts !== null && item.accounts.length > 0;
-            const chat = item.accounts === null && existingBotChat(item.botId);
+            const chat = item.accounts === null && existingBotChat(conversations, item.botId);
             return (
               <ListItem
                 key={item.botId}

@@ -205,19 +205,38 @@ example.org: as_token:<the as_token above>
 
 ## Put it behind HTTPS
 
-The app needs the client API over HTTPS, and only two paths of it. With Caddy:
+The app needs the client API over HTTPS, plus each bridge's login API so it can
+sign you in to a network without chat commands. With Caddy:
 
 ```
 matrix.example.org {
+    handle_path /_matrix/provision/facebook/* {
+        rewrite * /_matrix/provision{uri}
+        reverse_proxy mautrix-meta:29319
+    }
+    handle_path /_matrix/provision/instagram/* {
+        rewrite * /_matrix/provision{uri}
+        reverse_proxy mautrix-instagram:29330
+    }
+    handle_path /_matrix/provision/slack/* {
+        rewrite * /_matrix/provision{uri}
+        reverse_proxy mautrix-slack:29335
+    }
     reverse_proxy /_matrix/* synapse:8008
     reverse_proxy /_synapse/client/* synapse:8008
 }
 ```
 
-Caddy has to reach the `synapse` container, so put both on a shared Docker
-network. If the machine is only on your home network and Tailscale, a local
-DNS entry for `matrix.example.org` and a DNS-01 certificate are enough; nothing
-has to be open to the internet. The bridges only make outgoing connections.
+The app looks for a bridge's login API at `/_matrix/provision/` followed by the
+bot's name without `bot`, so `@slackbot` is at `/_matrix/provision/slack/`. Each
+request carries your own Matrix access token, which the bridge checks with
+Synapse. Discord's bridge has no such API, so it is left out.
+
+Caddy has to reach Synapse and those three bridges, so put them on a shared
+Docker network. If the machine is only on your home network and Tailscale, a
+local DNS entry for `matrix.example.org` and a DNS-01 certificate are enough;
+nothing has to be open to the internet. The bridges only make outgoing
+connections.
 
 ## Start it
 
@@ -237,36 +256,34 @@ has the rest.
 ## Sign in to each network
 
 Open **Settings → Protocols → Matrix**. Under **Bridges on this server** the
-app lists every bridge it finds on your homeserver. **Connect** opens a chat
-with that bridge's bot, waits for the bot to join, and sends the sign-in
-command below; you answer the bot's questions in that chat.
+app lists every bridge it finds on your homeserver, and who you are signed in
+as on each. **Connect** asks the bridge how it can sign you in and walks you
+through it:
 
-Without the app's help, start a chat with the bot yourself and send `login`.
-The bot lists the ways it can sign in; send `login` followed by the one you
-want.
+- A form, such as an email and a code, appears as fields in the app.
+- A QR code appears on screen, and the app moves on once you have scanned it.
+- A website sign-in opens the site in a window of its own. Sign in there as
+  you would in a browser, including two-factor prompts; the window closes by
+  itself once the bridge has what it needs. The app reads only the cookies or
+  values the bridge asks for, and the window keeps nothing afterwards.
 
-| Bot | Network | Ways to sign in |
+On the phone the website opens in a sheet instead of a window.
+
+The website ways are the most reliable for Messenger, Instagram and Slack,
+because they are the site's own sign-in. Messenger and Instagram sometimes ask
+you to confirm the new sign-in from their phone apps.
+
+When a bridge has no login API the app can reach, as with Discord, **Connect**
+opens a chat with its bot instead and sends the first command. Answer the
+bot's questions there:
+
+| Bot | Network | Command |
 | --- | --- | --- |
-| `@facebookbot:example.org` | Messenger, Facebook | `messenger-lite`: email and password. `facebook` or `messenger`: cookies copied from the website |
-| `@instagrambot:example.org` | Instagram | `instagram-password`: username and password. `instagram`: cookies copied from the website |
-| `@slackbot:example.org` | Slack | `login token`: a request copied as cURL from Slack in a desktop browser (see below). One sign-in per workspace. The email way needs a CAPTCHA a chat cannot show |
-| `@discordbot:example.org` | Discord | `login-qr`: scan the QR code with the Discord app on your phone. `login-token`: a token from the browser |
-
-For Slack, open your workspace at app.slack.com in a desktop browser, open the
-developer tools on the Network tab, type `api/` in the filter, right-click any
-request and choose Copy as cURL. Paste that as your answer to `login token`.
-The bridge reads your session token and cookie from it and discards the rest.
-
-Prefer the ways that ask for a password or a QR code; Connect starts with
-those. The cookie ways need the site open in a desktop browser and the cookie
-values read from its developer tools. If a bot asks for cookies you did not
-mean to give, send `cancel` and start again with the command in the table.
-Messenger and Instagram sometimes ask you to confirm the new sign-in from the
-phone app.
+| `@discordbot:example.org` | Discord | `login-qr`, then scan the QR code with the Discord app on your phone |
+| Any other bridge bot | | `login` lists the ways it can sign in; send `login` followed by the one you want |
 
 Once signed in, your chats appear in this app's list as Matrix conversations
-and fill in as the bridge catches up. `help` in the bot's chat lists what else
-it can do, including `logout`.
+and fill in as the bridge catches up.
 
 ## Keep it running
 
@@ -276,5 +293,5 @@ it can do, including `logout`.
 - Update by changing the image tags and running `docker compose up -d`. Read a
   bridge's release notes first; a new version sometimes needs a configuration
   change.
-- If a network signs the bridge out, send `login` to its bot again. Your
-  chats stay where they were.
+- If a network signs the bridge out, press **Connect** again. Your chats stay
+  where they were.

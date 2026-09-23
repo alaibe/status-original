@@ -1,6 +1,5 @@
-//! A second window where the user signs in to a website for a Matrix bridge.
-//! The page gets no IPC: the capabilities only cover `main`. The app reads the
-//! window's cookies and the result of the bridge's script, then closes it.
+//! The window where the user signs in to a website for a Matrix bridge. The page
+//! gets no IPC: the capabilities only cover `main`.
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -55,7 +54,6 @@ pub struct WebLoginSnapshot {
     open: bool,
     url: String,
     cookies: Vec<WebCookie>,
-    /// What the readback script evaluated to, when the page answered in time.
     page: Option<String>,
 }
 

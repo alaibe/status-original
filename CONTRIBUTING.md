@@ -51,6 +51,7 @@ src/
   plugins/      assistant, profile, bots, wallet, browser, markets
   desktop/      what the web build substitutes for the desktop window
 src-tauri/      the desktop window: Rust for SQLCipher, vault, Ledger, TDLib, Matrix
+modules/        local Expo modules: web-cookies, for the phone's bridge sign-in
 ```
 
 `AccountRuntime` owns one account's storage, protocol sessions, plugins and
@@ -80,6 +81,13 @@ should learn the network's name.
 
 `src/protocols/*/testing/` holds a fake for each, and the adapter tests run two
 independently keyed sessions against it.
+
+Matrix also signs in to the networks its bridges carry, through each mautrix
+bridge's login API (`src/protocols/matrix/provisioning.ts`,
+`src/app/bridge-login.tsx`). A website sign-in runs in a window the app
+controls and reads only what the bridge asks for: `src-tauri/src/web_login.rs`
+on the desktop, react-native-webview with `modules/web-cookies` on the phone.
+Either change needs a new native build.
 
 ### A plugin
 

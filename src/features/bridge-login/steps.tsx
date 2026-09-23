@@ -5,8 +5,6 @@ import QRCode from 'react-native-qrcode-svg';
 import { Button, Field, Pressable, Text, useThemeColors, cn } from '@/design';
 import type { InputField, LoginStep } from '@/protocols/matrix/provisioning';
 
-import { WebLogin } from './web-login';
-
 export function InputStep({
   step,
   busy,
@@ -100,23 +98,6 @@ export function WaitStep({ step }: { step: LoginStep }) {
         <Text variant="caption">Waiting…</Text>
       </View>
     </View>
-  );
-}
-
-export function WebStep({
-  step,
-  network,
-  onValues,
-  onCancel,
-}: {
-  step: LoginStep;
-  network: string;
-  onValues: (values: Record<string, string>) => void;
-  onCancel: () => void;
-}) {
-  if (!step.cookies) return null;
-  return (
-    <WebLogin params={step.cookies} network={network} onValues={onValues} onCancel={onCancel} />
   );
 }
 

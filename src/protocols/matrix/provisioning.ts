@@ -34,7 +34,6 @@ export interface CookieSource {
   type: 'cookie' | 'local_storage' | 'request_header' | 'request_body' | 'special';
   name: string;
   cookie_domain?: string;
-  request_url_regex?: string;
 }
 
 export interface CookieField {
@@ -48,15 +47,11 @@ export interface WebCookie {
   name: string;
   value: string;
   domain: string;
-  path?: string;
-  secure?: boolean;
-  http_only?: boolean;
 }
 
 export interface CookiesParams {
   url: string;
   user_agent?: string;
-  initial_cookies?: WebCookie[];
   fields: CookieField[];
   extract_js?: string;
   wait_for_url_pattern?: string;
@@ -73,22 +68,12 @@ export interface LoginStep {
   display_and_wait?: {
     type: 'qr' | 'emoji' | 'code' | 'nothing';
     data?: string;
-    image_url?: string;
   };
-  complete?: { user_login_id?: string };
-}
-
-export interface BridgeAccount {
-  id: string;
-  name: string;
-  state?: { state_event?: string };
 }
 
 export interface Whoami {
-  network: { displayname: string; network_id: string };
   login_flows: LoginFlow[];
-  bridge_bot: string;
-  logins: BridgeAccount[];
+  logins: { id: string; name: string }[];
 }
 
 export type ProvisionRequest = (
@@ -107,7 +92,6 @@ export class BridgeProvisioning {
     return this.post(`/v3/login/start/${encodeURIComponent(flowId)}`);
   }
 
-  /** Answers a form or web sign-in step. */
   submit(step: LoginStep, values: Record<string, string>): Promise<LoginStep> {
     return this.post(stepPath(step), values);
   }
@@ -131,15 +115,12 @@ function stepPath(step: LoginStep): string {
 }
 
 export interface MatrixCapabilities {
-  /** `null` when the session is signed out. */
   bridgeProvisioning(bridge: string): BridgeProvisioning | null;
 }
 
-/** What a web sign-in window has seen so far. */
 export interface WebSnapshot {
   url: string;
   cookies: WebCookie[];
-  /** What the step's `extract_js` resolved to, once it has. */
   extracted: Record<string, string> | null;
   localStorage: Record<string, string>;
 }
@@ -190,7 +171,6 @@ export function readyWebFields(
   return values;
 }
 
-/** Hosts whose cookies the step can use: the page's own and every named cookie domain. */
 export function webDomains(params: CookiesParams): string[] {
   const host = /^https?:\/\/([^/:?#]+)/i.exec(params.url)?.[1];
   const domains = new Set<string>(host ? [host] : []);
@@ -208,11 +188,7 @@ export function localStorageKeys(params: CookiesParams): string[] {
   );
 }
 
-/**
- * Runs in the sign-in page: keeps new-tab links in the one window, starts
- * `extract_js` once the document exists and keeps its result on `window` for
- * the app to read. Page navigations reload it.
- */
+/** Runs on every page load: new tabs stay in the window, and `extract_js` waits for the DOM. */
 export function extractionScript(params: CookiesParams): string {
   const extract = params.extract_js ? `(${params.extract_js})` : 'null';
   return `(() => {
@@ -243,7 +219,6 @@ export function extractionScript(params: CookiesParams): string {
 })();`;
 }
 
-/** Evaluated repeatedly in the page; returns what `extractionScript` found as JSON. */
 export function readbackScript(keys: string[]): string {
   return `JSON.stringify({
   extracted: window.__statusLoginResult ? JSON.parse(window.__statusLoginResult) : null,

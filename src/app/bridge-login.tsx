@@ -17,7 +17,8 @@ import { errorMessage } from '@/core/errors';
 import { useChatStore } from '@/core/messaging/chat-store';
 import type { ChatSession } from '@/core/messaging/protocol';
 import { connectByChat } from '@/features/bridge-login/connect-by-chat';
-import { InputStep, WaitStep, WebStep } from '@/features/bridge-login/steps';
+import { InputStep, WaitStep } from '@/features/bridge-login/steps';
+import { WebLogin } from '@/features/bridge-login/web-login';
 import { useBack } from '@/features/navigation/use-back';
 import { bridgeBotId, knownBridge, provisioningName } from '@/protocols/matrix/bridges';
 import type {
@@ -213,10 +214,10 @@ export default function BridgeLoginScreen() {
                 />
               ) : step.type === 'display_and_wait' ? (
                 <WaitStep step={step} />
-              ) : step.type === 'cookies' ? (
-                <WebStep
+              ) : step.type === 'cookies' && step.cookies ? (
+                <WebLogin
                   key={`${step.login_id}/${step.step_id}`}
-                  step={step}
+                  params={step.cookies}
                   network={bridge.network}
                   onValues={(values) => provisioning && advance(provisioning.submit(step, values))}
                   onCancel={restart}

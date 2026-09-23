@@ -1,9 +1,7 @@
 export interface KnownBridge {
   network: string;
   localpart: string;
-  /** What the bot is sent first; a bare `login` makes it list its sign-in methods. */
   firstCommand: string;
-  /** The login flow offered first when the app signs in through the bridge's API. */
   preferredFlow?: string;
 }
 

@@ -1,23 +1,21 @@
 import { toast } from '@/design';
 import { errorMessage } from '@/core/errors';
 import { useChatStore } from '@/core/messaging/chat-store';
+import type { Conversation } from '@/core/messaging/types';
 import { openChat } from '@/features/navigation/open';
 import type { KnownBridge } from '@/protocols/matrix/bridges';
 
 const PROTOCOL = 'matrix';
 const JOIN_TIMEOUT_MS = 20_000;
 
-export function existingBotChat(botId: string) {
-  return useChatStore
-    .getState()
-    .conversations.find(
-      (c) => c.protocol === PROTOCOL && c.kind === 'dm' && c.memberIds.includes(botId)
-    );
+export function existingBotChat(conversations: Conversation[], botId: string) {
+  return conversations.find(
+    (c) => c.protocol === PROTOCOL && c.kind === 'dm' && c.memberIds.includes(botId)
+  );
 }
 
-/** Opens a chat with the bridge bot and, once it has joined, sends the first sign-in command. */
 export async function connectByChat(bridge: KnownBridge, botId: string): Promise<void> {
-  const existing = existingBotChat(botId);
+  const existing = existingBotChat(useChatStore.getState().conversations, botId);
   if (existing) {
     openChat(existing.id);
     return;
