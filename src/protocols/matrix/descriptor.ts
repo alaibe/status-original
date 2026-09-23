@@ -22,6 +22,11 @@ export const MATRIX_PROTOCOL = {
   docsUrl: guideUrl('networks', 'matrix'),
   label: 'Matrix',
   external: true,
+  publicChats: {
+    title: 'Join a Matrix room',
+    hint: 'Enter a room alias, ID, or matrix.to link to preview it.',
+    placeholder: '#room:server or matrix.to link',
+  },
   description:
     'Your Matrix account: encrypted rooms and DMs on any homeserver, plus whatever your ' +
     'homeserver bridges in (WhatsApp, Signal, Slack, iMessage…).',

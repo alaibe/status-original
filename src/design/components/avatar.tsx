@@ -37,8 +37,8 @@ export interface AvatarProps {
   seed: string;
   size?: keyof typeof SIZE;
   label?: string;
-  /** A bundled image; shown instead of initials or the identicon. */
-  image?: number;
+  /** A bundled image or a picture's URI; shown instead of initials or the identicon. */
+  image?: number | string;
   emoji?: string;
   className?: string;
 }
@@ -53,7 +53,8 @@ export function Avatar({ seed, size = 'md', label, image, emoji, className }: Av
       <Image
         accessibilityRole="image"
         accessibilityLabel={label ? `Avatar for ${label}` : 'Avatar'}
-        source={image}
+        source={typeof image === 'string' ? { uri: image } : image}
+        contentFit="cover"
         style={{ width: px, height: px, borderRadius: px / 2 }}
       />
     );

@@ -12,8 +12,19 @@ import {
   useChatStore,
   type ProtocolConnection,
 } from '../messaging/chat-store';
-import { botConversationId, toContent, type Bot, type BotContext } from '../messaging/bots';
-import { namespaceConversation, namespaceMessage, type ProtocolId } from '../messaging/namespace';
+import {
+  botConversationId,
+  SAVED_MESSAGES,
+  toContent,
+  type Bot,
+  type BotContext,
+} from '../messaging/bots';
+import {
+  namespacedId,
+  namespaceConversation,
+  namespaceMessage,
+  type ProtocolId,
+} from '../messaging/namespace';
 import type { ChatSession, CustomContentType, XmtpCapabilities } from '../messaging/protocol';
 import {
   effectiveConfig,
@@ -22,6 +33,7 @@ import {
   type ProtocolDescriptor,
 } from '../messaging/registry';
 import { loadChatPrefs } from '../messaging/chat-prefs';
+import { draftSync, flushDrafts, loadDrafts } from '../messaging/drafts';
 import { loadMediaIndex } from '../messaging/media-index';
 import { readReadState } from '../messaging/read-state';
 import type { MessageId, Unsubscribe } from '../messaging/types';
@@ -229,16 +241,17 @@ export class AccountRuntime {
     this.storage = storage;
     projectAccount(storage);
 
-    const [readAt, chatPrefs, mediaIndex, prefs] = await Promise.all([
+    const [readAt, chatPrefs, drafts, mediaIndex, prefs] = await Promise.all([
       readReadState(storage),
       loadChatPrefs(storage),
+      loadDrafts(storage),
       loadMediaIndex(storage),
       loadPluginPrefs(storage),
       useAppearanceStore.getState().hydrate(storage),
       hydrateLinkPreviewCache(storage),
     ]);
     if (!this.isCurrent(generation)) return;
-    useChatStore.setState({ readAt, chatPrefs, mediaIndex });
+    useChatStore.setState({ readAt, chatPrefs, drafts, mediaIndex });
 
     const enabled = resolveEnabledIds({
       all: input.registry.list().map((plugin) => plugin.manifest.id),
@@ -284,7 +297,7 @@ export class AccountRuntime {
     });
     if (!this.isCurrent(generation)) return;
     input.onPluginsChanged?.(ids);
-    const bots = input.registry.bots();
+    const bots = [...input.registry.bots(), SAVED_MESSAGES];
     await useChatStore.getState().registerBots(bots);
     if (this.isCurrent(generation)) this.syncBots(bots, input.accountId, generation);
   }
@@ -373,6 +386,19 @@ export class AccountRuntime {
           }
           this.subscriptions.push(stopMessages);
 
+          if (session.streamDeletedMessages) {
+            const stopDeleted = await session.streamDeletedMessages((id, messageIds) => {
+              if (live())
+                useChatStore.getState().removeMessages(namespacedId(protocolId, id), messageIds);
+            });
+            if (!live()) {
+              stopDeleted();
+              await session.disconnect().catch(() => {});
+              return;
+            }
+            this.subscriptions.push(stopDeleted);
+          }
+
           const stopConversations = await session.streamConversations((conversation) => {
             if (live()) {
               useChatStore
@@ -412,6 +438,8 @@ export class AccountRuntime {
     this.revokeLeases();
     this.stopBots();
     await this.disconnectSessions();
+    flushDrafts();
+    draftSync.clear();
     useChatStore.setState({
       status,
       error: null,
@@ -424,6 +452,7 @@ export class AccountRuntime {
       messageHistory: {},
       bots: {},
       readAt: {},
+      drafts: {},
     });
     if (current) await current.registry.deactivateAll();
     current?.onPluginsChanged?.([]);

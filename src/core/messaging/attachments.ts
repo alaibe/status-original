@@ -60,7 +60,12 @@ export async function persistLocalAttachment(
   content: MessageContent,
   accountId: string
 ): Promise<MessageContent> {
-  if (content.kind !== 'image' && content.kind !== 'file' && content.kind !== 'voice')
+  if (
+    content.kind !== 'image' &&
+    content.kind !== 'video' &&
+    content.kind !== 'file' &&
+    content.kind !== 'voice'
+  )
     return content;
   if (!isTransientUri(content.uri)) return content;
 

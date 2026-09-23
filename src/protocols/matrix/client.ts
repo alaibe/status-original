@@ -4,21 +4,22 @@ import { Directory, File } from 'expo-file-system';
 
 import type {
   MatrixApi,
-  MxContent,
   MxEvent,
   MxMedia,
   MxMember,
-  MxMembership,
-  MxMembershipChange,
   MxOutgoing,
-  MxPreview,
   MxProfile,
+  MxPublicRoom,
   MxRole,
   MxRoom,
   MxSession,
   MxStartParams,
+  MxTextOutgoing,
   MxUpdate,
 } from './api';
+import { applyDiff, type VectorDiff } from './native/diff';
+import { extensionOf, mapContent, mapMembership, mapRole, nameOf, sendState } from './native/map';
+import { fromSdkSession, latestOf, timelineConfiguration, toSdkSession } from './native/session';
 
 const ROOM_PAGE = 500;
 const HISTORY_PAGE = 40;
@@ -27,17 +28,9 @@ const LIVE_TIMELINES = 16;
 interface LiveTimeline {
   timeline: sdk.TimelineLike;
   handle: sdk.TaskHandleLike;
+  typingHandle: sdk.TaskHandleLike;
   items: sdk.TimelineItemLike[];
 }
-
-/** A vector diff from the SDK, as both the room list and timelines deliver them. */
-type VectorDiff<T> =
-  | { tag: 'Append' | 'Reset'; inner: { values: T[] } }
-  | { tag: 'PushFront' | 'PushBack'; inner: { value: T } }
-  | { tag: 'Insert' | 'Set'; inner: { index: number; value: T } }
-  | { tag: 'Remove'; inner: { index: number } }
-  | { tag: 'Truncate'; inner: { length: number } }
-  | { tag: 'Clear' | 'PopFront' | 'PopBack' };
 
 /**
  * matrix-rust-sdk through its React Native bindings. Rooms come from the
@@ -119,7 +112,10 @@ class RnMatrixClient implements MatrixApi {
   }
 
   private async stopSync(): Promise<void> {
-    for (const live of this.live.values()) live.handle.cancel();
+    for (const live of this.live.values()) {
+      live.handle.cancel();
+      live.typingHandle.cancel();
+    }
     this.live.clear();
     this.roomEntries?.entriesStream().cancel();
     this.roomEntries = null;
@@ -218,10 +214,25 @@ class RnMatrixClient implements MatrixApi {
       joined ? latestOf(room).catch(() => undefined) : undefined,
     ]);
     const heroes = info.heroes.map((hero) => hero.userId);
+    const messageType = new sdk.MessageLikeEventType.RoomMessage();
+    const power = info.powerLevels;
+    const requiredToSend = power
+      ? ([...power.events()].find(
+          ([type]) =>
+            type.tag === sdk.TimelineEventType_Tags.MessageLike &&
+            type.inner.value.tag === sdk.MessageLikeEventType_Tags.RoomMessage
+        )?.[1] ?? power.values().eventsDefault)
+      : 0n;
     return {
       id: info.id,
       name: info.displayName ?? info.rawName ?? '',
+      topic: info.topic,
+      avatarUrl: info.avatarUrl,
+      canonicalAlias: info.canonicalAlias,
+      memberCount: Number(info.activeMembersCount),
       isDm: info.isDm,
+      broadcast: !info.isDm && !!power && requiredToSend > power.values().usersDefault,
+      canSend: joined && (power ? power.canOwnUserSendMessage(messageType) : true),
       peer: info.isDm
         ? heroes.find((id) => id !== room.ownUserId() && !info.serviceMembers.includes(id))
         : undefined,
@@ -230,6 +241,13 @@ class RnMatrixClient implements MatrixApi {
       selfRole,
       inviter: info.inviter?.userId,
       latest,
+      unreadCount: Number(info.numUnreadMessages),
+      mentionCount: Number(info.numUnreadMentions),
+      markedUnread: info.isMarkedUnread,
+      canPin: joined && (power?.canOwnUserPinUnpin() ?? true),
+      canDeleteOthers: joined && !!power?.canOwnUserRedactOther(),
+      sendLevel: power ? Number(requiredToSend) : undefined,
+      defaultLevel: power ? Number(power.values().usersDefault) : undefined,
     };
   }
 
@@ -243,9 +261,8 @@ class RnMatrixClient implements MatrixApi {
       this.live.set(roomId, existing);
       return existing;
     }
-    const timeline = await this.requireRoom(roomId).timelineWithConfiguration(
-      timelineConfiguration()
-    );
+    const room = this.requireRoom(roomId);
+    const timeline = await room.timelineWithConfiguration(timelineConfiguration());
     const items: sdk.TimelineItemLike[] = [];
     const handle = await timeline.addListener({
       onUpdate: (diffs) => {
@@ -255,12 +272,16 @@ class RnMatrixClient implements MatrixApi {
         }
       },
     });
-    const live = { timeline, handle, items };
+    const typingHandle = room.subscribeToTypingNotifications({
+      call: (userIds) => this.emit({ type: 'typing', roomId, userIds }),
+    });
+    const live = { timeline, handle, typingHandle, items };
     this.live.set(roomId, live);
     while (this.live.size > LIVE_TIMELINES) {
       const [oldest, entry] = this.live.entries().next().value as [string, LiveTimeline];
       this.live.delete(oldest);
       entry.handle.cancel();
+      entry.typingHandle.cancel();
     }
     return live;
   }
@@ -329,6 +350,8 @@ class RnMatrixClient implements MatrixApi {
       content,
       replyTo: msgLike?.inReplyTo?.eventId(),
       reactions: reactions && reactions.length > 0 ? reactions : undefined,
+      edited:
+        msgLike?.kind.tag === sdk.MsgLikeKind_Tags.Message && msgLike.kind.inner.content.isEdited,
     };
   }
 
@@ -346,6 +369,10 @@ class RnMatrixClient implements MatrixApi {
           userId: member.userId,
           displayName: member.displayName,
           role: mapRole(member.suggestedRoleForPowerLevel),
+          powerLevel:
+            member.powerLevel.tag === sdk.PowerLevel_Tags.Value
+              ? Number(member.powerLevel.inner.value)
+              : undefined,
         });
       }
     }
@@ -355,6 +382,34 @@ class RnMatrixClient implements MatrixApi {
   async profile(userId: string): Promise<MxProfile | null> {
     const profile = await this.client.getProfile(userId).catch(() => null);
     return profile ? { userId: profile.userId, displayName: profile.displayName } : null;
+  }
+
+  async previewPublicRoom(idOrAlias: string, via: string[]): Promise<MxPublicRoom> {
+    const preview = idOrAlias.startsWith('#')
+      ? await this.client.getRoomPreviewFromRoomAlias(idOrAlias)
+      : await this.client.getRoomPreviewFromRoomId(idOrAlias, via);
+    const info = preview.info();
+    return {
+      id: info.roomId,
+      name: info.name ?? info.canonicalAlias ?? idOrAlias,
+      topic: info.topic,
+      avatarUrl: info.avatarUrl,
+      memberCount: Number(info.numJoinedMembers),
+      joined: info.membership === sdk.Membership.Joined,
+      canJoin: info.joinRule?.tag === sdk.JoinRule_Tags.Public,
+      canRequestJoin:
+        info.joinRule?.tag === sdk.JoinRule_Tags.Knock ||
+        info.joinRule?.tag === sdk.JoinRule_Tags.KnockRestricted,
+    };
+  }
+
+  async joinPublicRoom(idOrAlias: string, via: string[]): Promise<string> {
+    const room = await this.client.joinRoomByIdOrAlias(idOrAlias, via);
+    return room.id();
+  }
+
+  async knockPublicRoom(idOrAlias: string, via: string[]): Promise<void> {
+    await this.client.knock(idOrAlias, undefined, via);
   }
 
   async createDm(userId: string): Promise<string> {
@@ -388,6 +443,16 @@ class RnMatrixClient implements MatrixApi {
     await this.requireRoom(roomId).kickUser(userId, undefined);
   }
 
+  async ban(roomId: string, userId: string): Promise<void> {
+    await this.requireRoom(roomId).banUser(userId, undefined);
+  }
+
+  async setPowerLevel(roomId: string, userId: string, level: number): Promise<void> {
+    await this.requireRoom(roomId).updatePowerLevelsForUsers([
+      { userId, powerLevel: BigInt(level) },
+    ]);
+  }
+
   async setName(roomId: string, name: string): Promise<void> {
     await this.requireRoom(roomId).setName(name);
   }
@@ -411,10 +476,24 @@ class RnMatrixClient implements MatrixApi {
    * Text goes straight to the homeserver, so a rejection rejects here.
    * Attachments go through the SDK's send queue, which resolves once queued.
    */
+  /** Whom a reply notifies, as the desktop driver's `AddMentions::Yes` does. */
+  private async senderOf(room: sdk.RoomLike, eventId: string): Promise<string | undefined> {
+    try {
+      const sender = (await room.loadOrFetchEvent(eventId)).senderId();
+      return sender === this.client.userId() ? undefined : sender;
+    } catch {
+      return undefined;
+    }
+  }
+
   async send(roomId: string, content: MxOutgoing, replyTo?: string): Promise<void> {
     const room = this.requireRoom(roomId);
     if (content.kind === 'text') {
       const relates = replyTo ? { 'm.relates_to': { 'm.in_reply_to': { event_id: replyTo } } } : {};
+      const repliedTo = replyTo ? await this.senderOf(room, replyTo) : undefined;
+      const mentions = [
+        ...new Set([...(content.mentions ?? []), ...(repliedTo ? [repliedTo] : [])]),
+      ];
       await room.sendRaw(
         'm.room.message',
         JSON.stringify({
@@ -423,6 +502,7 @@ class RnMatrixClient implements MatrixApi {
           ...(content.html
             ? { format: 'org.matrix.custom.html', formatted_body: content.html }
             : {}),
+          ...(mentions.length ? { 'm.mentions': { user_ids: mentions } } : {}),
           ...relates,
         })
       );
@@ -447,6 +527,16 @@ class RnMatrixClient implements MatrixApi {
           .sendFile({ source, inReplyTo: replyTo }, { mimetype: content.mimeType, size })
           .join();
         return;
+      case 'video':
+        await timeline
+          .sendVideo({ source, caption: content.caption, inReplyTo: replyTo }, undefined, {
+            width: content.width === undefined ? undefined : BigInt(content.width),
+            height: content.height === undefined ? undefined : BigInt(content.height),
+            mimetype: content.mimeType,
+            size,
+          })
+          .join();
+        return;
       case 'voice':
         await timeline
           .sendVoiceMessage(
@@ -464,8 +554,72 @@ class RnMatrixClient implements MatrixApi {
     await live.timeline.toggleReaction(new sdk.EventOrTransactionId.EventId({ eventId }), key);
   }
 
+  async redact(roomId: string, eventId: string): Promise<void> {
+    await this.requireRoom(roomId).redact(eventId, undefined);
+  }
+
+  async pinnedMessages(roomId: string): Promise<MxEvent[]> {
+    const room = this.requireRoom(roomId);
+    const timeline = await room.timelineWithConfiguration({
+      ...timelineConfiguration(),
+      focus: new sdk.TimelineFocus.PinnedEvents(),
+    });
+    try {
+      const ids = (await room.roomInfo()).pinnedEventIds;
+      const items = await Promise.all(
+        ids.map((id) => timeline.getEventTimelineItemByEventId(id).catch(() => null))
+      );
+      return items
+        .map((item) => item && this.toMxEventItem(roomId, item))
+        .filter((event): event is MxEvent => event !== null)
+        .sort((a, b) => a.timestamp - b.timestamp);
+    } finally {
+      if (timeline instanceof sdk.Timeline) timeline.uniffiDestroy();
+    }
+  }
+
+  async setPinned(roomId: string, eventId: string, pinned: boolean): Promise<void> {
+    const timeline = (await this.liveTimeline(roomId)).timeline;
+    if (pinned) await timeline.pinEvent(eventId);
+    else await timeline.unpinEvent(eventId);
+  }
+
+  async edit(roomId: string, eventId: string, content: MxTextOutgoing): Promise<void> {
+    let replacement = content.html
+      ? sdk.messageEventContentFromHtml(content.body, content.html)
+      : sdk.messageEventContentNew(
+          new sdk.MessageType.Text({
+            content: sdk.TextMessageContent.create({ body: content.body }),
+          })
+        );
+    if (content.mentions?.length)
+      replacement = replacement.withMentions({ userIds: content.mentions, room: false });
+    await this.requireRoom(roomId).edit(eventId, replacement);
+  }
+
   async markRead(roomId: string): Promise<void> {
     await this.requireRoom(roomId).markAsRead(sdk.ReceiptType.Read);
+  }
+
+  async setMarkedUnread(roomId: string, unread: boolean): Promise<void> {
+    await this.requireRoom(roomId).setUnreadFlag(unread);
+  }
+
+  async setTyping(roomId: string, typing: boolean): Promise<void> {
+    await this.requireRoom(roomId).typingNotice(typing);
+  }
+
+  async createPoll(roomId: string, question: string, options: string[]): Promise<void> {
+    await (await this.liveTimeline(roomId)).timeline.createPoll(
+      question,
+      options,
+      1,
+      sdk.PollKind.Disclosed
+    );
+  }
+
+  async votePoll(roomId: string, eventId: string, answerIds: string[]): Promise<void> {
+    await (await this.liveTimeline(roomId)).timeline.sendPollResponse(eventId, answerIds);
   }
 
   // ---- media ----
@@ -545,302 +699,3 @@ function toError(error: unknown): Error {
 export const MatrixClient = {
   create: async (): Promise<MatrixApi> => unwrapped(new RnMatrixClient()),
 };
-
-// ---- mapping ----
-
-/**
- * Applies one diff in place. `changed` holds items worth reporting; with
- * `newOnly`, bulk loads (initial items, pagination) are applied silently.
- */
-function applyDiff<T>(
-  items: T[],
-  diff: VectorDiff<T>,
-  newOnly = false
-): { changed: T[]; removed: T[] } {
-  switch (diff.tag) {
-    case 'Append':
-      items.push(...diff.inner.values);
-      return { changed: newOnly ? [] : diff.inner.values, removed: [] };
-    case 'Reset': {
-      const removed = items.splice(0, items.length, ...diff.inner.values);
-      return { changed: newOnly ? [] : diff.inner.values, removed: newOnly ? [] : removed };
-    }
-    case 'Clear':
-      return { changed: [], removed: items.splice(0, items.length) };
-    case 'PushFront':
-      items.unshift(diff.inner.value);
-      return { changed: newOnly ? [] : [diff.inner.value], removed: [] };
-    case 'PushBack':
-      items.push(diff.inner.value);
-      return { changed: [diff.inner.value], removed: [] };
-    case 'PopFront':
-      return { changed: [], removed: items.splice(0, 1) };
-    case 'PopBack':
-      return { changed: [], removed: items.splice(-1, 1) };
-    case 'Insert': {
-      items.splice(diff.inner.index, 0, diff.inner.value);
-      const atEnd = diff.inner.index === items.length - 1;
-      return { changed: !newOnly || atEnd ? [diff.inner.value] : [], removed: [] };
-    }
-    case 'Set': {
-      const removed = items.splice(diff.inner.index, 1, diff.inner.value);
-      return { changed: [diff.inner.value], removed: newOnly ? [] : removed };
-    }
-    case 'Remove':
-      return { changed: [], removed: items.splice(diff.inner.index, 1) };
-    case 'Truncate':
-      return { changed: [], removed: items.splice(diff.inner.length) };
-  }
-}
-
-function timelineConfiguration(): sdk.TimelineConfiguration {
-  return {
-    focus: new sdk.TimelineFocus.Live({ hideThreadedEvents: false }),
-    filter: new sdk.TimelineFilter.All(),
-    dateDividerMode: sdk.DateDividerMode.Daily,
-    // The app shows no receipts, and tracking them re-emits every message whenever one moves.
-    trackReadReceipts: sdk.TimelineReadReceiptTracking.Disabled,
-    reportUtds: false,
-  };
-}
-
-async function latestOf(room: sdk.RoomLike): Promise<MxPreview | undefined> {
-  const value = await room.latestEvent();
-  if (
-    value.tag !== sdk.LatestEventValue_Tags.Remote &&
-    value.tag !== sdk.LatestEventValue_Tags.Local
-  )
-    return undefined;
-  const content = mapContent(value.inner.content);
-  if (!content) return undefined;
-  return {
-    sender: value.inner.sender,
-    senderName: nameOf(value.inner.profile),
-    timestamp: Number(value.inner.timestamp),
-    isOwn: value.tag === sdk.LatestEventValue_Tags.Local || value.inner.isOwn,
-    content,
-  };
-}
-
-function toSdkSession(session: MxSession): sdk.Session {
-  return {
-    accessToken: session.accessToken,
-    refreshToken: session.refreshToken,
-    userId: session.userId,
-    deviceId: session.deviceId,
-    homeserverUrl: session.homeserverUrl,
-    oauthData: undefined,
-    slidingSyncVersion: sdk.SlidingSyncVersion.Native,
-  };
-}
-
-function fromSdkSession(session: sdk.Session): MxSession {
-  return {
-    accessToken: session.accessToken,
-    refreshToken: session.refreshToken,
-    userId: session.userId,
-    deviceId: session.deviceId,
-    homeserverUrl: session.homeserverUrl,
-  };
-}
-
-function mapMembership(membership: sdk.Membership): MxMembership {
-  switch (membership) {
-    case sdk.Membership.Invited:
-      return 'invited';
-    case sdk.Membership.Joined:
-      return 'joined';
-    case sdk.Membership.Banned:
-      return 'banned';
-    case sdk.Membership.Knocked:
-      return 'knocked';
-    default:
-      return 'left';
-  }
-}
-
-function mapRole(role: sdk.RoomMemberRole): MxRole {
-  switch (role) {
-    case sdk.RoomMemberRole.Creator:
-      return 'owner';
-    case sdk.RoomMemberRole.Administrator:
-    case sdk.RoomMemberRole.Moderator:
-      return 'admin';
-    default:
-      return 'member';
-  }
-}
-
-function nameOf(profile: sdk.ProfileDetails): string | undefined {
-  return profile.tag === sdk.ProfileDetails_Tags.Ready
-    ? (profile.inner.displayName ?? undefined)
-    : undefined;
-}
-
-function sendState(state: sdk.EventSendState | undefined): MxEvent['status'] {
-  if (!state) return 'sent';
-  switch (state.tag) {
-    case sdk.EventSendState_Tags.Sent:
-      return 'sent';
-    case sdk.EventSendState_Tags.SendingFailed:
-      return 'failed';
-    default:
-      return 'sending';
-  }
-}
-
-/** Null for events the app never shows, so they never count as messages. */
-function mapContent(content: sdk.TimelineItemContent): MxContent | null {
-  switch (content.tag) {
-    case sdk.TimelineItemContent_Tags.MsgLike:
-      return mapMsgLike(content.inner.content.kind);
-    case sdk.TimelineItemContent_Tags.RoomMembership: {
-      const change = mapMembershipChange(content.inner.change);
-      return change
-        ? {
-            kind: 'membership',
-            change,
-            user: content.inner.userId,
-            userName: content.inner.userDisplayName,
-          }
-        : null;
-    }
-    case sdk.TimelineItemContent_Tags.State:
-      return mapState(content.inner.content);
-    default:
-      return null;
-  }
-}
-
-function mapMsgLike(kind: sdk.MsgLikeKind): MxContent | null {
-  switch (kind.tag) {
-    case sdk.MsgLikeKind_Tags.Message:
-      return mapMessage(kind.inner.content.msgType);
-    case sdk.MsgLikeKind_Tags.Sticker:
-      return { kind: 'sticker', body: kind.inner.body };
-    case sdk.MsgLikeKind_Tags.Poll:
-      return { kind: 'poll', question: kind.inner.question };
-    case sdk.MsgLikeKind_Tags.Redacted:
-      return { kind: 'redacted' };
-    case sdk.MsgLikeKind_Tags.UnableToDecrypt:
-      return { kind: 'undecryptable' };
-    case sdk.MsgLikeKind_Tags.LiveLocation:
-      return { kind: 'location' };
-    default:
-      return null;
-  }
-}
-
-function textOf(content: { body: string; formatted?: sdk.FormattedBody }) {
-  const html =
-    content.formatted?.format.tag === sdk.MessageFormat_Tags.Html
-      ? content.formatted.body
-      : undefined;
-  return { body: content.body, html };
-}
-
-function mapMessage(type: sdk.MessageType): MxContent | null {
-  switch (type.tag) {
-    case sdk.MessageType_Tags.Text:
-      return { kind: 'text', ...textOf(type.inner.content) };
-    case sdk.MessageType_Tags.Notice:
-      return { kind: 'text', ...textOf(type.inner.content), msgtype: 'notice' };
-    case sdk.MessageType_Tags.Emote:
-      return { kind: 'text', ...textOf(type.inner.content), msgtype: 'emote' };
-    case sdk.MessageType_Tags.Image: {
-      const c = type.inner.content;
-      return {
-        kind: 'image',
-        ...media(c.source, c.filename, c.info?.mimetype, c.info?.size),
-        width: c.info?.width === undefined ? undefined : Number(c.info.width),
-        height: c.info?.height === undefined ? undefined : Number(c.info.height),
-        caption: c.caption,
-      };
-    }
-    case sdk.MessageType_Tags.File: {
-      const c = type.inner.content;
-      return {
-        kind: 'file',
-        ...media(c.source, c.filename, c.info?.mimetype, c.info?.size),
-        caption: c.caption,
-      };
-    }
-    case sdk.MessageType_Tags.Audio: {
-      const c = type.inner.content;
-      const durationMs = c.info?.duration ?? c.audio?.duration;
-      return {
-        kind: 'audio',
-        ...media(c.source, c.filename, c.info?.mimetype, c.info?.size),
-        durationMs: durationMs === undefined ? undefined : Math.round(durationMs),
-        voice: c.voice !== undefined,
-      };
-    }
-    case sdk.MessageType_Tags.Video:
-      return { kind: 'video' };
-    case sdk.MessageType_Tags.Location:
-      return { kind: 'location' };
-    default:
-      return null;
-  }
-}
-
-function media(
-  source: sdk.MediaSourceLike,
-  name: string,
-  mimeType: string | undefined,
-  size: bigint | undefined
-): MxMedia {
-  return {
-    source: source.toJson(),
-    name,
-    mimeType,
-    size: size === undefined ? undefined : Number(size),
-  };
-}
-
-function mapMembershipChange(change: sdk.MembershipChange | undefined): MxMembershipChange | null {
-  switch (change) {
-    case sdk.MembershipChange.Joined:
-    case sdk.MembershipChange.InvitationAccepted:
-      return 'joined';
-    case sdk.MembershipChange.Left:
-      return 'left';
-    case sdk.MembershipChange.Invited:
-      return 'invited';
-    case sdk.MembershipChange.Kicked:
-    case sdk.MembershipChange.KickedAndBanned:
-      return 'kicked';
-    case sdk.MembershipChange.Banned:
-      return 'banned';
-    case sdk.MembershipChange.Unbanned:
-      return 'unbanned';
-    case sdk.MembershipChange.InvitationRejected:
-      return 'invitationRejected';
-    case sdk.MembershipChange.InvitationRevoked:
-      return 'invitationRevoked';
-    default:
-      return null;
-  }
-}
-
-function mapState(state: sdk.OtherState): MxContent | null {
-  switch (state.tag) {
-    case sdk.OtherState_Tags.RoomName:
-      return { kind: 'state', change: 'name', value: state.inner.name ?? undefined };
-    case sdk.OtherState_Tags.RoomTopic:
-      return { kind: 'state', change: 'topic', value: state.inner.topic ?? undefined };
-    case sdk.OtherState_Tags.RoomAvatar:
-      return { kind: 'state', change: 'avatar' };
-    case sdk.OtherState_Tags.RoomCreate:
-      return { kind: 'state', change: 'created' };
-    case sdk.OtherState_Tags.RoomEncryption:
-      return { kind: 'state', change: 'encryption' };
-    default:
-      return null;
-  }
-}
-
-function extensionOf(name: string): string {
-  const match = name.match(/\.[A-Za-z0-9]{1,5}$/);
-  return match ? match[0].toLowerCase() : '';
-}

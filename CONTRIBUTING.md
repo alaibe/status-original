@@ -72,6 +72,10 @@ which step it is waiting on, and the protocol's settings screen walks through
 it. Conversation and message ids carry their protocol before they reach the
 unified store.
 
+The optional methods on `ChatSession` are capabilities. The UI offers an action,
+and a slash command its `requires`, only where the session has the method, so a
+chat never shows what its network would refuse.
+
 The descriptor carries the label, the config schema its settings screen renders,
 the copy the new-chat screen uses to ask for a recipient, a `trustModel` string
 saying plainly what the network does and does not protect, a `docsUrl` pointing

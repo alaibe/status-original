@@ -9,6 +9,8 @@ export default function PrivacyScreen() {
 
   const readReceipts = useAppearanceStore((s) => s.readReceipts);
   const setReadReceipts = useAppearanceStore((s) => s.setReadReceipts);
+  const typingIndicators = useAppearanceStore((s) => s.typingIndicators);
+  const setTypingIndicators = useAppearanceStore((s) => s.setTypingIndicators);
   const linkPreviews = useAppearanceStore((s) => s.linkPreviews);
   const setLinkPreviews = useAppearanceStore((s) => s.setLinkPreviews);
 
@@ -26,6 +28,13 @@ export default function PrivacyScreen() {
               <Icon name="checkmark-done-outline" size={20} color={colors['content-muted']} />
             }
             trailing={<Switch value={readReceipts} onValueChange={setReadReceipts} />}
+          />
+          <ListItem
+            title="Send typing indicators"
+            subtitle="Shows people on Telegram and Matrix that you are typing. Off by default: it sends a signal every time you touch the keyboard."
+            numberOfLinesSubtitle={4}
+            leading={<Icon name="ellipsis-horizontal" size={20} color={colors['content-muted']} />}
+            trailing={<Switch value={typingIndicators} onValueChange={setTypingIndicators} />}
           />
         </Section>
 
@@ -46,16 +55,10 @@ export default function PrivacyScreen() {
 
         <Section title="Not collected" surface="card" className="mb-4">
           <ListItem
-            title="No last seen"
-            subtitle="The protocols carry no presence, and this app does not add a side-channel to broadcast when you are online."
-            numberOfLinesSubtitle={3}
+            title="No last seen of our own"
+            subtitle="XMTP, Nostr and Waku carry no presence. Telegram shows when you were last online, as the Telegram apps do, and Matrix does when your homeserver shares presence; this app adds nothing on top."
+            numberOfLinesSubtitle={4}
             leading={<Icon name="eye-off-outline" size={20} color={colors['content-muted']} />}
-          />
-          <ListItem
-            title="No typing indicator"
-            subtitle="For the same reason: it would mean sending a signal every time you touch the keyboard."
-            numberOfLinesSubtitle={3}
-            leading={<Icon name="ellipsis-horizontal" size={20} color={colors['content-muted']} />}
           />
           <ListItem
             title="No contact upload"

@@ -1,4 +1,11 @@
-import type { ChatSession, LoginState } from '@/core/messaging/protocol';
+import type {
+  ChatSession,
+  GroupInfo,
+  JoinRequest,
+  LoginState,
+  MentionCandidate,
+  PublicChatPreview,
+} from '@/core/messaging/protocol';
 import type {
   ChatMessage,
   Conversation,
@@ -10,16 +17,13 @@ import type {
   SelfIdentity,
   Unsubscribe,
 } from '@/core/messaging/types';
-import { htmlToMarkdown } from '@/core/messaging/html-markdown';
-import { markdownHtml, plainText } from '@/core/messaging/markdown';
-import { localFileUri, pathOfFileUri } from '@/storage/media';
+import { localFileUri } from '@/storage/media';
 
 import type {
   MatrixApi,
   MxEvent,
   MxMedia,
   MxMember,
-  MxOutgoing,
   MxPreview,
   MxRoom,
   MxSession,
@@ -27,11 +31,22 @@ import type {
   MxUpdate,
 } from './api';
 import { bridgedNetwork } from './bridges';
-import { conversationIdOf, localpart, parseUserId, roomIdOf, USER_ID } from './ids';
+import { toContent } from './content';
+import { outgoing, textOutgoing } from './outgoing';
+import {
+  conversationIdOf,
+  localpart,
+  parseRoomReference,
+  parseUserId,
+  permalink,
+  roomIdOf,
+  USER_ID,
+} from './ids';
+import { Homeserver } from './homeserver';
+import { PresenceWatcher } from './presence';
+import { searchHomeserver } from './search';
+import { inviteLink, knocks } from './join-requests';
 import { BridgeProvisioning, type MatrixCapabilities } from './provisioning';
-
-/** Bots write links as Markdown autolinks; the brackets are not part of the URL. */
-const AUTOLINK = /<(https?:\/\/[^\s<>]+)>/g;
 
 export const MATRIX_PROTOCOL_ID = 'matrix';
 
@@ -48,6 +63,7 @@ export interface MatrixConnectOptions {
  * not conversations.
  */
 export class MatrixSession implements ChatSession, MatrixCapabilities {
+  readonly sendsVideo = true;
   private api!: MatrixApi;
   private unsubscribe: Unsubscribe | null = null;
   private userId: string | null = null;
@@ -56,6 +72,8 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private readonly messageListeners = new Set<(message: ChatMessage) => void>();
   private readonly conversationListeners = new Set<(conversation: Conversation) => void>();
   private readonly rooms = new Map<string, MxRoom>();
+  private readonly typing = new Map<string, boolean>();
+  private readonly pollAnswers = new Map<string, string[]>();
   private readonly members = new Map<string, MxMember[]>();
   private readonly pendingMembers = new Map<string, Promise<MxMember[]>>();
   private readonly names = new Map<string, string>();
@@ -63,6 +81,10 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private readonly networks = new Map<string, string>();
   private readonly mediaPaths = new Map<string, string>();
   private readonly awaitedMedia = new Map<string, MxEvent>();
+  private readonly presence = new PresenceWatcher(
+    () => this.homeserver(),
+    (userId) => this.announceDmsWith(userId)
+  );
 
   private constructor(private readonly options: MatrixConnectOptions) {}
 
@@ -94,9 +116,12 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     this.options.parameters.session = null;
     await this.options.persistSession(null);
     this.rooms.clear();
+    this.typing.clear();
+    this.pollAnswers.clear();
     this.members.clear();
     this.pendingMembers.clear();
     this.awaitedMedia.clear();
+    this.presence.clear();
     this.unsubscribe?.();
     await this.api.close();
     await this.start();
@@ -126,27 +151,16 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   }
 
   bridgeProvisioning(bridge: string): BridgeProvisioning | null {
-    const { session, homeserverUrl } = this.options.parameters;
-    if (!session || !this.userId) return null;
-    const base = `${homeserverUrl}/_matrix/provision/${encodeURIComponent(bridge)}`;
+    const homeserver = this.homeserver()?.at(`/_matrix/provision/${encodeURIComponent(bridge)}`);
+    if (!homeserver || !this.userId) return null;
     const query = `user_id=${encodeURIComponent(this.userId)}`;
-    return new BridgeProvisioning(async (path, init = {}) => {
-      const response = await fetch(`${base}${path}${path.includes('?') ? '&' : '?'}${query}`, {
-        method: init.method ?? 'GET',
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        },
-        body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      });
-      const text = await response.text();
-      let json: { error?: string } = {};
-      try {
-        json = text ? JSON.parse(text) : {};
-      } catch {}
-      if (!response.ok) throw new Error(json.error ?? `The bridge answered ${response.status}.`);
-      return json;
-    });
+    return new BridgeProvisioning((path, init = {}) =>
+      homeserver.request(
+        init.method ?? 'GET',
+        `${path}${path.includes('?') ? '&' : '?'}${query}`,
+        init.body
+      )
+    );
   }
 
   async signOut(): Promise<void> {
@@ -182,8 +196,16 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
         return this.onRoom(update.room);
       case 'roomGone':
         this.rooms.delete(update.roomId);
+        this.typing.delete(update.roomId);
         this.forgetMembers(update.roomId);
         return;
+      case 'typing': {
+        const active = update.userIds.some((id) => id !== this.userId);
+        this.typing.set(update.roomId, active);
+        const room = this.rooms.get(update.roomId);
+        if (room && included(room)) this.announce(room);
+        return;
+      }
       case 'event':
         return this.emitMessage(update.event);
       case 'signedOut':
@@ -197,6 +219,22 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     if (room.isDm && room.heroes.length === 1 && room.name)
       this.names.set(room.heroes[0], room.name);
     if (included(room)) this.announce(room);
+  }
+
+  private announceDmsWith(userId: string): void {
+    for (const room of this.rooms.values())
+      if (room.isDm && included(room) && this.peerOf(room) === userId) this.announce(room);
+  }
+
+  private homeserver(): Homeserver | null {
+    const { session, homeserverUrl } = this.options.parameters;
+    return session ? new Homeserver(homeserverUrl, session.accessToken) : null;
+  }
+
+  private requireHomeserver(): Homeserver {
+    const homeserver = this.homeserver();
+    if (!homeserver) throw new Error('Sign in to Matrix first.');
+    return homeserver;
   }
 
   private announce(room: MxRoom): void {
@@ -275,9 +313,106 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     return this.toConversation(await this.requireRoom(await this.api.createRoom(peers, title)));
   }
 
+  async previewPublicChat(input: string): Promise<PublicChatPreview> {
+    const reference = parseRoomReference(input);
+    if (!reference) throw new Error('Enter a Matrix room alias, ID, or matrix.to link.');
+    const room = await this.api.previewPublicRoom(reference.idOrAlias, reference.via);
+    const joinedRoom = room.joined ? await this.api.room(room.id) : null;
+    return {
+      id: input.trim(),
+      title: room.name,
+      kind: joinedRoom ? (joinedRoom.broadcast ? 'channel' : 'group') : 'room',
+      joined: room.joined,
+      requiresApproval: room.canRequestJoin && !room.joined,
+      description: room.topic,
+      avatarUri: await this.roomAvatar(room.avatarUrl),
+      memberCount: room.memberCount,
+      link: permalink(reference.idOrAlias),
+      joinUnavailableReason:
+        !room.canJoin && !room.canRequestJoin && !room.joined
+          ? 'This room requires an invitation.'
+          : undefined,
+    };
+  }
+
+  async joinPublicChat(id: ConversationId): Promise<Conversation | null> {
+    const reference = parseRoomReference(id);
+    if (!reference) throw new Error('That Matrix room link is invalid.');
+    const room = await this.api.previewPublicRoom(reference.idOrAlias, reference.via);
+    if (!room.joined && room.canRequestJoin) {
+      await this.api.knockPublicRoom(reference.idOrAlias, reference.via);
+      return null;
+    }
+    if (!room.joined && !room.canJoin) throw new Error('This room requires an invitation.');
+    const roomId = room.joined
+      ? room.id
+      : await this.api.joinPublicRoom(reference.idOrAlias, reference.via);
+    return this.toConversation(await this.requireRoom(roomId));
+  }
+
   async getMembers(id: ConversationId): Promise<GroupMember[]> {
+    const roomId = roomIdOf(id);
+    const sendLevel = this.rooms.get(roomId)?.sendLevel;
+    const members = await this.membersOf(roomId);
+    return members.map((member) => ({
+      id: member.userId,
+      role: member.role,
+      ...(member.powerLevel !== undefined &&
+      sendLevel !== undefined &&
+      member.powerLevel < sendLevel
+        ? { muted: true }
+        : {}),
+    }));
+  }
+
+  async banMember(id: ConversationId, peer: ParticipantId): Promise<void> {
+    await this.api.ban(roomIdOf(id), peer);
+    this.forgetMembers(roomIdOf(id));
+  }
+
+  async setMemberMuted(id: ConversationId, peer: ParticipantId, muted: boolean): Promise<void> {
+    const room = await this.requireRoom(roomIdOf(id));
+    await this.api.setPowerLevel(
+      room.id,
+      peer,
+      muted ? (room.sendLevel ?? 0) - 1 : (room.defaultLevel ?? 0)
+    );
+    this.forgetMembers(room.id);
+  }
+
+  async getGroupInfo(id: ConversationId): Promise<GroupInfo> {
+    const room = await this.requireRoom(roomIdOf(id));
+    return {
+      description: room.topic,
+      avatarUri: await this.roomAvatar(room.avatarUrl),
+      memberCount: room.memberCount,
+      link: permalink(room.canonicalAlias ?? room.id),
+    };
+  }
+
+  private async roomAvatar(url?: string): Promise<string | undefined> {
+    if (!url) return undefined;
+    return this.api
+      .media({ source: JSON.stringify({ url }), name: 'avatar' })
+      .then(localFileUri)
+      .catch(() => undefined);
+  }
+
+  async mentionCandidates(id: ConversationId, query: string): Promise<MentionCandidate[]> {
+    const needle = query.toLowerCase();
     const members = await this.membersOf(roomIdOf(id));
-    return members.map((member) => ({ id: member.userId, role: member.role }));
+    return members
+      .filter((member) => member.userId !== this.userId)
+      .map((member) => ({
+        id: member.userId,
+        name: member.displayName || localpart(member.userId),
+        handle: member.userId,
+      }))
+      .filter(
+        (member) =>
+          member.name.toLowerCase().includes(needle) || member.handle.toLowerCase().includes(needle)
+      )
+      .slice(0, 20);
   }
 
   async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
@@ -311,6 +446,23 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     return `local:${Date.now()}`;
   }
 
+  async deleteMessage(id: ConversationId, messageId: MessageId): Promise<void> {
+    await this.api.redact(roomIdOf(id), messageId);
+  }
+
+  async listPinnedMessages(id: ConversationId): Promise<ChatMessage[]> {
+    const events = await this.api.pinnedMessages(roomIdOf(id));
+    return events.map((event) => ({ ...this.toMessage(event, true), isPinned: true }));
+  }
+
+  async setMessagePinned(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void> {
+    await this.api.setPinned(roomIdOf(id), messageId, pinned);
+  }
+
+  async editMessage(id: ConversationId, messageId: MessageId, text: string): Promise<void> {
+    await this.api.edit(roomIdOf(id), messageId, textOutgoing(text));
+  }
+
   /** An invitation is a request; a denied DM ignores the sender and leaves. */
   async setConsent(id: ConversationId, consent: 'allowed' | 'denied'): Promise<void> {
     const roomId = roomIdOf(id);
@@ -330,6 +482,62 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
 
   async sendReadReceipt(id: ConversationId): Promise<void> {
     await this.api.markRead(roomIdOf(id));
+  }
+
+  async getJoinRequests(id: ConversationId): Promise<JoinRequest[]> {
+    return knocks(this.requireHomeserver(), roomIdOf(id));
+  }
+
+  async processJoinRequest(
+    id: ConversationId,
+    userId: ParticipantId,
+    approve: boolean
+  ): Promise<void> {
+    if (approve) await this.api.invite(roomIdOf(id), userId);
+    else await this.api.kick(roomIdOf(id), userId);
+  }
+
+  async createInviteLink(id: ConversationId, requiresApproval: boolean): Promise<string> {
+    const room = await this.requireRoom(roomIdOf(id));
+    return inviteLink(this.requireHomeserver(), room, this.self.participantId, requiresApproval);
+  }
+
+  async searchMessages(query: string, id?: ConversationId): Promise<ChatMessage[]> {
+    const homeserver = this.homeserver();
+    if (!homeserver || !this.userId) return [];
+    const events = await searchHomeserver(homeserver, query, this.userId, id && roomIdOf(id));
+    return events
+      .filter((event) => {
+        const room = this.rooms.get(event.roomId);
+        return room !== undefined && included(room);
+      })
+      .map((event) => this.toMessage(event, false));
+  }
+
+  async setMarkedUnread(id: ConversationId, unread: boolean): Promise<void> {
+    await this.api.setMarkedUnread(roomIdOf(id), unread);
+  }
+
+  watchPresence(id: ConversationId): Unsubscribe {
+    const room = this.rooms.get(roomIdOf(id));
+    const peer = room?.isDm ? this.peerOf(room) : null;
+    return peer ? this.presence.watch(peer) : () => {};
+  }
+
+  async setTyping(id: ConversationId, typing: boolean): Promise<void> {
+    await this.api.setTyping(roomIdOf(id), typing);
+  }
+
+  async createPoll(id: ConversationId, question: string, options: string[]): Promise<void> {
+    await this.api.createPoll(roomIdOf(id), question, options);
+  }
+
+  async votePoll(id: ConversationId, messageId: MessageId, optionIds: number[]): Promise<void> {
+    const answers = this.pollAnswers.get(messageId);
+    if (!answers) throw new Error('Load this poll before voting.');
+    const selected = optionIds.map((index) => answers[index]);
+    if (selected.some((answer) => !answer)) throw new Error('That poll choice is unavailable.');
+    await this.api.votePoll(roomIdOf(id), messageId, selected);
   }
 
   /** The SDK syncs continuously; there is nothing to pull. */
@@ -410,6 +618,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private toConversation(room: MxRoom): Conversation {
     const selfId = this.self.participantId;
     const peer = this.peerOf(room);
+    const presence = room.isDm && peer ? this.presence.get(peer) : undefined;
     const known = this.members.get(room.id);
     const memberIds = room.isDm
       ? [...new Set([peer ?? room.id, selfId])]
@@ -422,12 +631,21 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
 
     return {
       id: conversationIdOf(room.id),
-      kind: room.isDm ? 'dm' : 'group',
+      kind: room.isDm ? 'dm' : room.broadcast ? 'channel' : 'group',
+      canSend: room.canSend,
+      typing: this.typing.get(room.id) ?? false,
+      ...(presence?.online ? { online: true } : {}),
+      ...(presence?.lastSeenAt ? { lastSeenAt: presence.lastSeenAt } : {}),
       network,
       title: room.name || (room.isDm ? (peer ?? room.id) : 'Untitled room'),
       memberIds,
       createdAt: room.latest?.timestamp ?? 0,
       lastMessage: room.latest ? this.toMessage(previewEvent(room), false) : undefined,
+      unreadCount: room.unreadCount,
+      mentionCount: room.mentionCount,
+      ...(room.markedUnread ? { markedUnread: true } : {}),
+      canPin: room.canPin,
+      canDeleteOthers: room.canDeleteOthers,
       consent: room.membership === 'invited' ? 'unknown' : 'allowed',
       selfRole: room.isDm ? undefined : room.selfRole,
     };
@@ -441,139 +659,22 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
       conversationId: conversationIdOf(raw.roomId),
       senderId: raw.sender,
       sentAt: raw.timestamp,
-      content: this.toContent(raw, fetchMedia),
+      content: toContent(raw, {
+        selfId: this.userId ?? undefined,
+        media: (media) => this.mediaUri(raw, media, fetchMedia),
+        nameOf: (userId) => this.nameOf(userId),
+        learnName: (userId, name) => this.names.set(userId, name),
+        learnPoll: (eventId, answerIds) => this.pollAnswers.set(eventId, answerIds),
+      }),
       fromMe: raw.isOwn,
       status: raw.status,
       replyTo: raw.replyTo,
+      ...(raw.edited ? { edited: true } : {}),
       reactions:
         reactions.length > 0
           ? Object.fromEntries(reactions.map((r) => [r.key, r.senders]))
           : undefined,
     };
-  }
-
-  private toContent(raw: MxEvent, fetchMedia: boolean): MessageContent {
-    const content = raw.content;
-    switch (content.kind) {
-      case 'text': {
-        const body = content.html
-          ? htmlToMarkdown(content.html)
-          : content.body.replace(AUTOLINK, '$1');
-        return { kind: 'text', text: content.msgtype === 'emote' ? `\\* ${body}` : body };
-      }
-
-      case 'image': {
-        const uri = this.mediaUri(raw, content, fetchMedia);
-        if (!uri)
-          return {
-            kind: 'unsupported',
-            typeId: 'image',
-            fallback: withCaption('📷 Photo', content.caption),
-          };
-        return {
-          kind: 'image',
-          uri,
-          name: content.name,
-          width: content.width,
-          height: content.height,
-          size: content.size,
-          mimeType: content.mimeType,
-          caption: content.caption,
-        };
-      }
-
-      case 'file': {
-        const uri = this.mediaUri(raw, content, fetchMedia);
-        if (!uri)
-          return {
-            kind: 'unsupported',
-            typeId: 'file',
-            fallback: withCaption(`📎 ${content.name}`, content.caption),
-          };
-        return {
-          kind: 'file',
-          uri,
-          name: content.name,
-          mimeType: content.mimeType,
-          size: content.size,
-        };
-      }
-
-      case 'audio': {
-        if (!content.voice)
-          return { kind: 'unsupported', typeId: 'audio', fallback: `🎵 ${content.name}` };
-        const uri = this.mediaUri(raw, content, fetchMedia);
-        if (!uri) return { kind: 'unsupported', typeId: 'voice', fallback: '🎤 Voice message' };
-        return {
-          kind: 'voice',
-          uri,
-          durationMs: content.durationMs ?? 0,
-          size: content.size,
-          mimeType: content.mimeType,
-        };
-      }
-
-      case 'video':
-        return { kind: 'unsupported', typeId: 'video', fallback: '🎬 Video' };
-      case 'sticker':
-        return { kind: 'unsupported', typeId: 'sticker', fallback: content.body || 'Sticker' };
-      case 'poll':
-        return { kind: 'unsupported', typeId: 'poll', fallback: `📊 ${content.question}` };
-      case 'location':
-        return { kind: 'unsupported', typeId: 'location', fallback: '📍 Location' };
-      case 'redacted':
-        return { kind: 'unsupported', typeId: 'redacted', fallback: 'Message deleted' };
-      case 'undecryptable':
-        return {
-          kind: 'unsupported',
-          typeId: 'undecryptable',
-          fallback: '🔒 Waiting for the keys to this message',
-        };
-
-      case 'membership': {
-        if (content.userName) this.names.set(content.user, content.userName);
-        const who = this.nameOf(content.user);
-        const by = this.nameOf(raw.sender);
-        switch (content.change) {
-          case 'joined':
-            return { kind: 'system', text: `${who} joined` };
-          case 'left':
-            return { kind: 'system', text: `${who} left` };
-          case 'invited':
-            return { kind: 'system', text: `${by} invited ${who}` };
-          case 'kicked':
-            return { kind: 'system', text: `${by} removed ${who}` };
-          case 'banned':
-            return { kind: 'system', text: `${by} banned ${who}` };
-          case 'unbanned':
-            return { kind: 'system', text: `${by} unbanned ${who}` };
-          case 'invitationRejected':
-            return { kind: 'system', text: `${who} declined the invitation` };
-          case 'invitationRevoked':
-            return { kind: 'system', text: `${by} withdrew the invitation for ${who}` };
-        }
-      }
-
-      case 'state':
-        switch (content.change) {
-          case 'name':
-            return {
-              kind: 'system',
-              text: content.value ? `Renamed to "${content.value}"` : 'Name removed',
-            };
-          case 'topic':
-            return {
-              kind: 'system',
-              text: content.value ? `Topic set to "${content.value}"` : 'Topic removed',
-            };
-          case 'avatar':
-            return { kind: 'system', text: 'Room photo changed' };
-          case 'created':
-            return { kind: 'system', text: 'Room created' };
-          case 'encryption':
-            return { kind: 'system', text: 'Encryption enabled' };
-        }
-    }
   }
 
   /**
@@ -604,8 +705,6 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   }
 }
 
-// ---- helpers ----
-
 function included(room: MxRoom): boolean {
   return room.membership === 'joined' || room.membership === 'invited';
 }
@@ -619,49 +718,6 @@ function previewEvent(room: MxRoom): MxEvent {
     roomId: room.id,
     status: 'sent',
   };
-}
-
-function withCaption(label: string, caption: string | undefined): string {
-  return caption ? `${label} · ${caption}` : label;
-}
-
-function outgoing(content: MessageContent): MxOutgoing {
-  switch (content.kind) {
-    case 'text': {
-      const html = markdownHtml(content.text);
-      return html
-        ? { kind: 'text', body: plainText(content.text), html }
-        : { kind: 'text', body: content.text };
-    }
-    case 'image':
-      return {
-        kind: 'image',
-        path: pathOfFileUri(content.uri),
-        mimeType: content.mimeType,
-        width: content.width,
-        height: content.height,
-        size: content.size,
-        caption: content.caption,
-      };
-    case 'file':
-      return {
-        kind: 'file',
-        path: pathOfFileUri(content.uri),
-        name: content.name,
-        mimeType: content.mimeType,
-        size: content.size,
-      };
-    case 'voice':
-      return {
-        kind: 'voice',
-        path: pathOfFileUri(content.uri),
-        durationMs: content.durationMs,
-        mimeType: content.mimeType,
-        size: content.size,
-      };
-    default:
-      throw new Error(`Matrix cannot send "${content.kind}" content`);
-  }
 }
 
 function describeLoginError(error: unknown): string {

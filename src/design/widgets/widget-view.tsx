@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { View } from 'react-native';
 
 import { useState } from 'react';
@@ -18,7 +17,7 @@ import {
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { Icon } from '../icon';
 import { cn } from '../lib/cn';
-import { toast } from '../toast';
+import { copyText } from '../copy-text';
 import {
   displayValues,
   fillCommand,
@@ -319,10 +318,7 @@ function WidgetNode({ widget, onCommand, onOpenUrl, onOffer }: WidgetViewProps) 
           accessibilityRole="button"
           accessibilityLabel={`Copy ${widget.label ?? 'value'}`}
           pressScale={0.99}
-          onPress={async () => {
-            await Clipboard.setStringAsync(widget.value);
-            toast.success('Copied');
-          }}>
+          onPress={() => void copyText(widget.value)}>
           {body}
         </Pressable>
       );

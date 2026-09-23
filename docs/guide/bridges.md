@@ -11,6 +11,12 @@ other network as you, and turns each chat there into a Matrix room. Connect
 this app to that homeserver ([Networks → Matrix](./networks#matrix)) and those
 rooms appear in your list like any other Matrix DM.
 
+Actions such as polls, edits, redactions, pins, typing and mentions work in the
+Matrix room when its homeserver permits them. Whether an action also appears
+on the remote network depends on that bridge's implementation and settings,
+and on the remote service's API. Check the bridge's own feature list before
+relying on remote delivery.
+
 ## What you can bridge
 
 The [mautrix](https://github.com/mautrix) bridges cover most of what people

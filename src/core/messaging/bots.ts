@@ -19,6 +19,14 @@ export function botIdFromConversation(id: ConversationId): string {
 }
 
 export const STATUS_LOCAL_ID = botConversationId('status');
+export const SAVED_LOCAL_ID = botConversationId('saved');
+
+export const SAVED_MESSAGES: Bot = {
+  id: 'saved',
+  name: 'Saved Messages',
+  tagline: 'Private notes · on-device',
+  greeting: () => [],
+};
 
 export interface BotContext {
   conversationId: ConversationId;

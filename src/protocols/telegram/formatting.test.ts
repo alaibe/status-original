@@ -72,6 +72,16 @@ describe('markdownToFormatted', () => {
     });
   });
 
+  it('keeps a mention of someone without a username as a link to them', () => {
+    const mentioned = {
+      '@type': 'formattedText',
+      text: 'hi Carol',
+      entities: [entity(3, 5, 'textEntityTypeMentionName', { user_id: 300 })],
+    };
+    expect(formattedToMarkdown(mentioned)).toBe('hi [Carol](mention:300)');
+    expect(markdownToFormatted('hi [Carol](mention:300)')).toEqual(mentioned);
+  });
+
   it('round-trips what Telegram sends', () => {
     const original = {
       '@type': 'formattedText',

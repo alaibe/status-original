@@ -1,14 +1,14 @@
+import { router } from 'expo-router';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 
-import * as Clipboard from 'expo-clipboard';
-
-import { ActionSheet, cn, type SheetAction, Text, toast } from '@/design';
+import { ActionSheet, cn, copyText, type SheetAction, Text, toast } from '@/design';
 import { errorMessage } from '@/core/errors';
 import { EXPLORERS, type LinkSegment, segmentText } from '@/core/messaging/links';
 import { type Block, listMarker, parseMarkdown, type Span } from '@/core/messaging/markdown';
 import { conversationScope } from '@/core/messaging/conversation-scope';
 import { mapsLinks, parseLocation } from '@/core/messaging/locations';
+import type { ParticipantId } from '@/core/messaging/types';
 import { usePluginHost } from '@/core/plugins/host';
 import { openExternal, openInBrowser } from '@/lib/open-url';
 
@@ -16,6 +16,7 @@ interface Look {
   fromMe: boolean;
   className?: string;
   onHold: (link: LinkSegment) => void;
+  onMention?: (id: ParticipantId) => void;
 }
 
 export function MessageText({
@@ -39,7 +40,15 @@ export function MessageText({
     onCommand !== undefined &&
     conversationId !== undefined &&
     registry.commandsFor(conversationId, conversationScope(conversationId)).has('send');
-  const look: Look = { fromMe, className, onHold: setHeld };
+  const look: Look = {
+    fromMe,
+    className,
+    onHold: setHeld,
+    onMention: conversationId
+      ? (member) =>
+          router.push({ pathname: '/profile/[id]', params: { id: conversationId, member } })
+      : undefined,
+  };
   const only = blocks.length === 1 ? blocks[0] : undefined;
 
   return (
@@ -133,6 +142,24 @@ function Spans({ spans, look }: { spans: Span[]; look: Look }) {
       span.style.italic && 'italic',
       span.style.strike && 'line-through'
     );
+    const mentioned = span.mention;
+    if (mentioned) {
+      return (
+        <Text
+          key={i}
+          accessibilityRole={look.onMention ? 'link' : undefined}
+          suppressHighlighting
+          onPress={look.onMention ? () => look.onMention?.(mentioned) : undefined}
+          className={cn(
+            look.className,
+            style,
+            'font-semibold',
+            look.fromMe ? 'text-bubble-out-on' : 'text-brand'
+          )}>
+          {span.text}
+        </Text>
+      );
+    }
     if (span.href) {
       return (
         <LinkText
@@ -159,7 +186,11 @@ function Spans({ spans, look }: { spans: Span[]; look: Look }) {
     }
     const parts: ReactNode[] = segmentText(span.text).map((segment, n) =>
       segment.kind === 'text' ? (
-        segment.text
+        segment.text.includes('@') ? (
+          <Fragment key={n}>{mentionText(segment.text, look)}</Fragment>
+        ) : (
+          segment.text
+        )
       ) : (
         <LinkText key={n} link={segment} look={look} className={style} />
       )
@@ -172,6 +203,25 @@ function Spans({ spans, look }: { spans: Span[]; look: Look }) {
       <Fragment key={i}>{parts}</Fragment>
     );
   });
+}
+
+function mentionText(value: string, look: Look): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of value.matchAll(/(^|[^\w@])(@[^:\s]+:[^\s,;!?]+|@[A-Za-z0-9_]{2,32})\b/g)) {
+    const start = (match.index ?? 0) + match[1].length;
+    parts.push(value.slice(cursor, start));
+    parts.push(
+      <Text
+        key={start}
+        className={cn('font-semibold', look.fromMe ? 'text-bubble-out-on' : 'text-brand')}>
+        {match[2]}
+      </Text>
+    );
+    cursor = start + match[2].length;
+  }
+  parts.push(value.slice(cursor));
+  return parts;
 }
 
 function LinkText({
@@ -220,11 +270,7 @@ function linkActions(link: LinkSegment, onCommand?: (command: string) => void): 
   const copy = (label: string): SheetAction => ({
     label,
     icon: 'copy-outline',
-    onPress: () => {
-      Clipboard.setStringAsync(link.kind === 'url' ? link.href : link.text)
-        .then(() => toast.success('Copied'))
-        .catch(() => toast.error('Could not copy'));
-    },
+    onPress: () => void copyText(link.kind === 'url' ? link.href : link.text),
   });
   const open = (label: string, icon: SheetAction['icon']): SheetAction => ({
     label,

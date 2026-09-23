@@ -31,6 +31,7 @@ describe('matchesFilter', () => {
   it('sorts chats into Direct and Groups, keeping the app’s own bots out of Direct', () => {
     expect(matchesFilter(conversation({ id: 'dm' }), 'direct', empty)).toBe(true);
     expect(matchesFilter(conversation({ id: 'g', kind: 'group' }), 'groups', empty)).toBe(true);
+    expect(matchesFilter(conversation({ id: 'c', kind: 'channel' }), 'groups', empty)).toBe(true);
     expect(matchesFilter(conversation({ id: 'local-status' }), 'direct', empty)).toBe(false);
   });
 
@@ -39,6 +40,22 @@ describe('matchesFilter', () => {
     expect(isUnreadHere(c, empty)).toBe(true);
     expect(isUnreadHere(c, { prefs: { c1: { muted: true } }, readAt: {} })).toBe(false);
     expect(isUnreadHere(c, { prefs: {}, readAt: { c1: 5_000 } })).toBe(false);
+  });
+
+  it('shows chats with unread mentions in the Mentions filter', () => {
+    expect(
+      matchesFilter(conversation({ id: 'g', kind: 'group', mentionCount: 2 }), 'mentions', empty)
+    ).toBe(true);
+    expect(
+      matchesFilter(conversation({ id: 'h', kind: 'group', mentionCount: 0 }), 'mentions', empty)
+    ).toBe(false);
+  });
+
+  it('drops a chat from Mentions once it is read here, whatever the network still counts', () => {
+    const read = { prefs: {}, readAt: { g: 5_000 } };
+    expect(
+      matchesFilter(conversation({ id: 'g', kind: 'group', mentionCount: 2 }), 'mentions', read)
+    ).toBe(false);
   });
 });
 

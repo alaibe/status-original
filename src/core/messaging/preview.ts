@@ -1,6 +1,15 @@
 import { plainText } from './markdown';
 import type { ChatMessage, MessageContent } from './types';
 
+export const unsupported = (typeId: string, fallback: string): MessageContent => ({
+  kind: 'unsupported',
+  typeId,
+  fallback,
+});
+
+export const labelled = (label: string, caption?: string) =>
+  caption ? `${label} · ${caption}` : label;
+
 export function contentPreview(content: MessageContent): string {
   switch (content.kind) {
     case 'text':
@@ -20,6 +29,10 @@ export function contentPreview(content: MessageContent): string {
       return `\u{1F4CE} ${content.name}`;
     case 'voice':
       return `\u{1F3A4} Voice message (${formatDuration(content.durationMs)})`;
+    case 'video':
+      return content.caption?.trim() ? `\u{1F3AC} ${content.caption.trim()}` : '\u{1F3AC} Video';
+    case 'poll':
+      return `\u{1F4CA} ${content.question}`;
 
     case 'reaction':
       return '';

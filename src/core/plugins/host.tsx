@@ -5,10 +5,11 @@ import { openExternal } from '@/lib/open-url';
 import { capabilitiesOf } from '../identity/account-kind';
 import type { Keyring } from '../identity/keyring';
 import { groupCommands, groupComposerActions } from '../commands/group';
-import { useChatStore, xmtpSessionFor } from '../messaging/chat-store';
+import { pollCommand } from '../commands/poll';
+import { sessionFor, useChatStore, xmtpSessionFor } from '../messaging/chat-store';
 import { conversationScope } from '../messaging/conversation-scope';
 import { notifyLiveViews } from './live';
-import { PluginRegistry } from './registry';
+import { PluginRegistry, worksOn } from './registry';
 import type { Plugin, PluginContext, PluginId, PluginLease, PluginPermission } from './types';
 import { toast } from '@/design';
 import { accountRuntime } from '@/runtime';
@@ -224,12 +225,16 @@ function makePluginContext(
           .getState()
           .conversations.find((c) => c.id === conversationId)?.kind;
         const scope = conversationScope(conversationId, kind);
-        return registry.commandListFor(conversationId, scope).map(({ command, pluginId }) => ({
-          name: command.name,
-          description: command.description,
-          usage: command.usage,
-          pluginId,
-        }));
+        const session = sessionFor(useChatStore.getState(), conversationId);
+        return registry
+          .commandListFor(conversationId, scope)
+          .filter(({ command }) => worksOn(command, session))
+          .map(({ command, pluginId }) => ({
+            name: command.name,
+            description: command.description,
+            usage: command.usage,
+            pluginId,
+          }));
       },
       channelOwner(conversationId) {
         active();
@@ -268,7 +273,7 @@ export function PluginProvider({ plugins, defaultEnabled, children }: PluginProv
   const [registry] = useState(
     () =>
       new PluginRegistry(plugins, {
-        commands: groupCommands,
+        commands: [...groupCommands, pollCommand],
         composerActions: groupComposerActions,
       })
   );

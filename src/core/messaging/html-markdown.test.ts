@@ -36,12 +36,12 @@ describe('htmlToMarkdown', () => {
     ).toBe('# Title\n\n```ts\nlet a = 1 < 2;\n```\n\n1. one\n2. two\n\n---');
   });
 
-  it('drops the quoted reply and turns mentions into names', () => {
+  it('drops the quoted reply and keeps mentions as links to the person', () => {
     expect(
       htmlToMarkdown(
         '<mx-reply><blockquote>old</blockquote></mx-reply>hi <a href="https://matrix.to/#/@a:b.c">Ann</a>'
       )
-    ).toBe('hi Ann');
+    ).toBe('hi [Ann](mention:%40a%3Ab.c)');
   });
 
   it('escapes text that would otherwise read as markup', () => {

@@ -1,3 +1,5 @@
+import { decodeId, mentionHref } from './mentions';
+
 interface Element {
   tag: string;
   attrs: Record<string, string>;
@@ -191,7 +193,10 @@ function inline(node: Node): string {
     case 'a': {
       const label = inner();
       const href = node.attrs.href ?? '';
-      if (!href || href.startsWith('https://matrix.to/#/@')) return label;
+      if (!href) return label;
+      const pill = /^https:\/\/matrix\.to\/#\/(@[^?/]+)/.exec(href);
+      const pilled = pill && decodeId(pill[1]);
+      if (pill) return label.trim() && pilled ? `[${label}](${mentionHref(pilled)})` : label;
       if (!label.trim() || textContent(node) === href) return href;
       return `[${label}](${href.replace(/[()\s]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)})`;
     }

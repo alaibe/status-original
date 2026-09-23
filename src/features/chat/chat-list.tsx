@@ -34,13 +34,14 @@ import {
   matchesFilter,
   networkOf,
 } from '@/core/messaging/folders';
-import { isUnread, unreadCount } from '@/core/messaging/unread';
+import { hasUnreadMentions, isUnread, unreadBadge } from '@/core/messaging/unread';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
 import { protocolLabel, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
 import { CountBadge, FilterTabs } from '@/features/chat/folder-tabs';
 import { useFolderStore } from '@/features/chat/folder-store';
+import { useUnreadCounts } from '@/features/chat/use-unread-counts';
 import { protocolById } from '@/protocols';
 import { openChat } from '@/features/navigation/open';
 
@@ -55,15 +56,15 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   const router = useRouter();
   const colors = useThemeColors();
 
-  const conversations = useChatStore((s) => s.conversations);
+  const baseConversations = useChatStore((s) => s.conversations);
   const status = useChatStore((s) => s.status);
 
   const { markInteractive } = useObserve();
   useEffect(() => {
-    if (conversations.length > 0 || status === 'ready' || status === 'error') {
+    if (baseConversations.length > 0 || status === 'ready' || status === 'error') {
       markInteractive();
     }
-  }, [conversations.length, status, markInteractive]);
+  }, [baseConversations.length, status, markInteractive]);
   const syncing = useChatStore((s) => s.syncing);
   const fetchingHistory = useChatStore((s) =>
     Object.values(s.protocols).some(
@@ -72,13 +73,15 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   );
   const sync = useChatStore((s) => s.sync);
   const sessions = useChatStore((s) => s.sessions);
+  const readAt = useChatStore((s) => s.readAt);
+  const conversations = useUnreadCounts(baseConversations);
 
   const selfIdOf = (conversation: Conversation) => selfIdFor({ sessions }, conversation.protocol);
 
   const { nameFor } = useDisplayNames(usePeers(conversations));
-  const readAt = useChatStore((s) => s.readAt);
   const chatPrefs = useChatStore((s) => s.chatPrefs);
   const setChatPref = useChatStore((s) => s.setChatPref);
+  const markUnread = useChatStore((s) => s.markUnread);
   const toggle = (id: string, key: keyof ChatPrefs) =>
     setChatPref(id, { [key]: !chatPrefs[id]?.[key] });
 
@@ -131,6 +134,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
       ? scope.filter(include).map((conversation) => ({ kind: 'chat', conversation }))
       : inboxRows(ordered, include, folded, folderContext);
   const unreadHere = scope.filter((c) => isUnreadHere(c, folderContext)).length;
+  const mentionsHere = scope.filter((c) => hasUnreadMentions(c, readAt)).length;
 
   const go = (next: Directory | null) => {
     setNavigated(true);
@@ -152,7 +156,12 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   return (
     <>
       {conversations.length > 0 ? (
-        <FilterTabs active={filter} onSelect={setFilter} unread={unreadHere} />
+        <FilterTabs
+          active={filter}
+          onSelect={setFilter}
+          unread={unreadHere}
+          mentions={mentionsHere}
+        />
       ) : null}
       {directory ? (
         <DirectoryHeader directory={directory} onBack={leaveDirectory} count={scope.length} />
@@ -304,6 +313,13 @@ export function ChatList({ query, selectedId }: ChatListProps) {
             icon: 'archive-outline',
             onPress: () => choose('archived'),
           },
+          {
+            label: 'Mark as unread',
+            icon: 'mail-unread-outline',
+            onPress: () => {
+              if (managing) void markUnread(managing.id);
+            },
+          },
         ]}
       />
     </>
@@ -360,8 +376,10 @@ function ConversationRow({
             ) : null}
           </>
         }
-        accessibilityLabel={[title, messagePreview(last)].filter(Boolean).join(', ')}
-        subtitle={messagePreview(last)}
+        accessibilityLabel={[title, conversation.typing ? 'typing' : messagePreview(last)]
+          .filter(Boolean)
+          .join(', ')}
+        subtitle={conversation.typing ? 'typing…' : messagePreview(last)}
         onPress={onPress}
         onLongPress={onLongPress}
         onContextMenu={onContextMenu}
@@ -405,7 +423,7 @@ function ConversationRow({
         }
         subtitleTrailing={
           unread ? (
-            <CountBadge count={loaded ? unreadCount(loaded, since) : 0} muted={muted} />
+            <CountBadge count={unreadBadge(conversation, since, loaded)} muted={muted} />
           ) : pinned ? (
             <Icon name="pin" size={14} color={colors['content-subtle']} />
           ) : undefined

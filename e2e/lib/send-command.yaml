@@ -1,8 +1,9 @@
-# Sends TEXT from the composer, then taps the gutter beside the reply to dismiss the keyboard.
+# Sends TEXT from an emptied composer, since the chat may keep a draft, then taps the gutter beside the reply to dismiss the keyboard.
 appId: com.statusoriginal.app
 ---
 - tapOn:
     id: "composer-input"
+- eraseText: 200
 - inputText: ${TEXT}
 - tapOn:
     id: "composer-send"

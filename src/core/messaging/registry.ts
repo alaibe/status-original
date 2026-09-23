@@ -11,6 +11,12 @@ import { PROTOCOL_ID, type ProtocolId } from './namespace';
 import type { ChatProtocolMeta, ChatSession, CustomContentType } from './protocol';
 import type { AccountStorage } from '@/storage/account';
 
+export interface PublicChatsCopy {
+  title: string;
+  hint: string;
+  placeholder: string;
+}
+
 export interface ProtocolConnectParams {
   accountId: string;
   account: LocalAccount;
@@ -45,6 +51,7 @@ export interface ProtocolDescriptor {
   /** An account on someone else's network, signed into, rather than one made from your keys. */
   external: boolean;
   recipient: RecipientCopy;
+  publicChats?: PublicChatsCopy;
   configSchema: ProtocolConfigSchema;
   connect?(params: ProtocolConnectParams): Promise<ChatSession>;
   eraseLocalData?(params: ProtocolEraseParams): Promise<void>;

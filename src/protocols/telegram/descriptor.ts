@@ -11,7 +11,13 @@ export const TELEGRAM_PROTOCOL = {
   docsUrl: guideUrl('networks', 'telegram'),
   label: 'Telegram',
   external: true,
-  description: 'Your Telegram account: private chats and groups, signed in with your phone number.',
+  publicChats: {
+    title: 'Join a Telegram group or channel',
+    hint: 'Enter a @username, public link, or invite link to preview it.',
+    placeholder: '@username or t.me/+invite',
+  },
+  description:
+    'Your Telegram account: private chats, groups and channels, signed in with your phone number.',
   recipient: {
     label: 'Username or phone number',
     placeholder: '@username or +44…',

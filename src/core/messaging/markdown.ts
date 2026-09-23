@@ -1,6 +1,8 @@
 import { Marked, type Token, type Tokens } from 'marked';
 
+import { mentionIdOf } from './mentions';
 import { replaceShortcodes, SHORTCODE } from './shortcodes';
+import type { ParticipantId } from './types';
 
 export interface SpanStyle {
   bold?: boolean;
@@ -14,6 +16,7 @@ export interface Span {
   style: SpanStyle;
   /** Only for links written as `[label](url)`; bare URLs stay text and are found later. */
   href?: string;
+  mention?: ParticipantId;
 }
 
 export type Block = (
@@ -118,7 +121,8 @@ function inline(tokens: Token[], style: SpanStyle = {}, href?: string): Span[] {
   const push = (text: string, spanStyle = style, spanHref = href) => {
     if (!text) return;
     const last = spans.at(-1);
-    if (last && last.href === spanHref && sameStyle(last.style, spanStyle)) last.text += text;
+    if (last && !last.mention && last.href === spanHref && sameStyle(last.style, spanStyle))
+      last.text += text;
     else spans.push({ text, style: spanStyle, href: spanHref });
   };
 
@@ -141,7 +145,10 @@ function inline(tokens: Token[], style: SpanStyle = {}, href?: string): Span[] {
         break;
       case 'link': {
         const link = token as Tokens.Link;
-        if (link.text === link.href || link.href === `mailto:${link.text}`) push(link.text);
+        const mention = mentionIdOf(link.href);
+        if (mention)
+          spans.push(...inline(link.tokens, style).map((span) => ({ ...span, mention })));
+        else if (link.text === link.href || link.href === `mailto:${link.text}`) push(link.text);
         else spans.push(...inline(link.tokens, style, link.href));
         break;
       }
@@ -206,26 +213,35 @@ function blockText(block: Block): string {
   }
 }
 
+function* spansOf(list: Block[]): Generator<Span> {
+  for (const block of list) {
+    if (block.kind === 'paragraph' || block.kind === 'heading') yield* block.spans;
+    else if (block.kind === 'quote') yield* spansOf(block.blocks);
+    else if (block.kind === 'list') for (const item of block.items) yield* spansOf(item);
+  }
+}
+
 /** Links written as `[label](url)`, which reading the plain text alone would miss. */
 export function labelledLinks(text: string): string[] {
   if (!hasMarkup(text)) return [];
-  const hrefs: string[] = [];
-  const walk = (list: Block[]) => {
-    for (const block of list) {
-      if (block.kind === 'paragraph' || block.kind === 'heading') {
-        for (const span of block.spans) if (span.href) hrefs.push(span.href);
-      } else if (block.kind === 'quote') walk(block.blocks);
-      else if (block.kind === 'list') block.items.forEach(walk);
-    }
-  };
-  walk(parseMarkdown(text));
-  return hrefs;
+  return [...spansOf(parseMarkdown(text))].flatMap((span) => (span.href ? [span.href] : []));
+}
+
+export function mentionedIds(text: string): ParticipantId[] {
+  if (!hasMarkup(text)) return [];
+  const ids = [...spansOf(parseMarkdown(text))].flatMap((span) => span.mention ?? []);
+  return [...new Set(ids)];
 }
 
 /** HTML for protocols that carry formatting that way, or null when there is none. */
-export function markdownHtml(text: string): string | null {
+export function markdownHtml(text: string, linkTo?: (href: string) => string): string | null {
   if (!hasMarkup(text)) return null;
-  const html = (marked.parse(text, { async: false }) as string).trim();
+  const walkTokens = linkTo
+    ? (token: Token) => {
+        if (token.type === 'link') (token as Tokens.Link).href = linkTo(token.href);
+      }
+    : undefined;
+  const html = (marked.parse(text, { async: false, walkTokens }) as string).trim();
   const plain = `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`;
   return html === plain ? null : html;
 }

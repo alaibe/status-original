@@ -1,6 +1,7 @@
 import type { LoginState } from '@/core/messaging/protocol';
 import type { ChatMessage, Conversation } from '@/core/messaging/types';
-import { TelegramSession, messageIdOf } from './adapter';
+import { TelegramSession } from './adapter';
+import { messageIdOf } from './ids';
 import {
   authState,
   channelChat,
@@ -194,7 +195,271 @@ describe('TelegramSession conversations', () => {
     return context;
   }
 
-  it('lists private chats and groups in TDLib’s order, never channels', async () => {
+  it('loads group details, public links, and the chat photo', async () => {
+    const { session, td } = await signedIn();
+    const channel = channelChat(9, 'News');
+    channel.photo = {
+      small: {
+        '@type': 'file',
+        id: 7,
+        size: 12,
+        local: {
+          path: '/tmp/news.jpg',
+          is_downloading_completed: true,
+          is_downloading_active: false,
+        },
+      },
+      big: {
+        '@type': 'file',
+        id: 8,
+        size: 12,
+        local: { path: '', is_downloading_completed: false, is_downloading_active: false },
+      },
+    };
+    td().emit({ '@type': 'updateNewChat', chat: channel });
+    td().answer('getSupergroup', {
+      '@type': 'supergroup',
+      id: 9,
+      usernames: { active_usernames: ['newsfeed'] },
+      member_count: 27,
+      status: { '@type': 'chatMemberStatusMember' },
+      is_channel: true,
+    });
+    td().answer('getSupergroupFullInfo', {
+      '@type': 'supergroupFullInfo',
+      description: 'Daily updates',
+      member_count: 27,
+      invite_link: { invite_link: 'https://t.me/+private' },
+    });
+
+    expect(await session.getGroupInfo('-1000000000009')).toEqual({
+      description: 'Daily updates',
+      link: 'https://t.me/newsfeed',
+      memberCount: 27,
+      avatarUri: 'file:///tmp/news.jpg',
+    });
+    expect(td().requests('getSupergroupFullInfo')[0]).toMatchObject({ supergroup_id: 9 });
+  });
+
+  it('shows and changes slow mode for a supergroup administrator with restriction rights', async () => {
+    const { session, td } = await signedIn();
+    const group = channelChat(9, 'Team');
+    group.type = { '@type': 'chatTypeSupergroup', supergroup_id: 9, is_channel: false };
+    td().emit({ '@type': 'updateNewChat', chat: group });
+    td().answer('getSupergroup', {
+      '@type': 'supergroup',
+      id: 9,
+      member_count: 12,
+      status: {
+        '@type': 'chatMemberStatusAdministrator',
+        rights: { can_restrict_members: true },
+      },
+      is_channel: false,
+    });
+    td().answer('getSupergroupFullInfo', {
+      '@type': 'supergroupFullInfo',
+      description: 'Team chat',
+      member_count: 12,
+      slow_mode_delay: 30,
+    });
+
+    expect(await session.getGroupInfo(String(group.id))).toMatchObject({
+      slowModeDelay: 30,
+      canSetSlowMode: true,
+    });
+    await session.setSlowModeDelay(String(group.id), 60);
+    expect(td().requests('setChatSlowModeDelay')[0]).toMatchObject({
+      chat_id: group.id,
+      slow_mode_delay: 60,
+    });
+    await expect(session.setSlowModeDelay(String(group.id), 7)).rejects.toThrow();
+  });
+
+  it('says what an admin may do to messages, and what a member may not', async () => {
+    const { session, td } = await signedIn();
+    const group = channelChat(9, 'Team');
+    group.type = { '@type': 'chatTypeSupergroup', supergroup_id: 9, is_channel: false };
+    group.permissions = { can_send_basic_messages: true, can_pin_messages: false };
+    td().emit({
+      '@type': 'updateSupergroup',
+      supergroup: {
+        '@type': 'supergroup',
+        id: 9,
+        member_count: 3,
+        status: {
+          '@type': 'chatMemberStatusAdministrator',
+          rights: { can_delete_messages: true, can_pin_messages: false },
+        },
+        is_channel: false,
+      },
+    });
+    td().emit({ '@type': 'updateNewChat', chat: group });
+    td().answer('getChats', { '@type': 'chats', chat_ids: [group.id] });
+    const [admin] = await session.listConversations();
+    expect(admin).toMatchObject({ canPin: false, canDeleteOthers: true });
+
+    td().emit({ '@type': 'updateNewChat', chat: privateChat(200, 'Bob') });
+    td().answer('getChats', { '@type': 'chats', chat_ids: [200] });
+    const [dm] = await session.listConversations();
+    expect(dm).toMatchObject({ canPin: true, canDeleteOthers: true });
+
+    await session.deleteMessageForMe('200', messageIdOf(200, 7));
+    expect(td().requests('deleteMessages')[0]).toMatchObject({
+      chat_id: 200,
+      message_ids: [7],
+      revoke: false,
+    });
+  });
+
+  it('previews and joins a public channel by its link', async () => {
+    const { session, td } = await signedIn();
+    const previewChat = channelChat(9, 'News');
+    previewChat.positions = [];
+    td().answer('searchPublicChat', previewChat);
+    td().answer('getSupergroup', {
+      '@type': 'supergroup',
+      id: 9,
+      member_count: 27,
+      join_by_request: true,
+      status: { '@type': 'chatMemberStatusLeft' },
+      is_channel: true,
+    });
+    td().answer('getSupergroupFullInfo', {
+      '@type': 'supergroupFullInfo',
+      description: 'Daily updates',
+      member_count: 27,
+    });
+    td().answer('getChat', channelChat(9, 'News'));
+
+    expect(await session.previewPublicChat('https://t.me/newsfeed')).toMatchObject({
+      id: '-1000000000009',
+      title: 'News',
+      kind: 'channel',
+      joined: false,
+      requiresApproval: true,
+      description: 'Daily updates',
+    });
+    expect(td().requests('searchPublicChat')[0]).toMatchObject({ username: 'newsfeed' });
+    td().answer('joinChat', tdError(400, 'INVITE_REQUEST_SENT'));
+    expect(await session.joinPublicChat('-1000000000009')).toBeNull();
+    td().answer('joinChat', { '@type': 'ok' });
+    expect(await session.joinPublicChat('-1000000000009')).toMatchObject({
+      id: '-1000000000009',
+      kind: 'channel',
+    });
+    expect(td().requests('joinChat')[0]).toMatchObject({ chat_id: -1_000_000_000_009 });
+  });
+
+  it('previews invite links and treats approval requests as pending', async () => {
+    const { session, td } = await signedIn();
+    td().answer('checkChatInviteLink', {
+      '@type': 'chatInviteLinkInfo',
+      title: 'Members only',
+      description: 'Private updates',
+      member_count: 12,
+      creates_join_request: true,
+      type: { '@type': 'inviteLinkChatTypeChannel' },
+    });
+    expect(await session.previewPublicChat('t.me/+abc123')).toMatchObject({
+      id: 'https://t.me/+abc123',
+      joined: false,
+      title: 'Members only',
+      kind: 'channel',
+      memberCount: 12,
+      requiresApproval: true,
+    });
+    td().answer('joinChatByInviteLink', tdError(400, 'INVITE_REQUEST_SENT'));
+    expect(await session.joinPublicChat('https://t.me/+abc123')).toBeNull();
+    expect(td().requests('joinChatByInviteLink')[0]).toMatchObject({
+      invite_link: 'https://t.me/+abc123',
+    });
+
+    td().answer('joinChatByInviteLink', channelChat(10, 'Members only'));
+    expect(await session.joinPublicChat('https://t.me/+abc123')).toMatchObject({
+      id: '-1000000000010',
+      kind: 'channel',
+    });
+  });
+
+  it('creates regular and approval invite links', async () => {
+    const { session, td } = await signedIn();
+    td().answer('createChatInviteLink', {
+      '@type': 'chatInviteLink',
+      invite_link: 'https://t.me/+newlink',
+    });
+    expect(await session.createInviteLink('-5', false)).toBe('https://t.me/+newlink');
+    expect(await session.createInviteLink('-5', true)).toBe('https://t.me/+newlink');
+    expect(td().requests('createChatInviteLink')).toEqual([
+      expect.objectContaining({ chat_id: -5, creates_join_request: false, member_limit: 0 }),
+      expect.objectContaining({ chat_id: -5, creates_join_request: true, member_limit: 0 }),
+    ]);
+  });
+
+  it('lists and processes administrator join requests', async () => {
+    const { session, td } = await signedIn();
+    td().answer('getChatJoinRequests', {
+      '@type': 'chatJoinRequests',
+      total_count: 1,
+      requests: [{ '@type': 'chatJoinRequest', user_id: 200, date: 1_700_000_000, bio: 'Hi' }],
+    });
+    expect(await session.getJoinRequests('-5')).toEqual([
+      {
+        userId: '200',
+        name: 'Bob Builder',
+        bio: 'Hi',
+        requestedAt: 1_700_000_000_000,
+      },
+    ]);
+    expect(td().requests('getChatJoinRequests')[0]).toMatchObject({ chat_id: -5, limit: 100 });
+
+    await session.processJoinRequest('-5', '200', true);
+    await session.processJoinRequest('-5', '200', false);
+    expect(td().requests('processChatJoinRequest')).toEqual([
+      expect.objectContaining({ chat_id: -5, user_id: 200, approve: true }),
+      expect.objectContaining({ chat_id: -5, user_id: 200, approve: false }),
+    ]);
+  });
+
+  it('bans and mutes members, and says who is muted', async () => {
+    const { session, td } = await signedIn();
+    td().answer('getBasicGroupFullInfo', {
+      '@type': 'basicGroupFullInfo',
+      members: [
+        {
+          member_id: { '@type': 'messageSenderUser', user_id: 300 },
+          status: {
+            '@type': 'chatMemberStatusRestricted',
+            permissions: { can_send_basic_messages: false },
+          },
+        },
+      ],
+    });
+    td().emit({ '@type': 'updateNewChat', chat: groupChat(5, 'Builders') });
+    await flush();
+    expect(await session.getMembers('-5')).toEqual([{ id: '300', role: 'member', muted: true }]);
+
+    await session.setMemberMuted('-5', '300', false);
+    await session.setMemberMuted('-5', '300', true);
+    await session.banMember('-5', '300');
+    expect(
+      td()
+        .requests('setChatMemberStatus')
+        .map((r) => r.status)
+    ).toEqual([
+      { '@type': 'chatMemberStatusMember', member_until_date: 0 },
+      expect.objectContaining({
+        '@type': 'chatMemberStatusRestricted',
+        permissions: expect.objectContaining({ can_send_basic_messages: false }),
+      }),
+    ]);
+    expect(td().requests('banChatMember')[0]).toMatchObject({
+      chat_id: -5,
+      member_id: { '@type': 'messageSenderUser', user_id: 300 },
+      banned_until_date: 0,
+    });
+  });
+
+  it('lists private chats, groups, and channels in TDLib’s order', async () => {
     const { session, td } = await signedIn();
     td().answer('getBasicGroupFullInfo', {
       '@type': 'basicGroupFullInfo',
@@ -225,6 +490,7 @@ describe('TelegramSession conversations', () => {
     });
     const bob = privateChat(200, 'Bob Builder');
     bob.last_message = textMessage(200, 7, 200, 'hi');
+    bob.unread_count = 4;
     td().emit({ '@type': 'updateNewChat', chat: bob });
     td().emit({ '@type': 'updateNewChat', chat: groupChat(5, 'Builders') });
     td().emit({ '@type': 'updateNewChat', chat: channelChat(9, 'News') });
@@ -233,17 +499,73 @@ describe('TelegramSession conversations', () => {
     const conversations = await session.listConversations();
     expect(conversations.map((c) => [c.id, c.kind, c.title])).toEqual([
       ['-5', 'group', 'Builders'],
+      ['-1000000000009', 'channel', 'News'],
       ['200', 'dm', 'Bob Builder'],
     ]);
     expect(conversations[0]).toMatchObject({
       memberIds: ['100', '200'],
       selfRole: 'owner',
+      canSend: true,
       consent: 'allowed',
     });
-    expect(conversations[1]).toMatchObject({
+    expect(conversations[1]).toMatchObject({ memberIds: ['100'], canSend: false });
+    expect(conversations[2]).toMatchObject({
       memberIds: ['200', '100'],
+      canSend: true,
       lastMessage: { id: '200_7', content: { kind: 'text', text: 'hi' } },
+      unreadCount: 4,
     });
+  });
+
+  it('lets a channel admin post only with the right to post', async () => {
+    const { session, td } = await signedIn();
+    const admin = (rights: { can_post_messages?: boolean }) =>
+      td().emit({
+        '@type': 'updateSupergroup',
+        supergroup: {
+          '@type': 'supergroup',
+          id: 9,
+          member_count: 3,
+          is_channel: true,
+          status: { '@type': 'chatMemberStatusAdministrator', rights },
+        },
+      });
+    admin({});
+    td().emit({ '@type': 'updateNewChat', chat: channelChat(9, 'News') });
+    td().answer('getChats', { '@type': 'chats', chat_ids: [-1_000_000_000_009] });
+    expect((await session.listConversations())[0].canSend).toBe(false);
+
+    admin({ can_post_messages: true });
+    expect((await session.listConversations())[0].canSend).toBe(true);
+  });
+
+  it('updates group posting rights when permissions change', async () => {
+    const { session, td } = await signedIn();
+    td().emit({
+      '@type': 'updateBasicGroup',
+      basic_group_id: 5,
+      basic_group: {
+        '@type': 'basicGroup',
+        id: 5,
+        member_count: 2,
+        status: { '@type': 'chatMemberStatusMember' },
+      },
+    });
+    const chat = groupChat(5, 'Builders');
+    chat.permissions = { can_send_basic_messages: false };
+    td().emit({ '@type': 'updateNewChat', chat });
+    td().answer('getChats', { '@type': 'chats', chat_ids: [-5] });
+    expect((await session.listConversations())[0].canSend).toBe(false);
+
+    const seen: Conversation[] = [];
+    await session.streamConversations((conversation) => seen.push(conversation));
+    td().emit({
+      '@type': 'updateChatPermissions',
+      chat_id: -5,
+      permissions: { can_send_basic_messages: true },
+    });
+    await flush();
+    expect(seen.at(-1)?.canSend).toBe(true);
   });
 
   it('streams a chat when it lands in the main list, and again when its title changes', async () => {
@@ -262,6 +584,66 @@ describe('TelegramSession conversations', () => {
     td().emit({ '@type': 'updateChatTitle', chat_id: 200, title: 'Robert' });
     await flush();
     expect(seen.map((c) => c.title)).toEqual(['Bob', 'Robert']);
+
+    td().emit({
+      '@type': 'updateChatReadInbox',
+      chat_id: 200,
+      last_read_inbox_message_id: 3,
+      unread_count: 2,
+    });
+    await flush();
+    expect(seen.at(-1)?.unreadCount).toBe(2);
+
+    td().emit({
+      '@type': 'updateChatUnreadMentionCount',
+      chat_id: 200,
+      unread_mention_count: 3,
+    });
+    await flush();
+    expect(seen.at(-1)?.mentionCount).toBe(3);
+  });
+
+  it('shows typing and the peer’s online or last-seen status', async () => {
+    const { session, td } = await signedIn();
+    const seen: Conversation[] = [];
+    await session.streamConversations((conversation) => seen.push(conversation));
+    td().emit({ '@type': 'updateNewChat', chat: privateChat(200, 'Bob') });
+    await flush();
+
+    td().emit({
+      '@type': 'updateUserStatus',
+      user_id: 200,
+      status: { '@type': 'userStatusOnline', expires: 1_700_000_000 },
+    });
+    await flush();
+    expect(seen.at(-1)?.online).toBe(true);
+
+    td().emit({
+      '@type': 'updateChatAction',
+      chat_id: 200,
+      sender_id: { '@type': 'messageSenderUser', user_id: 200 },
+      action: { '@type': 'chatActionTyping' },
+    });
+    await flush();
+    expect(seen.at(-1)?.typing).toBe(true);
+
+    td().emit({
+      '@type': 'updateChatAction',
+      chat_id: 200,
+      sender_id: { '@type': 'messageSenderUser', user_id: 200 },
+      action: { '@type': 'chatActionCancel' },
+    });
+    td().emit({
+      '@type': 'updateUserStatus',
+      user_id: 200,
+      status: { '@type': 'userStatusOffline', was_online: 1_700_000_000 },
+    });
+    await flush();
+    expect(seen.at(-1)).toMatchObject({
+      typing: false,
+      online: false,
+      lastSeenAt: 1_700_000_000_000,
+    });
   });
 
   it('replays chats that arrived before anyone listened', async () => {
@@ -307,6 +689,31 @@ describe('TelegramSession conversations', () => {
       '300': 'Carol',
     });
   });
+
+  it('suggests group members with Telegram usernames for mentions', async () => {
+    const { session, td } = await signedIn();
+    td().answer('searchChatMembers', {
+      '@type': 'chatMembers',
+      members: [
+        {
+          member_id: { '@type': 'messageSenderUser', user_id: 100 },
+          status: { '@type': 'chatMemberStatusMember' },
+        },
+        {
+          member_id: { '@type': 'messageSenderUser', user_id: 200 },
+          status: { '@type': 'chatMemberStatusMember' },
+        },
+      ],
+    });
+    expect(await session.mentionCandidates('-5', 'bo')).toEqual([
+      { id: '200', name: 'Bob Builder', handle: '@bob' },
+    ]);
+    expect(td().requests('searchChatMembers')[0]).toMatchObject({
+      chat_id: -5,
+      query: 'bo',
+      limit: 20,
+    });
+  });
 });
 
 describe('TelegramSession messages', () => {
@@ -319,6 +726,178 @@ describe('TelegramSession messages', () => {
     await context.session.streamMessages((m) => received.push(m));
     return { ...context, received };
   }
+
+  it('searches one chat and all Telegram chats', async () => {
+    const { session, td } = await inChatWithBob();
+    td().answer('searchChatMessages', {
+      '@type': 'foundChatMessages',
+      messages: [textMessage(200, 2, 200, 'needle in this chat')],
+      next_from_message_id: 0,
+    });
+    td().answer('searchMessages', {
+      '@type': 'foundMessages',
+      messages: [textMessage(200, 2, 200, 'needle in this chat')],
+      next_offset: '',
+    });
+
+    expect((await session.searchMessages('needle', '200')).map((message) => message.id)).toEqual([
+      '200_2',
+    ]);
+    expect((await session.searchMessages('needle')).map((message) => message.id)).toEqual([
+      '200_2',
+    ]);
+    expect(td().requests('searchChatMessages')[0]).toMatchObject({ chat_id: 200, query: 'needle' });
+    expect(td().requests('searchMessages')[0]).toMatchObject({ query: 'needle', chat_list: null });
+  });
+
+  it('lists pinned messages and pins or unpins with Telegram permissions', async () => {
+    const { session, td, received } = await inChatWithBob();
+    const raw = textMessage(200, 8, 200, 'Keep this');
+    raw.is_pinned = true;
+    td().answer('searchChatMessages', {
+      '@type': 'foundChatMessages',
+      messages: [raw],
+      next_from_message_id: 0,
+    });
+    expect(await session.listPinnedMessages('200')).toEqual([
+      expect.objectContaining({ id: '200_8', isPinned: true }),
+    ]);
+    expect(td().requests('searchChatMessages')[0]).toMatchObject({
+      chat_id: 200,
+      filter: { '@type': 'searchMessagesFilterPinned' },
+    });
+
+    td().answer('getMessageProperties', {
+      '@type': 'messageProperties',
+      can_be_pinned: true,
+    });
+    td().answer('getMessage', raw);
+    await session.setMessagePinned('200', '200_8', true);
+    expect(td().requests('pinChatMessage')[0]).toMatchObject({
+      chat_id: 200,
+      message_id: 8,
+      disable_notification: true,
+      only_for_self: false,
+    });
+    expect(received.at(-1)?.isPinned).toBe(true);
+    await session.setMessagePinned('200', '200_8', false);
+    expect(td().requests('unpinChatMessage')[0]).toMatchObject({ chat_id: 200, message_id: 8 });
+  });
+
+  it('shows poll options and sends a vote through TDLib', async () => {
+    const { session, td, received } = await inChatWithBob();
+    const raw = textMessage(200, 21, 200, '');
+    raw.content = {
+      '@type': 'messagePoll',
+      poll: {
+        '@type': 'poll',
+        id: 44,
+        question: { '@type': 'formattedText', text: 'Lunch?', entities: [] },
+        options: ['Pizza', 'Soup'].map((text) => ({
+          '@type': 'pollOption',
+          text: { '@type': 'formattedText', text, entities: [] },
+          voter_count: 0,
+          vote_percentage: 0,
+          is_chosen: false,
+        })),
+        total_voter_count: 0,
+        type: { '@type': 'pollTypeRegular', allow_multiple_answers: false },
+        is_closed: false,
+      },
+    };
+    td().emit({ '@type': 'updateNewMessage', message: raw });
+    await flush();
+    expect(received.at(-1)?.content).toMatchObject({
+      kind: 'poll',
+      question: 'Lunch?',
+      options: [
+        { text: 'Pizza', chosen: false },
+        { text: 'Soup', chosen: false },
+      ],
+    });
+
+    const voted = structuredClone(raw);
+    const poll = voted.content.poll as {
+      options: { is_chosen: boolean }[];
+      total_voter_count: number;
+    };
+    poll.options[1].is_chosen = true;
+    poll.total_voter_count = 1;
+    td().answer('getMessage', voted);
+    await session.votePoll('200', '200_21', [1]);
+    expect(td().requests('setPollAnswer')[0]).toMatchObject({
+      chat_id: 200,
+      message_id: 21,
+      option_ids: [1],
+    });
+    expect(received.at(-1)?.content).toMatchObject({
+      kind: 'poll',
+      totalVoters: 1,
+      options: [{ chosen: false }, { chosen: true }],
+    });
+  });
+
+  it('creates an anonymous single-choice poll through TDLib', async () => {
+    const { session, td } = await inChatWithBob();
+    td().answer('sendMessage', textMessage(200, 25, 100, '', { outgoing: true }));
+    await session.createPoll('200', 'Lunch?', ['Pizza', 'Soup']);
+    expect(td().requests('sendMessage')[0]).toMatchObject({
+      chat_id: 200,
+      input_message_content: {
+        '@type': 'inputMessagePoll',
+        question: { text: 'Lunch?', entities: [] },
+        options: [{ text: 'Pizza' }, { text: 'Soup' }],
+        is_anonymous: true,
+        type: { '@type': 'pollTypeRegular', allow_multiple_answers: false },
+      },
+    });
+  });
+
+  it('edits text and revokes deleted messages for everyone', async () => {
+    const { session, td, received } = await inChatWithBob();
+    const deleted: string[][] = [];
+    await session.streamDeletedMessages((id, ids) => deleted.push([id, ...ids]));
+    td().answer('getMessageProperties', {
+      '@type': 'messageProperties',
+      can_be_edited: true,
+      can_be_deleted_for_all_users: true,
+    });
+    td().answer('editMessageText', textMessage(200, 5, 100, 'new text', { outgoing: true }));
+
+    await session.editMessage('200', '200_5', 'new text');
+    expect(td().requests('editMessageText')[0]).toMatchObject({
+      chat_id: 200,
+      message_id: 5,
+      input_message_content: expect.objectContaining({ '@type': 'inputMessageText' }),
+    });
+    expect(received.at(-1)?.content).toEqual({ kind: 'text', text: 'new text' });
+
+    await session.deleteMessage('200', '200_5');
+    expect(td().requests('deleteMessages')[0]).toMatchObject({
+      chat_id: 200,
+      message_ids: [5],
+      revoke: true,
+    });
+    td().emit({
+      '@type': 'updateDeleteMessages',
+      chat_id: 200,
+      message_ids: [5],
+      is_permanent: true,
+      from_cache: false,
+    });
+    expect(deleted).toEqual([['200', '200_5']]);
+
+    td().answer('getMessageProperties', {
+      '@type': 'messageProperties',
+      can_be_edited: false,
+      can_be_deleted_for_all_users: false,
+    });
+    await expect(session.editMessage('200', '200_5', 'too late')).rejects.toThrow(
+      'does not allow editing'
+    );
+    await expect(session.deleteMessage('200', '200_5')).rejects.toThrow('for everyone');
+    expect(td().requests('deleteMessages')).toHaveLength(1);
+  });
 
   it('delivers incoming messages with chat-scoped ids, replies and reactions', async () => {
     const { td, received } = await inChatWithBob();
@@ -352,7 +931,7 @@ describe('TelegramSession messages', () => {
     ]);
   });
 
-  it('ignores channel traffic', async () => {
+  it('streams channel posts', async () => {
     const { td, received } = await inChatWithBob();
     td().emit({ '@type': 'updateNewChat', chat: channelChat(9, 'News') });
     td().emit({
@@ -360,7 +939,12 @@ describe('TelegramSession messages', () => {
       message: textMessage(-1_000_000_000_009, 1, 200, 'broadcast'),
     });
     await flush();
-    expect(received).toHaveLength(0);
+    expect(received).toEqual([
+      expect.objectContaining({
+        conversationId: '-1000000000009',
+        content: { kind: 'text', text: 'broadcast' },
+      }),
+    ]);
   });
 
   it('sends text as a reply and resolves once TDLib confirms the real id', async () => {
@@ -409,7 +993,7 @@ describe('TelegramSession messages', () => {
     await expect(sending).rejects.toThrow('CHAT_WRITE_FORBIDDEN');
   });
 
-  it('sends photos, files and voice notes from local paths', async () => {
+  it('sends photos, files, voice notes and video from local paths', async () => {
     const { session, td } = await inChatWithBob();
     td().answer('sendMessage', textMessage(200, 14, 100, '', { outgoing: true }));
     await session.send('200', {
@@ -421,7 +1005,14 @@ describe('TelegramSession messages', () => {
     });
     await session.send('200', { kind: 'file', uri: 'file:///tmp/doc.pdf', name: 'doc.pdf' });
     await session.send('200', { kind: 'voice', uri: 'file:///tmp/v.m4a', durationMs: 2_400 });
-    const [photo, file, voice] = td()
+    await session.send('200', {
+      kind: 'video',
+      uri: 'file:///tmp/movie.mp4',
+      durationMs: 2_400,
+      width: 640,
+      height: 360,
+    });
+    const [photo, file, voice, video] = td()
       .requests('sendMessage')
       .map((r) => r.input_message_content);
     expect(photo).toMatchObject({
@@ -434,6 +1025,14 @@ describe('TelegramSession messages', () => {
       document: { path: '/tmp/doc.pdf' },
     });
     expect(voice).toMatchObject({ '@type': 'inputMessageVoiceNote', duration: 2 });
+    expect(video).toMatchObject({
+      '@type': 'inputMessageVideo',
+      video: { path: '/tmp/movie.mp4' },
+      duration: 2,
+      width: 640,
+      height: 360,
+      supports_streaming: true,
+    });
   });
 
   it('adds and removes reactions on the target message', async () => {
@@ -533,6 +1132,45 @@ describe('TelegramSession messages', () => {
     });
   });
 
+  it('renders a downloaded Telegram video with its caption', async () => {
+    const { td, received } = await inChatWithBob();
+    const message = textMessage(200, 16, 200, '');
+    message.content = {
+      '@type': 'messageVideo',
+      video: {
+        duration: 12,
+        width: 640,
+        height: 360,
+        video: {
+          '@type': 'file',
+          id: 88,
+          size: 1000,
+          local: { path: '/files/movie.mp4', is_downloading_completed: true },
+        },
+      },
+      caption: { '@type': 'formattedText', text: 'At the beach', entities: [] },
+    };
+    td().emit({ '@type': 'updateNewMessage', message });
+    await flush();
+    expect(received.at(-1)?.content).toEqual({
+      kind: 'video',
+      uri: 'file:///files/movie.mp4',
+      durationMs: 12_000,
+      width: 640,
+      height: 360,
+      caption: 'At the beach',
+    });
+  });
+
+  it('says when a message was edited', async () => {
+    const { td, received } = await inChatWithBob();
+    const edited = textMessage(200, 7, 200, 'fixed');
+    edited.edit_date = 1_700_000_000;
+    td().emit({ '@type': 'updateNewMessage', message: edited });
+    await flush();
+    expect(received.at(-1)).toMatchObject({ edited: true });
+  });
+
   it('describes service messages with names', async () => {
     const { td, received } = await inChatWithBob();
     td().emit({ '@type': 'updateNewChat', chat: groupChat(5, 'Builders') });
@@ -560,6 +1198,74 @@ describe('TelegramSession messages', () => {
       message_ids: [40],
       force_read: true,
     });
+  });
+
+  it('counts requests to join as they arrive', async () => {
+    const { session, td } = await inChatWithBob();
+    const conversations: Conversation[] = [];
+    await session.streamConversations((conversation) => conversations.push(conversation));
+    td().emit({
+      '@type': 'updateChatPendingJoinRequests',
+      chat_id: 200,
+      pending_join_requests: { total_count: 2, user_ids: [300] },
+    });
+    await flush();
+    expect(conversations.at(-1)).toMatchObject({ id: '200', pendingJoinRequests: 2 });
+  });
+
+  it('keeps drafts on Telegram so they follow the chat', async () => {
+    const { session, td } = await inChatWithBob();
+    const conversations: Conversation[] = [];
+    await session.streamConversations((conversation) => conversations.push(conversation));
+    await session.saveDraft('200', 'see **you**');
+    expect(td().requests('setChatDraftMessage')[0]).toMatchObject({
+      chat_id: 200,
+      draft_message: {
+        '@type': 'draftMessage',
+        content: { '@type': 'draftMessageContentText', text: { text: 'see you' } },
+      },
+    });
+    await session.saveDraft('200', '');
+    expect(td().requests('setChatDraftMessage')[1]).toMatchObject({ draft_message: null });
+
+    td().emit({
+      '@type': 'updateChatDraftMessage',
+      chat_id: 200,
+      draft_message: {
+        content: {
+          '@type': 'draftMessageContentText',
+          text: { '@type': 'formattedText', text: 'from phone', entities: [] },
+        },
+      },
+      positions: [MAIN_POSITION],
+    });
+    await flush();
+    expect(conversations.at(-1)).toMatchObject({ id: '200', draft: 'from phone' });
+  });
+
+  it('marks a chat unread on Telegram and hears it from other devices', async () => {
+    const { session, td } = await inChatWithBob();
+    const conversations: Conversation[] = [];
+    await session.streamConversations((conversation) => conversations.push(conversation));
+    await session.setMarkedUnread('200', true);
+    expect(td().requests('toggleChatIsMarkedAsUnread')[0]).toMatchObject({
+      chat_id: 200,
+      is_marked_as_unread: true,
+    });
+    td().emit({ '@type': 'updateChatIsMarkedAsUnread', chat_id: 200, is_marked_as_unread: true });
+    await flush();
+    expect(conversations.at(-1)).toMatchObject({ id: '200', markedUnread: true });
+  });
+
+  it('tells the chat when you start and stop typing', async () => {
+    const { session, td } = await inChatWithBob();
+    await session.setTyping('200', true);
+    await session.setTyping('200', false);
+    expect(
+      td()
+        .requests('sendChatAction')
+        .map((r) => r.action)
+    ).toEqual([{ '@type': 'chatActionTyping' }, { '@type': 'chatActionCancel' }]);
   });
 });
 

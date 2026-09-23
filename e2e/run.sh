@@ -39,7 +39,8 @@ curl -sf -m 5 http://localhost:8081/status >/dev/null 2>&1 || {
 
 # A stale dev client may not contain the native modules in the lock file.
 APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" \
-  -path "*Debug-iphonesimulator*" -name "StatusOriginal.app" 2>/dev/null | head -1)"
+  -path "*Debug-iphonesimulator*" -name "StatusOriginal.app" -print0 2>/dev/null \
+  | xargs -0 ls -dt 2>/dev/null | head -1)"
 if [ "${E2E_SKIP_BUILD_CHECK:-0}" != "1" ] \
   && [ -n "$APP_PATH" ] && [ package-lock.json -nt "$APP_PATH" ]; then
   echo "The built app is older than package-lock.json, so a native module may be missing."
@@ -75,7 +76,7 @@ DEVICE=()
 [ -n "${E2E_DEVICE:-}" ] && DEVICE=(--device "$E2E_DEVICE")
 
 if [ $# -gt 0 ]; then
-  exec "$MAESTRO" "${DEVICE[@]}" test "e2e/$1.yaml"
+  exec "$MAESTRO" ${DEVICE[@]+"${DEVICE[@]}"} test "e2e/$1.yaml"
 fi
 
-exec "$MAESTRO" "${DEVICE[@]}" test e2e
+exec "$MAESTRO" ${DEVICE[@]+"${DEVICE[@]}"} test e2e

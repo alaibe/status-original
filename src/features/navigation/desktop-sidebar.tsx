@@ -97,11 +97,18 @@ export function DesktopSidebar() {
               onPress={() => setSorting(true)}
             />
           ) : (
-            <IconButton
-              icon="people-outline"
-              label="New group"
-              onPress={() => router.push('/new-chat?mode=group')}
-            />
+            <>
+              <IconButton
+                icon="search-outline"
+                label="Search messages"
+                onPress={() => router.push('/search')}
+              />
+              <IconButton
+                icon="people-outline"
+                label="New group"
+                onPress={() => router.push('/new-chat?mode=group')}
+              />
+            </>
           )}
           {tab === 'settings' ? null : (
             <IconButton

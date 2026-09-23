@@ -43,6 +43,7 @@ export function ComposerInput({
   value,
   onChangeText,
   onSubmit,
+  onFile,
   placeholder,
   placeholderColor,
 }: ComposerInputProps) {
@@ -113,7 +114,18 @@ export function ComposerInput({
 
   const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
+    const files = [...event.clipboardData.files];
+    if (files.length > 0 && onFile) {
+      files.forEach(onFile);
+      return;
+    }
     document.execCommand('insertText', false, event.clipboardData.getData('text/plain'));
+  };
+
+  const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    if (onFile) [...event.dataTransfer.files].forEach(onFile);
   };
 
   return (
@@ -144,6 +156,10 @@ export function ComposerInput({
         onKeyDown={onKeyDown}
         onInput={onInput}
         onPaste={onPaste}
+        onDragOver={(event) => {
+          if (onFile && event.dataTransfer.types.includes('Files')) event.preventDefault();
+        }}
+        onDrop={onDrop}
         className="composer-rich text-body text-content"
         style={{ maxHeight: 128, minHeight: 22, overflowY: 'auto', padding: '10px 4px 10px 0' }}
       />

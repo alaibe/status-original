@@ -1,4 +1,5 @@
 import { type Block, hasMarkup, listMarker, parseMarkdown } from '@/core/messaging/markdown';
+import { mentionHref } from '@/core/messaging/mentions';
 
 import type { TdObject } from './api';
 import type { TdFormattedText } from './types';
@@ -63,6 +64,8 @@ export function formattedToMarkdown(formatted: { text: string; entities?: TdObje
       pair(start, end, fence, [...fence].reverse().join(''), { verbatim: true });
     } else if (kind === 'textEntityTypeTextUrl') {
       pair(start, end, '[', `](${encodeUrl(type.url as string)})`);
+    } else if (kind === 'textEntityTypeMentionName') {
+      pair(start, end, '[', `](${mentionHref(String(type.user_id))})`);
     } else if (INLINE[kind]) {
       pair(start, end, INLINE[kind], INLINE[kind]);
     }
@@ -129,8 +132,12 @@ function encodeUrl(url: string): string {
 }
 
 /** The Markdown the app writes, as the text and entities TDLib sends. */
+export function plainFormatted(text: string): TdFormattedText {
+  return { '@type': 'formattedText', text, entities: [] };
+}
+
 export function markdownToFormatted(markdown: string): TdFormattedText {
-  if (!hasMarkup(markdown)) return { '@type': 'formattedText', text: markdown, entities: [] };
+  if (!hasMarkup(markdown)) return plainFormatted(markdown);
 
   let text = '';
   const entities: TdObject[] = [];
@@ -154,7 +161,9 @@ export function markdownToFormatted(markdown: string): TdFormattedText {
             if (span.style.italic) entity(from, { '@type': 'textEntityTypeItalic' });
             if (span.style.strike) entity(from, { '@type': 'textEntityTypeStrikethrough' });
             if (span.style.code) entity(from, { '@type': 'textEntityTypeCode' });
-            if (span.href) entity(from, { '@type': 'textEntityTypeTextUrl', url: span.href });
+            if (span.mention && /^\d+$/.test(span.mention))
+              entity(from, { '@type': 'textEntityTypeMentionName', user_id: Number(span.mention) });
+            else if (span.href) entity(from, { '@type': 'textEntityTypeTextUrl', url: span.href });
           }
           if (block.kind === 'heading') entity(start, { '@type': 'textEntityTypeBold' });
           break;

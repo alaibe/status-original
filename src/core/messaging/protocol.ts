@@ -23,33 +23,95 @@ export interface LoginState {
   error?: string;
 }
 
+export interface GroupInfo {
+  description?: string;
+  link?: string;
+  memberCount?: number;
+  avatarUri?: string;
+  slowModeDelay?: number;
+  canSetSlowMode?: boolean;
+}
+
+export interface PublicChatPreview extends GroupInfo {
+  id: ConversationId;
+  title: string;
+  kind: 'group' | 'channel' | 'room';
+  joined: boolean;
+  requiresApproval?: boolean;
+  joinUnavailableReason?: string;
+}
+
+export interface JoinRequest {
+  userId: ParticipantId;
+  name: string;
+  bio?: string;
+  requestedAt: number;
+}
+
+export interface MentionCandidate {
+  id: ParticipantId;
+  name: string;
+  /** Inserted as typed where there is one; without, the mention is a link to the person. */
+  handle?: string;
+}
+
 export interface ChatSession {
   readonly self: SelfIdentity;
+  readonly sendsVideo?: boolean;
 
   listConversations(): Promise<Conversation[]>;
   getMessages(
     id: ConversationId,
     opts?: { limit?: number; before?: { sentAt: number; id: MessageId } }
   ): Promise<ChatMessage[]>;
+  searchMessages?(query: string, id?: ConversationId): Promise<ChatMessage[]>;
+  countUnread?(id: ConversationId, since: number): Promise<number>;
 
   resolvePeer(addressOrId: string): Promise<ParticipantId | null>;
   resolveAddresses(ids: ParticipantId[]): Promise<Record<ParticipantId, string>>;
   /** Human names where the network has them; addresses are what gets copied. */
   resolveNames?(ids: ParticipantId[]): Promise<Record<ParticipantId, string>>;
+  mentionCandidates?(id: ConversationId, query: string): Promise<MentionCandidate[]>;
   createDm(peer: ParticipantId): Promise<Conversation>;
   createGroup(peers: ParticipantId[], title: string): Promise<Conversation>;
+  previewPublicChat?(usernameOrLink: string): Promise<PublicChatPreview>;
+  joinPublicChat?(id: ConversationId): Promise<Conversation | null>;
+  createInviteLink?(id: ConversationId, requiresApproval: boolean): Promise<string>;
+  getJoinRequests?(id: ConversationId): Promise<JoinRequest[]>;
+  processJoinRequest?(id: ConversationId, userId: ParticipantId, approve: boolean): Promise<void>;
 
   getMembers(id: ConversationId): Promise<GroupMember[]>;
+  getGroupInfo?(id: ConversationId): Promise<GroupInfo>;
+  setSlowModeDelay?(id: ConversationId, seconds: number): Promise<void>;
   addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void>;
   removeMembers(id: ConversationId, peers: ParticipantId[]): Promise<void>;
+  /** Removes them and keeps them out, where removing alone lets them come back. */
+  banMember?(id: ConversationId, peer: ParticipantId): Promise<void>;
+  setMemberMuted?(id: ConversationId, peer: ParticipantId, muted: boolean): Promise<void>;
   renameGroup(id: ConversationId, title: string): Promise<void>;
   leaveGroup(id: ConversationId): Promise<void>;
 
   send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId>;
+  /** Emits the edited message through streamMessages when the server confirms it. */
+  editMessage?(id: ConversationId, messageId: MessageId, text: string): Promise<void>;
+  deleteMessage?(id: ConversationId, messageId: MessageId): Promise<void>;
+  deleteMessageForMe?(id: ConversationId, messageId: MessageId): Promise<void>;
+  votePoll?(id: ConversationId, messageId: MessageId, optionIds: number[]): Promise<void>;
+  createPoll?(id: ConversationId, question: string, options: string[]): Promise<void>;
+  listPinnedMessages?(id: ConversationId): Promise<ChatMessage[]>;
+  setMessagePinned?(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void>;
+  streamDeletedMessages?(
+    listener: (id: ConversationId, messageIds: MessageId[]) => void
+  ): Promise<Unsubscribe>;
 
   setConsent?(id: ConversationId, consent: 'allowed' | 'denied'): Promise<void>;
 
   sendReadReceipt?(id: ConversationId): Promise<void>;
+  setMarkedUnread?(id: ConversationId, unread: boolean): Promise<void>;
+  saveDraft?(id: ConversationId, text: string): Promise<void>;
+  setTyping?(id: ConversationId, typing: boolean): Promise<void>;
+  /** For networks that only say who is online when asked; stops when the chat closes. */
+  watchPresence?(id: ConversationId): Unsubscribe;
 
   sync(): Promise<void>;
   subscribeHistory?(listener: (state: HistoryState) => void): Unsubscribe;

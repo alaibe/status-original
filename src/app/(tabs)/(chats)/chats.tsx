@@ -17,6 +17,11 @@ export default function ChatsScreen() {
           headerRight: () => (
             <View className="flex-row items-center gap-1">
               <IconButton
+                icon="search-outline"
+                label="Search messages"
+                onPress={() => router.push('/search')}
+              />
+              <IconButton
                 testID="header-new-group"
                 icon="people-outline"
                 label="New group"

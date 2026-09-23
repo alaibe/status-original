@@ -1,4 +1,6 @@
 import type { ChatMessage, ConversationId, MessageId, ParticipantId } from './types';
+import { matchesSearch, SEARCH_LIMIT } from './search';
+import { countsAsUnread } from './unread';
 
 export interface StoredConversation {
   id: ConversationId;
@@ -10,6 +12,11 @@ export interface StoredConversation {
   routingKey?: string;
 }
 
+export interface StoredSearchHit {
+  message: ChatMessage;
+  protocolId?: string;
+}
+
 export interface MessageStore {
   loadConversations(protocolId: string): Promise<StoredConversation[]>;
   loadMessages(
@@ -17,6 +24,12 @@ export interface MessageStore {
     limit?: number,
     before?: { sentAt: number; id: MessageId }
   ): Promise<ChatMessage[]>;
+  searchMessages(
+    query: string,
+    conversationId?: ConversationId,
+    protocolId?: string
+  ): Promise<StoredSearchHit[]>;
+  countUnreadMessages(conversationId: ConversationId, since: number): Promise<number>;
 
   upsertConversation(conversation: StoredConversation): Promise<void>;
   insertMessage(
@@ -61,6 +74,35 @@ export class InMemoryMessageStore implements MessageStore {
       )
       .sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id));
     return sorted.slice(-limit);
+  }
+
+  async searchMessages(
+    query: string,
+    conversationId?: ConversationId,
+    protocolId?: string
+  ): Promise<StoredSearchHit[]> {
+    const needle = query.toLowerCase();
+    return [...this.messages.entries()]
+      .filter(
+        ([id]) =>
+          (!conversationId || id === conversationId) &&
+          (!protocolId || this.conversations.get(id)?.protocolId === protocolId)
+      )
+      .flatMap(([id, messages]) =>
+        [...messages.values()].map((message) => ({
+          message,
+          protocolId: this.conversations.get(id)?.protocolId,
+        }))
+      )
+      .filter(({ message }) => matchesSearch(message, needle))
+      .sort((a, b) => b.message.sentAt - a.message.sentAt)
+      .slice(0, SEARCH_LIMIT);
+  }
+
+  async countUnreadMessages(conversationId: ConversationId, since: number): Promise<number> {
+    return [...(this.messages.get(conversationId)?.values() ?? [])].filter((message) =>
+      countsAsUnread(message, since)
+    ).length;
   }
 
   async upsertConversation(conversation: StoredConversation): Promise<void> {

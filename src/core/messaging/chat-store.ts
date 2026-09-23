@@ -6,6 +6,7 @@ import {
   botConversationId,
   botIdFromConversation,
   isLocalConversation,
+  SAVED_LOCAL_ID,
   toContent,
   type Bot,
 } from './bots';
@@ -22,10 +23,21 @@ import { indexMessages, saveMediaIndex, type MediaIndex } from './media-index';
 import { useAppearanceStore } from '../app/appearance';
 import { writeReadState } from './read-state';
 import { foldReactions, hasReacted } from './reactions';
-import type { ChatSession, XmtpCapabilities } from './protocol';
+import type {
+  ChatSession,
+  GroupInfo,
+  JoinRequest,
+  MentionCandidate,
+  PublicChatPreview,
+  XmtpCapabilities,
+} from './protocol';
 import { historyFailure } from './history';
 import { HYDRATE_LIMIT, type MessageStore } from './message-store';
 import { persistLocalAttachment } from './attachments';
+import { MARKED_UNREAD } from './unread';
+import { searchMessages } from './search';
+import { draftSync, saveDraftsSoon, withDraft, type Drafts } from './drafts';
+import { capability, type Capability, type CapabilityMethod } from './capability';
 import type { AccountStorage } from '@/storage/account';
 import type {
   ChatMessage,
@@ -35,6 +47,7 @@ import type {
   GroupMember,
   MessageContent,
   ParticipantId,
+  Unsubscribe,
 } from './types';
 import { errorMessage } from '../errors';
 
@@ -62,6 +75,7 @@ export interface ChatState {
   bots: Record<string, Bot>;
   readAt: Record<ConversationId, number>;
   chatPrefs: ChatPrefsMap;
+  drafts: Drafts;
   mediaIndex: MediaIndex;
   messageStore: MessageStore | null;
   accountStorage: AccountStorage | null;
@@ -74,24 +88,39 @@ export interface ChatState {
   refreshConversations(): Promise<void>;
   loadMessages(id: ConversationId): Promise<void>;
   loadOlderMessages(id: ConversationId): Promise<void>;
+  searchMessages(query: string, id?: ConversationId): Promise<ChatMessage[]>;
   sendMessage(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<void>;
   resolvePeer(protocol: ProtocolId, addressOrId: string): Promise<ParticipantId | null>;
   startDm(protocol: ProtocolId, peer: ParticipantId): Promise<Conversation>;
   startGroup(protocol: ProtocolId, peers: ParticipantId[], title: string): Promise<Conversation>;
+  previewPublicChat(protocol: ProtocolId, input: string): Promise<PublicChatPreview>;
+  joinPublicChat(protocol: ProtocolId, id: ConversationId): Promise<Conversation | null>;
+  createInviteLink(id: ConversationId, requiresApproval: boolean): Promise<string>;
+  getJoinRequests(id: ConversationId): Promise<JoinRequest[]>;
+  processJoinRequest(id: ConversationId, userId: ParticipantId, approve: boolean): Promise<void>;
   sync(): Promise<void>;
   syncProtocol(protocolId: ProtocolId): Promise<void>;
 
   getMembers(id: ConversationId): Promise<GroupMember[]>;
+  mentionCandidates(id: ConversationId, query: string): Promise<MentionCandidate[]>;
+  getGroupInfo(id: ConversationId): Promise<GroupInfo>;
+  setSlowModeDelay(id: ConversationId, seconds: number): Promise<void>;
   addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void>;
   removeMembers(id: ConversationId, peers: ParticipantId[]): Promise<void>;
+  banMember(id: ConversationId, peer: ParticipantId): Promise<void>;
+  setMemberMuted(id: ConversationId, peer: ParticipantId, muted: boolean): Promise<void>;
   renameGroup(id: ConversationId, title: string): Promise<void>;
   leaveGroup(id: ConversationId): Promise<void>;
 
   react(conversationId: ConversationId, messageId: MessageId, emoji: string): Promise<void>;
 
   markRead(id: ConversationId): Promise<void>;
+  setTyping(id: ConversationId, typing: boolean): Promise<void>;
+  watchPresence(id: ConversationId): Unsubscribe;
+  markUnread(id: ConversationId): Promise<void>;
   setConsent(id: ConversationId, consent: 'allowed' | 'denied'): Promise<void>;
   setChatPref(id: ConversationId, change: Partial<ChatPrefs>): Promise<void>;
+  setDraft(id: ConversationId, text: string): void;
 
   ingestMessage(message: ChatMessage): void;
   ingestConversation(conversation: Conversation): void;
@@ -102,6 +131,13 @@ export interface ChatState {
     status: ChatMessage['status']
   ): void;
   retryMessage(conversationId: ConversationId, messageId: string): Promise<void>;
+  editMessage(id: ConversationId, messageId: MessageId, text: string): Promise<void>;
+  deleteMessage(id: ConversationId, messageId: MessageId, forEveryone: boolean): Promise<void>;
+  votePoll(id: ConversationId, messageId: MessageId, optionIds: number[]): Promise<void>;
+  createPoll(id: ConversationId, question: string, options: string[]): Promise<void>;
+  listPinnedMessages(id: ConversationId): Promise<ChatMessage[]>;
+  setMessagePinned(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void>;
+  removeMessages(id: ConversationId, messageIds: MessageId[]): void;
 }
 
 export interface MessageHistoryState {
@@ -128,6 +164,7 @@ export const EMPTY_PROJECTION = {
   bots: {},
   readAt: {},
   chatPrefs: {},
+  drafts: {},
   mediaIndex: {},
 } satisfies Partial<ChatState>;
 
@@ -210,13 +247,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  async sendMessage(id, content, replyTo) {
+  searchMessages(query, id) {
+    return searchMessages(get(), query, id);
+  },
+
+  async sendMessage(id, picked, replyTo) {
+    requireSendable(get(), id);
     if (isLocalConversation(id)) {
-      await get().postLocalMessage(id, content, 'me');
+      await get().postLocalMessage(id, picked, 'me');
 
       const bot = get().bots[botIdFromConversation(id)];
-      if (bot?.onMessage && content.kind === 'text') {
-        await bot.onMessage(content.text, {
+      if (bot?.onMessage && picked.kind === 'text') {
+        await bot.onMessage(picked.text, {
           conversationId: id,
           say: (reply) => get().postLocalMessage(id, toContent(reply), 'bot'),
         });
@@ -225,9 +267,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     const route = requireRoute(get(), id);
+    const accountId = get().accountId;
+    const pendingId = `pending:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const content =
+      'uri' in picked && accountId
+        ? await persistLocalAttachment(pendingId, picked, accountId)
+        : picked;
 
     const pending: ChatMessage = {
-      id: `pending:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+      id: pendingId,
       conversationId: id,
       senderId: route.session.self.participantId,
       sentAt: Date.now(),
@@ -265,6 +313,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  editMessage(id, messageId, text) {
+    return onChat(get(), id, 'editMessage', messageId, text);
+  },
+
+  async deleteMessage(id, messageId, forEveryone) {
+    const accountId = get().accountId;
+    const route = requireRoute(get(), id);
+    const remove = capability(route.session, forEveryone ? 'deleteMessage' : 'deleteMessageForMe');
+    await remove(route.nativeId, messageId);
+    if (!sameSession(get(), accountId, route.protocol, route.session)) return;
+    get().removeMessages(id, [messageId]);
+  },
+
+  votePoll(id, messageId, optionIds) {
+    return onChat(get(), id, 'votePoll', messageId, optionIds);
+  },
+
+  createPoll(id, question, options) {
+    requireSendable(get(), id);
+    return onChat(get(), id, 'createPoll', question, options);
+  },
+
+  async listPinnedMessages(id) {
+    const protocol = requireRoute(get(), id).protocol;
+    return (await onChat(get(), id, 'listPinnedMessages')).map((message) =>
+      namespaceMessage(protocol, message)
+    );
+  },
+
+  setMessagePinned(id, messageId, pinned) {
+    return onChat(get(), id, 'setMessagePinned', messageId, pinned);
+  },
+
+  removeMessages(id, messageIds) {
+    const removed = new Set(messageIds);
+    set((state) => {
+      const raw = state.rawMessages[id] ?? state.messages[id];
+      const kept = raw?.filter((message) => !removed.has(message.id));
+      const existing = state.mediaIndex[id];
+      const indexed = existing?.filter((entry) => !removed.has(entry.messageId));
+      const mediaIndex =
+        indexed && indexed.length !== existing?.length
+          ? { ...state.mediaIndex, [id]: indexed }
+          : state.mediaIndex;
+      if (mediaIndex !== state.mediaIndex && state.accountStorage)
+        saveMediaIndex(state.accountStorage, mediaIndex).catch(() => {});
+      return {
+        ...(kept ? withRaw(state, id, kept) : {}),
+        mediaIndex,
+        conversations: sortConversations(
+          state.conversations.map((conversation) =>
+            conversation.id === id &&
+            conversation.lastMessage &&
+            removed.has(conversation.lastMessage.id)
+              ? { ...conversation, lastMessage: kept?.at(-1) }
+              : conversation
+          )
+        ),
+      };
+    });
+  },
+
   async resolvePeer(protocol, addressOrId) {
     const session = get().sessions[protocol];
     if (!session) throw new Error(`${protocol} is not connected.`);
@@ -279,9 +389,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return startConversation(get, protocol, (session) => session.createGroup(peers, title));
   },
 
+  previewPublicChat(protocol, input) {
+    return capability(requireSession(get(), protocol), 'previewPublicChat')(input);
+  },
+
+  joinPublicChat(protocol, id) {
+    return joinConversation(get, protocol, (session) => capability(session, 'joinPublicChat')(id));
+  },
+
+  createInviteLink(id, requiresApproval) {
+    return onChat(get(), id, 'createInviteLink', requiresApproval);
+  },
+
+  getJoinRequests(id) {
+    return onChat(get(), id, 'getJoinRequests');
+  },
+
+  processJoinRequest(id, userId, approve) {
+    return onChat(get(), id, 'processJoinRequest', userId, approve);
+  },
+
   async getMembers(id) {
     const route = requireRoute(get(), id);
     return route.session.getMembers(route.nativeId);
+  },
+
+  mentionCandidates(id, query) {
+    return onChat(get(), id, 'mentionCandidates', query);
+  },
+
+  getGroupInfo(id) {
+    return onChat(get(), id, 'getGroupInfo');
+  },
+
+  setSlowModeDelay(id, seconds) {
+    return onChat(get(), id, 'setSlowModeDelay', seconds);
   },
 
   addMembers(id, peers) {
@@ -290,6 +432,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   removeMembers(id, peers) {
     return afterRoute(get, id, (route) => route.session.removeMembers(route.nativeId, peers));
+  },
+
+  banMember(id, peer) {
+    return onChat(get(), id, 'banMember', peer);
+  },
+
+  setMemberMuted(id, peer, muted) {
+    return onChat(get(), id, 'setMemberMuted', peer, muted);
   },
 
   renameGroup(id, title) {
@@ -377,15 +527,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       fresh.map(async (bot) => {
         const id = botConversationId(bot.id);
         const raw = await store.loadMessages(id, HYDRATE_LIMIT);
+        const createdAt =
+          storedConversations.get(id)?.createdAt ??
+          raw[0]?.sentAt ??
+          (id === SAVED_LOCAL_ID ? 0 : Date.now());
         await store.upsertConversation({
           id,
           protocolId: LOCAL_PROTOCOL,
           participants: [bot.id],
           title: bot.name,
-          createdAt: storedConversations.get(id)?.createdAt ?? raw[0]?.sentAt ?? Date.now(),
+          createdAt,
           hidden: false,
         });
-        return { bot, raw };
+        return { bot, raw, createdAt };
       })
     );
     if (stale()) return;
@@ -395,7 +549,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         let next = { messages: state.messages, rawMessages: state.rawMessages };
         const added: Conversation[] = [];
         const present = new Set(state.conversations.map((c) => c.id));
-        for (const { bot, raw } of loaded) {
+        for (const { bot, raw, createdAt } of loaded) {
           const id = botConversationId(bot.id);
           if (present.has(id)) continue;
           present.add(id);
@@ -407,7 +561,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             kind: 'dm',
             title: bot.name,
             memberIds: [bot.id],
-            createdAt: messages[0]?.sentAt ?? Date.now(),
+            createdAt,
             consent: 'allowed',
             lastMessage: messages.at(-1),
           });
@@ -487,6 +641,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => withRaw(state, id, [...rawOf(state, id), message]));
   },
 
+  setDraft(id, text) {
+    const drafts = withDraft(get().drafts, id, text);
+    set({ drafts });
+    saveDraftsSoon(requireAccountStorage(get()), drafts);
+    const route = routeOrNull(get(), id);
+    if (route?.session.saveDraft)
+      draftSync.typed(id, text, (latest) =>
+        capability(route.session, 'saveDraft')(route.nativeId, latest)
+      );
+  },
+
   async setChatPref(id, change) {
     const next = withPref(get().chatPrefs, id, change);
     set({ chatPrefs: next });
@@ -497,13 +662,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const now = Date.now();
     set((state) => ({ readAt: { ...state.readAt, [id]: now } }));
     await writeReadState(requireAccountStorage(get()), get().readAt);
+    const route = routeOrNull(get(), id);
+    if (get().conversations.find((c) => c.id === id)?.markedUnread) markOnNetwork(route, false);
 
     if (!useAppearanceStore.getState().readReceipts) return;
     if (isLocalConversation(id)) return;
+    route?.session.sendReadReceipt?.(route.nativeId).catch(() => {});
+  },
 
+  async setTyping(id, typing) {
+    if (!useAppearanceStore.getState().typingIndicators) return;
     const route = routeOrNull(get(), id);
-    if (!route?.session.sendReadReceipt) return;
-    route.session.sendReadReceipt(route.nativeId).catch(() => {});
+    if (route?.session.setTyping) await route.session.setTyping(route.nativeId, typing);
+  },
+
+  watchPresence(id) {
+    const route = routeOrNull(get(), id);
+    return route?.session.watchPresence?.(route.nativeId) ?? (() => {});
+  },
+
+  async markUnread(id) {
+    set((state) => ({ readAt: { ...state.readAt, [id]: MARKED_UNREAD } }));
+    await writeReadState(requireAccountStorage(get()), get().readAt);
+    markOnNetwork(routeOrNull(get(), id), true);
   },
 
   async setConsent(id, consent) {
@@ -546,7 +727,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ...loaded,
         conversations: touchesPreview
           ? sortConversations(
-              state.conversations.map((c) => (c.id === id ? { ...c, lastMessage: message } : c))
+              state.conversations.map((c) =>
+                c.id === id &&
+                (!c.lastMessage ||
+                  c.lastMessage.id === message.id ||
+                  message.sentAt >= c.lastMessage.sentAt)
+                  ? { ...c, lastMessage: message }
+                  : c
+              )
             )
           : state.conversations,
       };
@@ -598,13 +786,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   ingestConversations(conversations: Conversation[]) {
     if (conversations.length === 0) return;
-    set((state) => {
-      const incoming = new Map(conversations.map((c) => [c.id, c]));
-      const known = new Set(state.conversations.map((c) => c.id));
-      const added = [...incoming.values()].filter((c) => !known.has(c.id));
-      const merged = state.conversations.map((c) => incoming.get(c.id) ?? c);
-      return { conversations: sortConversations([...added, ...merged]) };
-    });
+    const before = get();
+    const known = new Map(before.conversations.map((c) => [c.id, c]));
+    let { drafts, readAt } = before;
+    for (const conversation of conversations) {
+      const { id, draft } = conversation;
+      if (draft !== undefined) {
+        const adopted = draftSync.received(id, draft, drafts[id] ?? '');
+        if (adopted !== undefined) drafts = withDraft(drafts, id, adopted);
+      }
+      const marked = networkMark(conversation, known.get(id), readAt[id]);
+      if (marked !== undefined) readAt = { ...readAt, [id]: marked };
+    }
+    const incoming = new Map(conversations.map((c) => [c.id, c]));
+    const added = [...incoming.values()].filter((c) => !known.has(c.id));
+    const merged = before.conversations.map((c) => incoming.get(c.id) ?? c);
+    set({ conversations: sortConversations([...added, ...merged]), drafts, readAt });
+
+    const storage = before.accountStorage;
+    if (!storage) return;
+    if (drafts !== before.drafts) saveDraftsSoon(storage, drafts);
+    if (readAt !== before.readAt)
+      writeReadState(storage, readAt).catch((error) =>
+        console.warn('[chat] could not save read state', error)
+      );
   },
 
   replacePending(conversationId: ConversationId, pendingId: string, status: ChatMessage['status']) {
@@ -622,6 +827,24 @@ interface Route {
   protocol: ProtocolId;
   nativeId: string;
   session: ChatSession;
+}
+
+function markOnNetwork(route: Route | null, unread: boolean): void {
+  route?.session
+    .setMarkedUnread?.(route.nativeId, unread)
+    .catch((error) => console.warn('[chat] could not sync the unread mark', error));
+}
+
+/** Only a change on the network moves the mark, so an update sent before our own mark arrived does not undo it. */
+function networkMark(
+  incoming: Conversation,
+  known: Conversation | undefined,
+  readAt: number | undefined
+): number | undefined {
+  if (incoming.markedUnread && !known?.markedUnread && readAt !== MARKED_UNREAD)
+    return MARKED_UNREAD;
+  if (known?.markedUnread && !incoming.markedUnread && readAt === MARKED_UNREAD) return Date.now();
+  return undefined;
 }
 
 function routeOrNull(state: ChatState, id: ConversationId): Route | null {
@@ -647,6 +870,29 @@ function requireRoute(state: ChatState, id: ConversationId): Route {
     );
   }
   throw new Error('Not connected to the network yet.');
+}
+
+type ChatArgs<K extends Capability> =
+  CapabilityMethod<K> extends (id: ConversationId, ...rest: infer R) => unknown ? R : never;
+
+function onChat<K extends Capability>(
+  state: ChatState,
+  id: ConversationId,
+  key: K,
+  ...rest: ChatArgs<K>
+): ReturnType<CapabilityMethod<K>> {
+  const route = requireRoute(state, id);
+  const method = capability(route.session, key) as unknown as (
+    nativeId: string,
+    ...args: unknown[]
+  ) => ReturnType<CapabilityMethod<K>>;
+  return method(route.nativeId, ...rest);
+}
+
+function requireSendable(state: ChatState, id: ConversationId): void {
+  if (state.conversations.find((conversation) => conversation.id === id)?.canSend === false) {
+    throw new Error('You cannot send messages in this chat.');
+  }
 }
 
 function requireSession(state: ChatState, protocol: ProtocolId): ChatSession {
@@ -677,6 +923,20 @@ async function startConversation(
   const accountId = get().accountId;
   const session = requireSession(get(), protocol);
   const conversation = namespaceConversation(protocol, await create(session));
+  if (sameSession(get(), accountId, protocol, session)) get().ingestConversation(conversation);
+  return conversation;
+}
+
+async function joinConversation(
+  get: Getter,
+  protocol: ProtocolId,
+  join: (session: ChatSession) => Promise<Conversation | null>
+): Promise<Conversation | null> {
+  const accountId = get().accountId;
+  const session = requireSession(get(), protocol);
+  const joined = await join(session);
+  if (!joined) return null;
+  const conversation = namespaceConversation(protocol, joined);
   if (sameSession(get(), accountId, protocol, session)) get().ingestConversation(conversation);
   return conversation;
 }
@@ -803,6 +1063,14 @@ export function selfIdFor(
 ): string {
   if (!protocol || protocol === LOCAL_PROTOCOL) return '';
   return state.sessions[protocol]?.self.participantId ?? '';
+}
+
+export function sessionFor(
+  state: Pick<ChatState, 'sessions'>,
+  id: ConversationId | undefined
+): ChatSession | undefined {
+  const route = id ? splitConversationId(id) : null;
+  return route ? state.sessions[route.protocol] : undefined;
 }
 
 export function xmtpSessionFor(

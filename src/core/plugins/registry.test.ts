@@ -1,6 +1,6 @@
 import { capabilitiesOf } from '../identity/account-kind';
 
-import { PluginRegistry } from './registry';
+import { PluginRegistry, worksOn } from './registry';
 import type { Plugin, PluginContext } from './types';
 
 function stubContext(): PluginContext {
@@ -393,6 +393,19 @@ describe('channel scoping', () => {
     expect(registry.commandsFor('xmtp-abc', 'dm').has('rename')).toBe(false);
     // An undeclared command is universal, which is what most of them are.
     expect(registry.commandsFor('xmtp-abc', 'dm').has('dm')).toBe(true);
+  });
+
+  it('offers a command only where the network can do what it needs', () => {
+    const command = {
+      name: 'poll',
+      description: '',
+      usage: '',
+      requires: 'createPoll' as const,
+      run: async () => ({ type: 'handled' as const }),
+    };
+    expect(worksOn(command, { createPoll: async () => {} } as never)).toBe(true);
+    expect(worksOn(command, {} as never)).toBe(false);
+    expect(worksOn({ ...command, requires: undefined }, undefined)).toBe(true);
   });
 
   it('needs both gates, not either', () => {

@@ -15,6 +15,7 @@ import {
   isAttachment,
   isGroupUpdated,
   isReaction,
+  isReadReceipt,
   isReply,
   isText,
   isTextReply,
@@ -32,7 +33,7 @@ import {
   readInlineAttachment,
   writeInlineAttachment,
 } from '@/core/messaging/attachments';
-import type { ChatSession } from '@/core/messaging/protocol';
+import type { ChatSession, GroupInfo } from '@/core/messaging/protocol';
 import type {
   ChatMessage,
   Conversation,
@@ -164,6 +165,19 @@ export class XmtpSession implements ChatSession {
     return converted.reverse();
   }
 
+  async countUnread(id: ConversationId, since: number): Promise<number> {
+    const conversation = await this.client.conversations.getConversationById(id);
+    if (!conversation) return 0;
+    const messages = await conversation.messages({
+      limit: 1000n,
+      ...(since > 0 ? { sentAfterNs: BigInt(since) * 1_000_000n } : {}),
+      excludeSenderInboxIds: [this.self.participantId],
+    });
+    return messages.filter(
+      (message) => !isReaction(message) && !isReadReceipt(message) && !isGroupUpdated(message)
+    ).length;
+  }
+
   async resolvePeer(addressOrId: string): Promise<ParticipantId | null> {
     const trimmed = addressOrId.trim();
 
@@ -228,6 +242,16 @@ export class XmtpSession implements ChatSession {
   async getMembers(id: ConversationId): Promise<GroupMember[]> {
     const members = await (await this.requireGroup(id)).members();
     return members.map((m) => ({ id: m.inboxId, role: mapRole(m.permissionLevel) }));
+  }
+
+  async getGroupInfo(id: ConversationId): Promise<GroupInfo> {
+    const group = await this.requireGroup(id);
+    const members = await group.members();
+    return {
+      description: group.description,
+      avatarUri: group.imageUrl || undefined,
+      memberCount: members.length,
+    };
   }
 
   async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
@@ -353,6 +377,15 @@ export class XmtpSession implements ChatSession {
     return this.consume(stream, async (message) => {
       onMessage(await this.toMessage(message, message.conversationId));
     });
+  }
+
+  async streamDeletedMessages(
+    listener: (id: ConversationId, messageIds: MessageId[]) => void
+  ): Promise<Unsubscribe> {
+    const stream = await this.client.conversations.streamDeletedMessages({
+      onError: (error) => console.warn('[xmtp] deletion stream error', error),
+    });
+    return this.consume(stream, (message) => listener(message.conversationId, [message.id]));
   }
 
   async streamConversations(onConversation: (c: Conversation) => void): Promise<Unsubscribe> {

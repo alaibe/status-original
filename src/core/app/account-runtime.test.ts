@@ -53,6 +53,41 @@ beforeEach(() => {
 });
 
 describe('AccountRuntime', () => {
+  it('routes network deletions to the loaded chat', async () => {
+    const runtime = new AccountRuntime(PROTOCOLS);
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'chat' });
+    let deleted!: (id: string, ids: string[]) => void;
+    Object.assign(session, {
+      streamDeletedMessages: async (listener: typeof deleted) => {
+        deleted = listener;
+        return () => {};
+      },
+    });
+    await runtime.synchronize(input('deletion-test', new PluginRegistry(), async () => session));
+    await useChatStore.getState().loadMessages('xmtp-chat');
+    session.deliver('chat', { id: 'message', content: { kind: 'text', text: 'bye' } });
+    deleted('chat', ['message']);
+    expect(useChatStore.getState().messages['xmtp-chat']).toEqual([]);
+    await runtime.synchronize(null);
+  });
+
+  it('keeps Saved Messages available without a plugin', async () => {
+    const runtime = new AccountRuntime(PROTOCOLS);
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'chat', createdAt: 1 });
+    await runtime.synchronize(input('saved-account', new PluginRegistry(), async () => session));
+    expect(useChatStore.getState().conversations.map((c) => c.id)).toEqual([
+      'xmtp-chat',
+      'local-saved',
+    ]);
+    await useChatStore.getState().sendMessage('local-saved', { kind: 'text', text: 'remember' });
+    expect(useChatStore.getState().messages['local-saved']).toEqual([
+      expect.objectContaining({ content: { kind: 'text', text: 'remember' } }),
+    ]);
+    await runtime.synchronize(null);
+  });
+
   it('switches projection before an unfinished old start resolves', async () => {
     const runtime = new AccountRuntime(PROTOCOLS);
     const oldSession = new InMemoryChatSession();
@@ -152,7 +187,7 @@ describe('AccountRuntime', () => {
     });
 
     expect(useChatStore.getState().accountId).toBe('account-b');
-    expect(useChatStore.getState().messages).toEqual({});
+    expect(useChatStore.getState().messages['xmtp-old']).toBeUndefined();
     await runtime.synchronize(null);
   });
 

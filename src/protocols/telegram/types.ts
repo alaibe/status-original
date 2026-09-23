@@ -12,6 +12,7 @@ export interface TdUser extends TdObject {
   last_name: string;
   usernames?: { active_usernames: string[] };
   phone_number: string;
+  status?: { '@type': string; was_online?: number };
   type: { '@type': 'userTypeRegular' | 'userTypeBot' | 'userTypeDeleted' | 'userTypeUnknown' };
 }
 
@@ -26,13 +27,24 @@ export interface TdChatPosition {
   order: string;
 }
 
+export interface TdDraftMessage {
+  content: { '@type': string; text?: TdFormattedText };
+}
+
 export interface TdChat extends TdObject {
   '@type': 'chat';
   id: number;
   type: TdChatType;
   title: string;
+  photo?: { small: TdFile; big: TdFile } | null;
   positions: TdChatPosition[];
   last_message?: TdMessage;
+  unread_count?: number;
+  unread_mention_count?: number;
+  is_marked_as_unread?: boolean;
+  draft_message?: TdDraftMessage | null;
+  pending_join_requests?: { total_count: number } | null;
+  permissions?: TdPermissions;
   last_read_outbox_message_id: number;
   block_list?: TdObject | null;
 }
@@ -45,24 +57,43 @@ export type TdMemberStatus =
   | 'chatMemberStatusLeft'
   | 'chatMemberStatusBanned';
 
+export interface TdPermissions {
+  can_send_basic_messages: boolean;
+  can_pin_messages?: boolean;
+}
+
+export interface TdStatus {
+  '@type': TdMemberStatus;
+  permissions?: TdPermissions;
+  rights?: {
+    can_restrict_members?: boolean;
+    can_post_messages?: boolean;
+    can_edit_messages?: boolean;
+    can_delete_messages?: boolean;
+    can_pin_messages?: boolean;
+  };
+}
+
 export interface TdBasicGroup extends TdObject {
   '@type': 'basicGroup';
   id: number;
   member_count: number;
-  status: { '@type': TdMemberStatus };
+  status: TdStatus;
 }
 
 export interface TdSupergroup extends TdObject {
   '@type': 'supergroup';
   id: number;
   member_count: number;
-  status: { '@type': TdMemberStatus };
+  usernames?: { active_usernames: string[] } | null;
+  join_by_request?: boolean;
+  status: TdStatus;
   is_channel: boolean;
 }
 
 export interface TdChatMember {
   member_id: TdSender;
-  status: { '@type': TdMemberStatus };
+  status: TdStatus;
 }
 
 export type TdSender =
@@ -89,6 +120,8 @@ export interface TdMessage extends TdObject {
   sender_id: TdSender;
   date: number;
   is_outgoing: boolean;
+  is_pinned?: boolean;
+  edit_date?: number;
   sending_state?: TdObject | null;
   reply_to?:
     | { '@type': 'messageReplyToMessage'; chat_id: number; message_id: number }
@@ -135,4 +168,6 @@ export interface TdChatMembers extends TdObject {
 export interface TdBasicGroupFullInfo extends TdObject {
   '@type': 'basicGroupFullInfo';
   members: TdChatMember[];
+  description?: string;
+  invite_link?: { invite_link: string } | null;
 }

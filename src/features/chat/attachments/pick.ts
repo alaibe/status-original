@@ -25,25 +25,85 @@ function imageFrom(asset: ImagePicker.ImagePickerAsset): MessageContent {
   return {
     kind: 'image',
     uri: asset.uri,
-    width: asset.width,
-    height: asset.height,
+    width: asset.width || undefined,
+    height: asset.height || undefined,
     size: asset.fileSize,
     name: asset.fileName ?? undefined,
     mimeType: asset.mimeType,
   };
 }
 
-export async function pickImage(): Promise<MessageContent | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) throw new AttachmentRejected('Photo access is off for this app.');
+async function imageFromBrowserFile(file: File): Promise<MessageContent> {
+  const uri = URL.createObjectURL(file);
+  let resultUri = uri;
+  try {
+    const asset = await compressPickedImage({
+      uri,
+      width: 0,
+      height: 0,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    });
+    resultUri = asset.uri;
+    const content = imageFrom(asset);
+    if (resultUri !== uri) URL.revokeObjectURL(uri);
+    return content;
+  } catch (error) {
+    URL.revokeObjectURL(uri);
+    if (resultUri !== uri) URL.revokeObjectURL(resultUri);
+    throw error;
+  }
+}
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    quality: PHOTO_QUALITY,
-    exif: false,
-  });
-  if (result.canceled || !result.assets[0]) return null;
-  return imageFrom(await compressPickedImage(result.assets[0]));
+export async function contentFromBrowserFile(
+  file: File,
+  sendsVideo: boolean
+): Promise<MessageContent> {
+  if (file.type.startsWith('image/') && file.type !== 'image/svg+xml')
+    return imageFromBrowserFile(file);
+  const base = {
+    uri: URL.createObjectURL(file),
+    name: file.name,
+    mimeType: file.type || undefined,
+    size: file.size,
+  };
+  if (sendsVideo && file.type.startsWith('video/')) return { kind: 'video', ...base };
+  assertFits(file.size, 'That file');
+  return { kind: 'file', ...base };
+}
+
+async function fromLibrary(
+  options: ImagePicker.ImagePickerOptions,
+  denied: string
+): Promise<ImagePicker.ImagePickerAsset | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) throw new AttachmentRejected(denied);
+  const result = await ImagePicker.launchImageLibraryAsync(options);
+  return result.canceled ? null : (result.assets[0] ?? null);
+}
+
+export async function pickImage(): Promise<MessageContent | null> {
+  const asset = await fromLibrary(
+    { mediaTypes: ['images'], quality: PHOTO_QUALITY, exif: false },
+    'Photo access is off for this app.'
+  );
+  return asset ? imageFrom(await compressPickedImage(asset)) : null;
+}
+
+export async function pickVideo(): Promise<MessageContent | null> {
+  const asset = await fromLibrary({ mediaTypes: ['videos'] }, 'Video access is off for this app.');
+  if (!asset) return null;
+  return {
+    kind: 'video',
+    uri: asset.uri,
+    width: asset.width || undefined,
+    height: asset.height || undefined,
+    durationMs: asset.duration ?? undefined,
+    name: asset.fileName ?? undefined,
+    mimeType: asset.mimeType,
+    size: asset.fileSize,
+  };
 }
 
 export async function takePhoto(): Promise<MessageContent | null> {

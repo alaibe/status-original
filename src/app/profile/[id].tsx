@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
-import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 
 import {
@@ -9,15 +8,12 @@ import {
   BackHeader,
   Badge,
   Card,
-  ConfirmSheet,
   Icon,
   ListItem,
   Pressable,
-  RowIcon,
   Screen,
-  Section,
   Text,
-  toast,
+  copyText,
   type IconName,
   useThemeColors,
 } from '@/design';
@@ -37,11 +33,20 @@ import {
   conversationTitle,
   useDisplayNames,
 } from '@/features/chat/use-display-names';
+import { useSupports } from '@/features/chat/use-supports';
 import { useBack } from '@/features/navigation/use-back';
 import { openChatFromProfile } from '@/features/navigation/open';
-import { resolveEnsProfile, type EnsProfile } from '@/lib/evm/ens-profile';
+import { resolveEnsProfile } from '@/lib/evm/ens-profile';
 import { protocolSubtitle } from '@/features/protocols/presentation';
 import { openInBrowser } from '@/lib/open-url';
+import { JoinRequests } from '@/features/chat/join-requests';
+import {
+  GroupAbout,
+  InviteLinks,
+  MemberModeration,
+  SlowModeSection,
+} from '@/features/chat/group-sections';
+import { useKeyedLoad } from '@/lib/use-keyed-load';
 
 const TABS: { id: MediaCategory; label: string }[] = [
   { id: 'media', label: 'Media' },
@@ -50,6 +55,8 @@ const TABS: { id: MediaCategory; label: string }[] = [
   { id: 'links', label: 'Links' },
   { id: 'gifs', label: 'GIFs' },
 ];
+
+const ensOf = (address: string) => resolveEnsProfile(address as `0x${string}`);
 
 export default function ProfileScreen() {
   const { id, member } = useLocalSearchParams<{ id: string; member?: string }>();
@@ -61,30 +68,26 @@ export default function ProfileScreen() {
   const mediaIndex = useChatStore((s) => s.mediaIndex);
   const chatPrefs = useChatStore((s) => s.chatPrefs);
   const setChatPref = useChatStore((s) => s.setChatPref);
+  const getGroupInfo = useChatStore((s) => s.getGroupInfo);
 
   const conversation = conversations.find((c) => c.id === id);
+  const conversationKind = conversation?.kind;
+  const { supports } = useSupports(id);
+  const canGetGroupInfo = supports('getGroupInfo');
   const selfId = selfIdFor({ sessions }, conversation?.protocol);
   const peers = conversation ? conversationPeers(conversation, selfId) : [];
   const { nameFor, addressFor } = useDisplayNames(peers);
 
   const [tab, setTab] = useState<MediaCategory>('media');
-  const [ens, setEns] = useState<EnsProfile | null>(null);
-  const [removing, setRemoving] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const details = useKeyedLoad(
+    conversationKind && conversationKind !== 'dm' && !member && canGetGroupInfo ? id : null,
+    getGroupInfo
+  );
 
-  const focusId = member ?? peers[0]?.id;
+  const focusId = member ?? (conversationKind === 'dm' ? peers[0]?.id : undefined);
   const peerAddress = focusId ? addressFor?.(focusId) : undefined;
-
-  useEffect(() => {
-    if (!peerAddress?.startsWith('0x')) return;
-    let cancelled = false;
-    resolveEnsProfile(peerAddress as `0x${string}`).then((profile) => {
-      if (!cancelled) setEns(profile);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [peerAddress]);
+  const shownEns = useKeyedLoad(peerAddress?.startsWith('0x') ? peerAddress : null, ensOf).value;
 
   const counts = countsFor(mediaIndex, id);
   const entries = entriesOf(mediaIndex, id, tab);
@@ -102,13 +105,19 @@ export default function ProfileScreen() {
   }
 
   const title =
-    ens?.name ?? (member ? nameFor(member) : conversationTitle(conversation, selfId, nameFor));
+    shownEns?.name ?? (member ? nameFor(member) : conversationTitle(conversation, selfId, nameFor));
   const canRemove =
     Boolean(member) &&
     member !== selfId &&
     conversation.kind === 'group' &&
     (conversation.selfRole === 'owner' || conversation.selfRole === 'admin');
   const muted = Boolean(chatPrefs[id]?.muted);
+  const groupInfo = details.value;
+  const groupLink = groupInfo?.link;
+  const canInvite =
+    !member &&
+    (conversation.selfRole === 'owner' || conversation.selfRole === 'admin') &&
+    supports('createInviteLink');
   const cell = Math.floor((Math.min(width, 720) - 4 * 2) / 3) - 2;
 
   return (
@@ -118,31 +127,32 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
         <View className="items-center gap-3 px-gutter pb-5">
-          {ens?.avatar ? (
-            <Image
-              source={{ uri: ens.avatar }}
-              style={{ width: 96, height: 96, borderRadius: 48 }}
-              contentFit="cover"
-            />
-          ) : (
-            <Avatar
-              seed={focusId ?? conversation.id}
-              size="xl"
-              label={!member && conversation.kind === 'group' ? conversation.title : undefined}
-            />
-          )}
+          <Avatar
+            seed={focusId ?? conversation.id}
+            size="xl"
+            label={!member && conversation.kind !== 'dm' ? conversation.title : undefined}
+            image={groupInfo?.avatarUri ?? shownEns?.avatar ?? undefined}
+          />
 
           <View className="items-center gap-1">
             <Text variant="headline">{title}</Text>
-            {ens?.name ? (
+            {shownEns?.name ? (
               <Badge
                 label={
-                  ens.paidUntil ? `ENS · held through ${ens.paidUntil.getFullYear()}` : 'ENS name'
+                  shownEns.paidUntil
+                    ? `ENS · held through ${shownEns.paidUntil.getFullYear()}`
+                    : 'ENS name'
                 }
                 tone="success"
               />
             ) : null}
             <Text variant="micro">{protocolSubtitle(conversation.protocol)}</Text>
+            {groupInfo?.memberCount ? (
+              <Text variant="caption">
+                {groupInfo.memberCount}{' '}
+                {conversation.kind === 'channel' ? 'subscribers' : 'members'}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -159,16 +169,16 @@ export default function ProfileScreen() {
               onPress={() => setChatPref(id, { muted: !muted })}
             />
           )}
-          <Action
-            icon="copy-outline"
-            label="Copy"
-            onPress={async () => {
-              const value = peerAddress ?? focusId ?? '';
-              if (!value) return;
-              await Clipboard.setStringAsync(value);
-              toast.success('Copied');
-            }}
-          />
+          {peerAddress || focusId || groupLink ? (
+            <Action
+              icon="copy-outline"
+              label="Copy"
+              onPress={() => void copyText(groupLink ?? peerAddress ?? focusId ?? '')}
+            />
+          ) : null}
+          {canInvite ? (
+            <Action icon="person-add-outline" label="Invite" onPress={() => setInviting(true)} />
+          ) : null}
         </View>
 
         {peerAddress ? (
@@ -177,15 +187,15 @@ export default function ProfileScreen() {
             <Text variant="mono" selectable>
               {shortAddress(peerAddress, 12, 10)}
             </Text>
-            {ens?.description ? (
+            {shownEns?.description ? (
               <Text variant="footnote" className="pt-1">
-                {ens.description}
+                {shownEns.description}
               </Text>
             ) : null}
-            {ens?.paidUntil ? (
+            {shownEns?.paidUntil ? (
               <Text variant="micro" className="pt-1">
-                {ens.name} is registered until{' '}
-                {ens.paidUntil.toLocaleDateString(undefined, {
+                {shownEns.name} is registered until{' '}
+                {shownEns.paidUntil.toLocaleDateString(undefined, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
@@ -196,17 +206,39 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
-        {canRemove ? (
-          <Section surface="card" className="mb-5">
-            <ListItem
-              testID="profile-remove-member"
-              title="Remove from group"
-              subtitle="They stop receiving messages. Rejoining needs a fresh invite."
-              numberOfLinesSubtitle={2}
-              leading={<RowIcon name="person-remove-outline" tone="red" />}
-              onPress={() => setRemoving(true)}
-            />
-          </Section>
+        {!member && (conversation.kind === 'group' || conversation.kind === 'channel') ? (
+          <GroupAbout
+            info={groupInfo}
+            error={
+              details.error ? errorMessage(details.error, 'Could not load details') : undefined
+            }
+          />
+        ) : null}
+
+        {canInvite ? (
+          <InviteLinks conversationId={id} visible={inviting} onClose={() => setInviting(false)} />
+        ) : null}
+
+        {canInvite && supports('getJoinRequests') ? (
+          <JoinRequests conversationId={id} pending={conversation.pendingJoinRequests} />
+        ) : null}
+
+        {!member && groupInfo?.canSetSlowMode ? (
+          <SlowModeSection
+            conversationId={id}
+            delay={groupInfo.slowModeDelay}
+            onChanged={(seconds) => details.update((info) => ({ ...info, slowModeDelay: seconds }))}
+          />
+        ) : null}
+
+        {canRemove && member ? (
+          <MemberModeration
+            conversationId={id}
+            member={member}
+            memberName={title}
+            groupTitle={conversation.title}
+            onRemoved={goBack}
+          />
         ) : null}
 
         {member ? null : (
@@ -270,32 +302,6 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
-
-      <ConfirmSheet
-        visible={removing}
-        onClose={() => setRemoving(false)}
-        title={`Remove ${title} from ${conversation.title}?`}
-        body="They stop receiving messages from this group immediately. Nothing they already received is recalled, and rejoining needs a fresh invite from an admin."
-        busy={busy}
-        confirm={{
-          testID: 'confirm-remove-member',
-          label: 'Remove from group',
-          tone: 'danger',
-          onPress: async () => {
-            if (!member) return;
-            setBusy(true);
-            try {
-              await useChatStore.getState().removeMembers(id, [member]);
-              toast.success('Removed');
-              setRemoving(false);
-              goBack();
-            } catch (e) {
-              toast.error(errorMessage(e, 'Could not remove them'));
-            }
-            setBusy(false);
-          },
-        }}
-      />
     </Screen>
   );
 }

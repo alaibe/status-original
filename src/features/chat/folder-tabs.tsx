@@ -6,6 +6,7 @@ import type { ChatFilter } from '@/core/messaging/folders';
 const FILTERS: { id: ChatFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'unread', label: 'Unread' },
+  { id: 'mentions', label: 'Mentions' },
   { id: 'direct', label: 'Direct' },
   { id: 'groups', label: 'Groups' },
 ];
@@ -14,16 +15,18 @@ export function FilterTabs({
   active,
   onSelect,
   unread,
+  mentions,
 }: {
   active: ChatFilter;
   onSelect: (filter: ChatFilter) => void;
   unread: number;
+  mentions: number;
 }) {
   return (
     <View className="flex-row border-b border-line px-1.5">
       {FILTERS.map(({ id, label }) => {
         const selected = id === active;
-        const count = id === 'unread' ? unread : 0;
+        const count = id === 'unread' ? unread : id === 'mentions' ? mentions : 0;
         return (
           <Pressable
             key={id}

@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAppearanceStore } from '../app/appearance';
 import { useChatStore } from './chat-store';
 import { InMemoryChatSession } from './in-memory-session';
 import { InMemoryMessageStore } from './message-store';
+import { MARKED_UNREAD } from './unread';
 import {
   connectFake,
   disconnectFake,
@@ -30,7 +32,12 @@ describe('connecting', () => {
     await connect(session);
 
     expect(useChatStore.getState().status).toBe('ready');
-    expect(useChatStore.getState().conversations.map((c) => c.id)).toEqual([ns('c1')]);
+    expect(
+      useChatStore
+        .getState()
+        .conversations.filter((c) => c.protocol !== 'local')
+        .map((c) => c.id)
+    ).toEqual([ns('c1')]);
   });
 
   it('surfaces a failure instead of hanging in "connecting"', async () => {
@@ -45,7 +52,133 @@ describe('connecting', () => {
   });
 });
 
+describe('message search', () => {
+  it('opens stored network hits through their namespaced conversation', async () => {
+    const store = new InMemoryMessageStore();
+    projectTestAccount('test-account', store);
+    await store.insertMessage(
+      {
+        id: 'm1',
+        conversationId: 'c1',
+        senderId: 'them',
+        sentAt: 1,
+        content: { kind: 'text', text: 'needle' },
+        fromMe: false,
+        status: 'sent',
+      },
+      {
+        id: 'c1',
+        protocolId: 'xmtp',
+        participants: ['me', 'them'],
+        createdAt: 1,
+        hidden: false,
+      }
+    );
+    expect((await useChatStore.getState().searchMessages('needle'))[0].conversationId).toBe(
+      ns('c1')
+    );
+    expect((await useChatStore.getState().searchMessages('needle', ns('c1')))[0].id).toBe('m1');
+  });
+
+  it('finds a private note when searching inside its chat', async () => {
+    const store = new InMemoryMessageStore();
+    projectTestAccount('test-account', store);
+    await store.insertMessage({
+      id: 'note',
+      conversationId: ns('c1'),
+      senderId: 'me',
+      sentAt: 1,
+      content: { kind: 'text', text: 'needle to self' },
+      fromMe: true,
+      status: 'sent',
+      privateToMe: true,
+    });
+    const found = await useChatStore.getState().searchMessages('needle', ns('c1'));
+    expect(found.map((message) => message.id)).toEqual(['note']);
+  });
+
+  it('combines network history with messages already loaded in a chat', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    const search = jest.fn(async () => [
+      {
+        id: 'older',
+        conversationId: 'c1',
+        senderId: 'them',
+        sentAt: 1,
+        content: { kind: 'text' as const, text: 'needle before load' },
+        fromMe: false,
+        status: 'sent' as const,
+      },
+    ]);
+    Object.assign(session, { searchMessages: search });
+    await connect(session);
+    session.deliver('c1', {
+      id: 'loaded',
+      sentAt: 2,
+      content: { kind: 'text', text: 'needle now' },
+    });
+    await useChatStore.getState().loadMessages(ns('c1'));
+
+    const found = await useChatStore.getState().searchMessages('needle', ns('c1'));
+    expect(search).toHaveBeenCalledWith('needle', 'c1');
+    expect(found.map((message) => message.id)).toEqual(['loaded', 'older']);
+    expect(found.every((message) => message.conversationId === ns('c1'))).toBe(true);
+  });
+});
+
 describe('sending', () => {
+  it('edits and removes a delivered message without moving an older edit to the top', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    const edit = jest.fn(async (_id: string, messageId: string, text: string) => {
+      session.deliver('c1', {
+        id: messageId,
+        sentAt: 1,
+        fromMe: true,
+        content: { kind: 'text', text },
+      });
+    });
+    const remove = jest.fn().mockResolvedValue(undefined);
+    Object.assign(session, { editMessage: edit, deleteMessage: remove });
+    await connect(session);
+    await useChatStore.getState().loadMessages(ns('c1'));
+    session.deliver('c1', {
+      id: 'older',
+      sentAt: 1,
+      fromMe: true,
+      content: { kind: 'text', text: 'old' },
+    });
+    session.deliver('c1', { id: 'newer', sentAt: 2, content: { kind: 'text', text: 'latest' } });
+
+    await useChatStore.getState().editMessage(ns('c1'), 'older', 'changed');
+    expect(edit).toHaveBeenCalledWith('c1', 'older', 'changed');
+    expect(useChatStore.getState().messages[ns('c1')][0].content).toEqual({
+      kind: 'text',
+      text: 'changed',
+    });
+    expect(
+      useChatStore.getState().conversations.find((c) => c.id === ns('c1'))?.lastMessage?.id
+    ).toBe('newer');
+
+    await useChatStore.getState().deleteMessage(ns('c1'), 'newer', true);
+    expect(remove).toHaveBeenCalledWith('c1', 'newer');
+    expect(useChatStore.getState().messages[ns('c1')].map((m) => m.id)).toEqual(['older']);
+    expect(
+      useChatStore.getState().conversations.find((c) => c.id === ns('c1'))?.lastMessage?.id
+    ).toBe('older');
+  });
+
+  it('does not queue a message when posting is disabled', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1', canSend: false });
+    await connect(session);
+    await expect(
+      useChatStore.getState().sendMessage(ns('c1'), { kind: 'text', text: 'hi' })
+    ).rejects.toThrow('cannot send');
+    expect(session.sent).toHaveLength(0);
+  });
+
   it('shows the message optimistically, then marks it sent', async () => {
     const session = new InMemoryChatSession();
     session.seedConversation({ id: 'c1' });
@@ -193,7 +326,7 @@ describe('receiving', () => {
 
     const state = useChatStore.getState();
     expect(state.messages[ns('c1')].at(-1)?.content).toEqual({ kind: 'text', text: 'incoming' });
-    expect(state.conversations[0].lastMessage?.content).toEqual({
+    expect(state.conversations.find((c) => c.id === ns('c1'))?.lastMessage?.content).toEqual({
       kind: 'text',
       text: 'incoming',
     });
@@ -208,7 +341,9 @@ describe('receiving', () => {
 
     // Preview updates; the transcript stays unloaded until it is opened.
     expect(useChatStore.getState().messages[ns('c1')]).toBeUndefined();
-    expect(useChatStore.getState().conversations[0].lastMessage).toBeDefined();
+    expect(
+      useChatStore.getState().conversations.find((c) => c.id === ns('c1'))?.lastMessage
+    ).toBeDefined();
   });
 
   it('adds a conversation announced mid-session', async () => {
@@ -235,7 +370,9 @@ describe('receiving', () => {
 
     session.deliver('old', { sentAt: 9_000 });
 
-    expect(useChatStore.getState().conversations[0].id).toBe(ns('old'));
+    expect(useChatStore.getState().conversations.find((c) => c.protocol !== 'local')?.id).toBe(
+      ns('old')
+    );
   });
 });
 
@@ -465,6 +602,66 @@ describe('private command output', () => {
   });
 });
 
+describe('typing', () => {
+  it('tells the network only when typing indicators are switched on', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    const setTyping = jest.fn(async () => {});
+    Object.assign(session, { setTyping });
+    await connect(session);
+
+    await useChatStore.getState().setTyping(ns('c1'), true);
+    expect(setTyping).not.toHaveBeenCalled();
+
+    useAppearanceStore.setState({ typingIndicators: true });
+    await useChatStore.getState().setTyping(ns('c1'), true);
+    expect(setTyping).toHaveBeenCalledWith('c1', true);
+    useAppearanceStore.setState({ typingIndicators: false });
+  });
+});
+
+describe('drafts', () => {
+  it('shows a draft the network keeps for the chat', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    await connect(session);
+    useChatStore.getState().ingestConversation({
+      ...useChatStore.getState().conversations.find((c) => c.id === ns('c1'))!,
+      draft: 'from another device',
+    });
+    expect(useChatStore.getState().drafts[ns('c1')]).toBe('from another device');
+  });
+});
+
+describe('marking unread', () => {
+  it('marks the chat on the network, and clears it there once read', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1', markedUnread: true });
+    const setMarkedUnread = jest.fn(async () => {});
+    Object.assign(session, { setMarkedUnread });
+    await connect(session);
+
+    await useChatStore.getState().markUnread(ns('c1'));
+    expect(setMarkedUnread).toHaveBeenLastCalledWith('c1', true);
+
+    await useChatStore.getState().markRead(ns('c1'));
+    expect(setMarkedUnread).toHaveBeenLastCalledWith('c1', false);
+  });
+
+  it('follows a mark made or cleared on another device', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    await connect(session);
+    const chat = () => useChatStore.getState().conversations.find((c) => c.id === ns('c1'))!;
+    const readAt = () => useChatStore.getState().readAt[ns('c1')];
+
+    useChatStore.getState().ingestConversation({ ...chat(), markedUnread: true });
+    expect(readAt()).toBe(MARKED_UNREAD);
+    useChatStore.getState().ingestConversation({ ...chat(), markedUnread: false });
+    expect(readAt()).toBeGreaterThan(0);
+  });
+});
+
 describe('disconnecting', () => {
   it('clears network state', async () => {
     const session = new InMemoryChatSession();
@@ -475,7 +672,9 @@ describe('disconnecting', () => {
 
     expect(session.disconnected).toBe(true);
     expect(useChatStore.getState().status).toBe('idle');
-    expect(useChatStore.getState().conversations).toHaveLength(0);
+    expect(
+      useChatStore.getState().conversations.filter((c) => c.protocol !== 'local')
+    ).toHaveLength(0);
   });
 });
 

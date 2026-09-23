@@ -1,6 +1,13 @@
 import type { ChatMessage, Conversation } from './types';
 
-import { isUnread, totalUnread, unreadCount } from './unread';
+import {
+  isCaughtUp,
+  isUnread,
+  MARKED_UNREAD,
+  totalUnread,
+  unreadBadge,
+  unreadCount,
+} from './unread';
 
 const message = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   id: 'm1',
@@ -49,6 +56,20 @@ describe('isUnread', () => {
   it('is not unread when there are no messages at all', () => {
     expect(isUnread(conversation({ lastMessage: undefined }), {})).toBe(false);
   });
+
+  it('can be manually marked unread after sending', () => {
+    expect(isUnread(conversation({ lastMessage: message({ fromMe: true }) }), { c1: -1 })).toBe(
+      true
+    );
+    expect(unreadCount([message()], -1)).toBe(0);
+  });
+
+  it('uses a network count when available while preserving a local read', () => {
+    const chat = conversation({ unreadCount: 3 });
+    expect(isUnread(chat, {})).toBe(true);
+    expect(isUnread(chat, { c1: 1_500 })).toBe(false);
+    expect(isUnread(conversation({ unreadCount: 0 }), {})).toBe(false);
+  });
 });
 
 describe('totalUnread', () => {
@@ -78,5 +99,21 @@ describe('unreadCount', () => {
     ];
     expect(unreadCount(messages, 1_000)).toBe(2);
     expect(unreadCount(messages, 2_000)).toBe(0);
+  });
+});
+
+describe('unreadBadge', () => {
+  it('prefers the network count, falls back to loaded messages, and is empty once caught up', () => {
+    const c = conversation({ lastMessage: message({ sentAt: 2_000 }) });
+    expect(unreadBadge({ ...c, unreadCount: 7 }, 1_000)).toBe(7);
+    expect(unreadBadge(c, 1_000, [message({ sentAt: 1_500 }), message({ sentAt: 2_000 })])).toBe(2);
+    expect(unreadBadge({ ...c, unreadCount: 7 }, 2_000)).toBe(0);
+  });
+
+  it('shows a dot, not a number, for a chat marked unread by hand', () => {
+    const c = conversation({ unreadCount: 3 });
+    expect(unreadBadge(c, MARKED_UNREAD)).toBe(0);
+    expect(isUnread(c, { c1: MARKED_UNREAD })).toBe(true);
+    expect(isCaughtUp(MARKED_UNREAD, c.lastMessage)).toBe(false);
   });
 });

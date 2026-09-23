@@ -32,21 +32,25 @@
 
 ## Privacy
 
-Two switches, both defaulting to the quieter option:
+Three switches:
 
 - **Send read receipts** is off. The other person does not see when you open
   their messages, and you do not see when they open yours.
+- **Send typing indicators** is off. When it is on, people on Telegram and
+  Matrix see that you are typing. It sends a signal every time you touch the
+  keyboard.
 - **Show link previews** is on. A link becomes a card fetched by this device
   straight from the linked site, so the site learns your address as soon as the
   message arrives, before you tap anything. Turn it off to keep that to
   yourself.
   [Messages](./messages#links-and-everything-tappable) has the detail.
 
-Below the switches the screen lists what the app does *not* do: no last seen,
-no typing indicator, no contact upload. The networks carry no presence, and the
-app does not add a side channel to broadcast when you are online or typing.
-Your address book is read on the device to suggest who to invite, and never
-uploaded.
+Below the switches the screen lists what the app does *not* do. It adds no
+last seen of its own: XMTP, Nostr and Waku carry no presence, Telegram shows
+when you were last online the way the Telegram apps do, and Matrix does when
+your homeserver shares presence. It uploads no
+contacts: your address book is read on the device to suggest who to invite, and
+never sent anywhere.
 
 The full account of what leaves your device, and to whom, is on the
 [Privacy](../privacy) page.

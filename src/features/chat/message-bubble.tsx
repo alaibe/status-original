@@ -1,9 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable as RNPressable, View } from 'react-native';
 
-import * as Clipboard from 'expo-clipboard';
-
-import { cn, Icon, Text, toast, useThemeColors } from '@/design';
+import { cn, Icon, Text, useThemeColors } from '@/design';
 import { usePluginHost } from '@/core/plugins/host';
 import type { ChatMessage, WidgetContent } from '@/core/messaging/types';
 import { MessageActions, type MessageAction, type MessageAnchor } from './message-actions';
@@ -21,8 +19,15 @@ import { useLiveWidget } from './use-live-widget';
 import { FileBubble } from './attachments/file-bubble';
 import { ImageBubble } from './attachments/image-bubble';
 import { VoiceBubble } from './attachments/voice-bubble';
+import { VideoBubble } from './attachments/video-bubble';
+import { PollBubble } from './poll-bubble';
 import { formatTimestamp } from '@/core/messaging/preview';
 import { openInBrowser } from '@/lib/open-url';
+
+export interface ReplyPreview {
+  author: string;
+  preview: string;
+}
 
 export interface MessageBubbleProps {
   message: ChatMessage;
@@ -31,10 +36,9 @@ export interface MessageBubbleProps {
   showSender: boolean;
   onCommand?: (command: string) => void;
   onReact?: (emoji: string) => void;
-  onReply?: () => void;
-  onForward?: () => void;
-  onRetry?: () => void;
-  replyPreview?: { author: string; preview: string };
+  onVote?: (optionIds: number[]) => Promise<void>;
+  actions: MessageAction[];
+  replyPreview?: ReplyPreview;
 }
 
 export function MessageBubble({
@@ -44,9 +48,8 @@ export function MessageBubble({
   showSender,
   onCommand,
   onReact,
-  onReply,
-  onForward,
-  onRetry,
+  onVote,
+  actions,
   replyPreview,
 }: MessageBubbleProps) {
   const { registry } = usePluginHost();
@@ -144,6 +147,30 @@ export function MessageBubble({
       );
       break;
 
+    case 'video':
+      children = (
+        <>
+          <VideoBubble
+            uri={content.uri}
+            width={content.width}
+            height={content.height}
+            caption={content.caption}
+            fromMe={fromMe}
+          />
+          <Footer message={message} />
+        </>
+      );
+      break;
+
+    case 'poll':
+      children = (
+        <>
+          <PollBubble poll={content} fromMe={fromMe} onVote={onVote} />
+          <Footer message={message} />
+        </>
+      );
+      break;
+
     case 'text':
       children = <TextBody message={message} text={content.text} onCommand={onCommand} />;
       break;
@@ -161,10 +188,7 @@ export function MessageBubble({
       reactions={message.reactions}
       privateToMe={message.privateToMe}
       onReact={onReact}
-      onReply={onReply}
-      onForward={onForward}
-      onRetry={onRetry}
-      copyText={copyableText(content)}
+      actions={actions}
       replyPreview={replyPreview}
       bare={bare}>
       {children}
@@ -242,10 +266,7 @@ function BubbleShell({
   privateToMe = false,
   reactions,
   onReact,
-  onReply,
-  onForward,
-  onRetry,
-  copyText,
+  actions,
   replyPreview,
   children,
 }: {
@@ -257,11 +278,8 @@ function BubbleShell({
   privateToMe?: boolean;
   reactions?: Record<string, string[]>;
   onReact?: (emoji: string) => void;
-  onReply?: () => void;
-  onForward?: () => void;
-  onRetry?: () => void;
-  copyText?: string;
-  replyPreview?: { author: string; preview: string };
+  actions: MessageAction[];
+  replyPreview?: ReplyPreview;
   children: React.ReactNode;
 }) {
   const colors = useThemeColors();
@@ -275,34 +293,6 @@ function BubbleShell({
       setPicking(true);
     });
   };
-
-  const actions: MessageAction[] = [];
-  if (onRetry) {
-    actions.push({ id: 'retry', label: 'Try again', icon: 'refresh-outline', onPress: onRetry });
-  }
-  if (onReply) {
-    actions.push({ id: 'reply', label: 'Reply', icon: 'arrow-undo-outline', onPress: onReply });
-  }
-  if (copyText) {
-    actions.push({
-      id: 'copy',
-      label: 'Copy',
-      icon: 'copy-outline',
-      onPress: () => {
-        Clipboard.setStringAsync(copyText)
-          .then(() => toast.success('Copied'))
-          .catch(() => toast.error('Could not copy'));
-      },
-    });
-  }
-  if (onForward) {
-    actions.push({
-      id: 'forward',
-      label: 'Forward',
-      icon: 'arrow-redo-outline',
-      onPress: onForward,
-    });
-  }
 
   const bubble = (held: boolean) => (
     <View
@@ -427,7 +417,7 @@ function Footer({ message }: { message: ChatMessage }) {
       <Text
         variant="micro"
         className={message.fromMe ? 'text-bubble-out-on/70' : 'text-content-subtle'}>
-        {formatTimestamp(message.sentAt)}
+        {`${message.edited ? 'edited ' : ''}${formatTimestamp(message.sentAt)}`}
       </Text>
       {message.fromMe ? (
         <Icon
@@ -444,25 +434,6 @@ function Footer({ message }: { message: ChatMessage }) {
       ) : null}
     </View>
   );
-}
-
-function copyableText(content: ChatMessage['content']): string | undefined {
-  switch (content.kind) {
-    case 'text':
-      return plainText(content.text);
-    case 'system':
-      return content.text;
-    case 'image':
-      return content.caption || undefined;
-    case 'file':
-      return content.name;
-    case 'custom':
-      return content.fallback || undefined;
-    case 'widget':
-      return content.fallback || undefined;
-    default:
-      return undefined;
-  }
 }
 
 const openUrl = (url: string) => {

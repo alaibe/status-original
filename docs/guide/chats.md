@@ -46,26 +46,48 @@ top of the list, not in your chats. Open it, read it, then **Accept** or
 **Ignore**. Until you accept, nothing you do is visible to the sender. A Matrix
 room invitation arrives as a request too, and accepting it joins the room.
 
-## Filters and search
+## Folders and filters
 
-The chips under the search field filter the list: **All**, **Unread**,
-**Groups**, **Bots**, and one per network once you have more than one
-connected. A filter only appears when there is something to put in it.
+Telegram, Matrix and every network a Matrix bridge brings in each get a folder
+in the list, such as **Telegram** or **Slack**, so a busy account does not bury
+the rest. Pin a chat and it stays in the main list. Archived chats have their
+own **Archive** folder.
 
-Search matches conversation titles and the most recent message of each, on this
-device.
+The tabs at the top filter the list: **All**, **Unread**, **Mentions** (chats
+where someone mentioned or replied to you), **Direct** and **Groups**.
 
-## Pin, archive, mute
+## Search
 
-Swipe a conversation, or long-press it, to pin it to the top, archive it out of
-the way, or silence its notifications. Archived chats collect in a folder at the
-bottom of the list. Muting also keeps a conversation out of the **Unread**
-filter.
+The search button inside a chat searches that chat; search from the list looks
+through all of them. Telegram searches its whole history. Matrix searches the
+homeserver's history for rooms without encryption, and for encrypted rooms what
+this device holds. The other networks search what is stored on this device.
+
+On the Mac, **⌘K** jumps to a chat by name, unread chats first.
+
+## Pin, archive, mute, mark unread
+
+Swipe a conversation, or long-press it, to pin it to the top, archive it, or
+silence its notifications. Muted chats stay out of the **Unread** count and do
+not notify.
+
+**Mark as unread** keeps a chat in **Unread** until you open it again. On
+Telegram and Matrix the mark is saved to your account, so a chat marked on your
+phone shows unread on the Mac as well.
 
 ## Groups
 
 Inside a group, `/members` lists who is in it, `/invite` and `/remove` change
 the roster, `/rename` changes the title and `/leave` leaves.
+
+A group's details show its description, link and member count. Admins also see:
+
+- **Invite** to create a link, or one that needs an admin's approval.
+- **Join requests**, to approve or decline each person. The chat's title bar
+  says when requests are waiting.
+- On a member's profile, **Mute in group** (they stay but cannot send),
+  **Remove from group** (they can come back with an invite or a link) and
+  **Ban from group** (they cannot come back).
 
 What each of those means underneath depends on the network. XMTP enforces
 membership cryptographically; a Nostr group is simply the set of recipients;

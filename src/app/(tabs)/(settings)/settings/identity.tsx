@@ -1,11 +1,10 @@
-import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { Card, Enter, Icon, Pressable, Screen, Text, toast, useThemeColors } from '@/design';
+import { Card, copyText, Enter, Icon, Pressable, Screen, Text, useThemeColors } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import { shortAddress } from '@/core/identity/keyring';
 import { RecoveryPhrase } from '@/features/identity/recovery-phrase';
@@ -30,8 +29,7 @@ export default function IdentityScreen() {
               accessibilityLabel="Copy address"
               onPress={async () => {
                 if (!keyring) return;
-                await Clipboard.setStringAsync(keyring.address);
-                toast.success('Address copied');
+                await copyText(keyring.address, 'Address copied');
               }}
               pressScale={0.99}
               className="flex-row items-center justify-between">

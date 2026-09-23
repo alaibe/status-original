@@ -24,9 +24,7 @@ export function ConversationAvatar({
     <Avatar
       seed={isBot ? conversation.id : peer}
       size={size}
-      label={
-        conversation.kind === 'group' || isBot ? conversation.title.replace(/^#/, '') : undefined
-      }
+      label={conversation.kind !== 'dm' || isBot ? conversation.title.replace(/^#/, '') : undefined}
       image={bot.avatar}
       emoji={bot.emoji}
     />

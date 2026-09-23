@@ -1,11 +1,11 @@
 import { isLocalConversation } from './bots';
-import type { ConversationId } from './types';
+import type { ConversationId, ConversationKind } from './types';
 
 export type ConversationScope = 'dm' | 'group' | 'channel';
 
-export function conversationScope(id: ConversationId, kind?: 'dm' | 'group'): ConversationScope {
+export function conversationScope(id: ConversationId, kind?: ConversationKind): ConversationScope {
   if (isLocalConversation(id)) return 'channel';
-  return kind === 'group' ? 'group' : 'dm';
+  return kind ?? 'dm';
 }
 
 export function inScope(

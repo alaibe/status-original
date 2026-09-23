@@ -1,12 +1,12 @@
 import { isLocalConversation } from './bots';
 import type { ChatPrefsMap } from './chat-prefs';
 import { LOCAL_PROTOCOL } from './namespace';
-import { isUnread } from './unread';
+import { hasUnreadMentions, isUnread } from './unread';
 import type { Conversation, ConversationId } from './types';
 
 export type Directory = 'archive' | `network:${string}`;
 
-export type ChatFilter = 'all' | 'unread' | 'direct' | 'groups';
+export type ChatFilter = 'all' | 'unread' | 'mentions' | 'direct' | 'groups';
 
 export interface FolderContext {
   prefs: ChatPrefsMap;
@@ -36,10 +36,12 @@ export function matchesFilter(
       return true;
     case 'unread':
       return isUnreadHere(conversation, context);
+    case 'mentions':
+      return hasUnreadMentions(conversation, context.readAt);
     case 'direct':
       return conversation.kind === 'dm' && !isLocalConversation(conversation.id);
     case 'groups':
-      return conversation.kind === 'group';
+      return conversation.kind === 'group' || conversation.kind === 'channel';
   }
 }
 

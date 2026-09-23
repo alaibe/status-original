@@ -71,7 +71,7 @@ export function conversationTitle(
   selfId: ParticipantId,
   nameFor: (id: ParticipantId) => string
 ): string {
-  if (conversation.kind === 'group') return conversation.title;
+  if (conversation.kind !== 'dm') return conversation.title;
   if (isLocalConversation(conversation.id)) return conversation.title;
 
   const peer = conversation.memberIds.find((id) => id !== selfId) ?? conversation.title;

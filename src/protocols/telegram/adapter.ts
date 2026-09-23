@@ -1,10 +1,16 @@
-import type { ChatSession, LoginState } from '@/core/messaging/protocol';
+import type {
+  ChatSession,
+  GroupInfo,
+  JoinRequest,
+  LoginState,
+  MentionCandidate,
+  PublicChatPreview,
+} from '@/core/messaging/protocol';
 import type {
   ChatMessage,
   Conversation,
   ConversationId,
   GroupMember,
-  GroupRole,
   MessageContent,
   MessageId,
   ParticipantId,
@@ -12,20 +18,26 @@ import type {
   Unsubscribe,
 } from '@/core/messaging/types';
 import { TdRequestError, type TdApi, type TdObject } from './api';
-import { formattedToMarkdown, markdownToFormatted } from './formatting';
-import { localFileUri, pathOfFileUri } from '@/storage/media';
+import { describeAuthError, describeCodeDelivery } from './auth-copy';
+import { inMainList } from './chats';
+import { chatSenderId, messageIdOf, supergroupChatId, tdMessageId } from './ids';
+import { TdDirectory } from './directory';
+import { draftMessage, draftText } from './drafts';
+import { TelegramGroups } from './groups';
+import type { TelegramHost } from './service-host';
+import { TelegramJoining } from './joining';
+import { TelegramMessages } from './messages';
+import { CHAT_PATCHES, TypingTracker } from './updates';
+import { Outbox } from './outbox';
+import { type MappingContext, toMessage } from './mapping';
+import { handleOf, nameOf } from './users';
+import { localFileUri } from '@/storage/media';
 import type {
   TdAuthorizationState,
   TdBasicGroup,
-  TdBasicGroupFullInfo,
   TdChat,
-  TdChatMember,
-  TdChatMembers,
-  TdChatPosition,
   TdChats,
   TdFile,
-  TdFormattedText,
-  TdMemberStatus,
   TdMessage,
   TdMessages,
   TdSender,
@@ -54,21 +66,14 @@ export interface TelegramConnectOptions {
 const MAIN_LIST = { '@type': 'chatListMain' } as const;
 const CHAT_PAGE = 100;
 const MAX_CHAT_PAGES = 20;
-const MEMBER_PAGE = 200;
-const SEND_TIMEOUT_MS = 30_000;
 const PHONE_HINT = 'The number your Telegram account uses, with the country code.';
-
-interface PendingSend {
-  resolve(message: TdMessage): void;
-  reject(error: Error): void;
-}
 
 /**
  * A Telegram user client over TDLib, which owns history, contacts and files
- * in its own database. Only private chats and groups are surfaced: channels
- * are broadcasts, not conversations.
+ * in its own database.
  */
 export class TelegramSession implements ChatSession {
+  readonly sendsVideo = true;
   private api!: TdApi;
   private unsubscribe: Unsubscribe | null = null;
   private me: TdUser | null = null;
@@ -76,14 +81,33 @@ export class TelegramSession implements ChatSession {
   private loginErrorAfterRestart: string | undefined;
   private readonly loginListeners = new Set<(login: LoginState | null) => void>();
   private readonly messageListeners = new Set<(message: ChatMessage) => void>();
+  private readonly deletedListeners = new Set<
+    (id: ConversationId, messageIds: MessageId[]) => void
+  >();
   private readonly conversationListeners = new Set<(conversation: Conversation) => void>();
-  private readonly chats = new Map<number, TdChat>();
-  private readonly users = new Map<number, TdUser>();
-  private readonly basicGroups = new Map<number, TdBasicGroup>();
-  private readonly supergroups = new Map<number, TdSupergroup>();
-  private readonly members = new Map<number, Promise<GroupMember[]>>();
-  private readonly pendingSends = new Map<number, PendingSend>();
+  private readonly outbox = new Outbox();
+  private readonly td = new TdDirectory(
+    () => this.api,
+    () => this.self.participantId
+  );
+  private readonly host: TelegramHost = {
+    api: () => this.api,
+    td: this.td,
+    toConversation: (chat) => this.toConversation(chat),
+    selfUserId: () => this.me?.id,
+    toMessage: (raw, fetchMedia) => this.toMessage(raw, fetchMedia),
+    refetch: (chatId, messageId) => this.refetch(chatId, messageId),
+    emitMessage: (raw) => this.emitMessage(raw),
+  };
+  private readonly groups = new TelegramGroups(this.host);
+  private readonly joining = new TelegramJoining(this.host, this.groups);
+  private readonly messages = new TelegramMessages(this.host, this.outbox);
   private readonly awaitedFiles = new Map<number, { chatId: number; messageId: number }>();
+  private readonly refetching = new Map<string, Promise<void>>();
+  private readonly typing = new TypingTracker((chatId) => {
+    const chat = this.td.chats.get(chatId);
+    if (chat) void this.announce(chat);
+  });
   private chatsLoaded: Promise<void> | null = null;
   private stopped = false;
 
@@ -223,7 +247,7 @@ export class TelegramSession implements ChatSession {
 
   private async onReady(): Promise<void> {
     this.me = await this.api.send<TdUser>({ '@type': 'getMe' });
-    this.users.set(this.me.id, this.me);
+    this.td.users.set(this.me.id, this.me);
     this.setLogin(null);
     await this.api
       .send({
@@ -238,15 +262,10 @@ export class TelegramSession implements ChatSession {
 
   /** TDLib closed on its own (sign-out); start over so the next sign-in can happen. */
   private async onClosed(): Promise<void> {
-    for (const pending of this.pendingSends.values())
-      pending.reject(new Error('Signed out of Telegram'));
-    this.pendingSends.clear();
+    this.outbox.rejectAll(new Error('Signed out of Telegram'));
     this.awaitedFiles.clear();
-    this.chats.clear();
-    this.users.clear();
-    this.basicGroups.clear();
-    this.supergroups.clear();
-    this.members.clear();
+    this.typing.clear();
+    this.td.clear();
     this.chatsLoaded = null;
     this.me = null;
     this.unsubscribe?.();
@@ -258,59 +277,61 @@ export class TelegramSession implements ChatSession {
   // ---- updates ----
 
   private async handleUpdate(update: TdObject): Promise<void> {
+    const patch = CHAT_PATCHES[update['@type']];
+    if (patch) {
+      const chat = this.td.chats.get(update.chat_id as number);
+      if (!chat) return;
+      patch(chat, update);
+      return this.announce(chat);
+    }
     switch (update['@type']) {
       case 'updateAuthorizationState':
         return this.onAuthorizationState(update.authorization_state as TdAuthorizationState);
       case 'updateUser': {
         const user = update.user as TdUser;
-        this.users.set(user.id, user);
+        this.td.users.set(user.id, user);
+        return this.announceUserChats(user.id);
+      }
+      case 'updateUserStatus': {
+        const id = update.user_id as number;
+        const user = this.td.users.get(id);
+        if (!user) return;
+        user.status = update.status as TdUser['status'];
+        return this.announceUserChats(id);
+      }
+      case 'updateChatAction': {
+        const sender = update.sender_id as TdSender;
+        if (sender['@type'] === 'messageSenderUser' && sender.user_id === this.me?.id) return;
+        const chatId = update.chat_id as number;
+        this.typing.set(chatId, (update.action as TdObject)['@type'] === 'chatActionTyping');
+        const chat = this.td.chats.get(chatId);
+        if (chat) await this.announce(chat);
         return;
       }
       case 'updateBasicGroup': {
         const group = update.basic_group as TdBasicGroup;
-        this.basicGroups.set(group.id, group);
+        this.td.basicGroups.set(group.id, group);
+        const chat = this.td.chats.get(-group.id);
+        if (chat) return this.announce(chat);
         return;
       }
       case 'updateSupergroup': {
         const group = update.supergroup as TdSupergroup;
-        this.supergroups.set(group.id, group);
+        this.td.supergroups.set(group.id, group);
+        const chat = this.td.chats.get(supergroupChatId(group.id));
+        if (chat) return this.announce(chat);
         return;
       }
       case 'updateNewChat': {
         const chat = update.chat as TdChat;
-        this.chats.set(chat.id, chat);
-        return this.announce(chat);
-      }
-      case 'updateChatPosition': {
-        const chat = this.chats.get(update.chat_id as number);
-        if (!chat) return;
-        chat.positions = withPosition(chat.positions, update.position as TdChatPosition);
-        return this.announce(chat);
-      }
-      case 'updateChatTitle': {
-        const chat = this.chats.get(update.chat_id as number);
-        if (!chat) return;
-        chat.title = update.title as string;
-        return this.announce(chat);
-      }
-      case 'updateChatLastMessage': {
-        const chat = this.chats.get(update.chat_id as number);
-        if (!chat) return;
-        chat.last_message = (update.last_message as TdMessage | null) ?? undefined;
-        chat.positions = update.positions as TdChatPosition[];
-        return this.announce(chat);
-      }
-      case 'updateChatBlockList': {
-        const chat = this.chats.get(update.chat_id as number);
-        if (!chat) return;
-        chat.block_list = update.block_list as TdObject | null;
+        this.td.chats.set(chat.id, chat);
         return this.announce(chat);
       }
       case 'updateBasicGroupFullInfo':
-        this.members.delete(-(update.basic_group_id as number));
+        this.td.members.delete(-(update.basic_group_id as number));
         return;
       case 'updateSupergroupFullInfo':
-        this.members.delete(supergroupChatId(update.supergroup_id as number));
+        this.td.members.delete(supergroupChatId(update.supergroup_id as number));
         return;
       case 'updateNewMessage': {
         const message = update.message as TdMessage;
@@ -321,22 +342,30 @@ export class TelegramSession implements ChatSession {
       case 'updateMessageSendSucceeded': {
         const message = update.message as TdMessage;
         const oldId = update.old_message_id as number;
-        this.pendingSends.get(oldId)?.resolve(message);
-        this.pendingSends.delete(oldId);
+        this.outbox.resolve(oldId, message);
         return this.emitMessage(message);
       }
       case 'updateMessageSendFailed': {
         const oldId = update.old_message_id as number;
         const error = update.error as { message?: string } | undefined;
-        this.pendingSends
-          .get(oldId)
-          ?.reject(new Error(error?.message ?? 'Telegram did not accept the message'));
-        this.pendingSends.delete(oldId);
+        this.outbox.reject(
+          oldId,
+          new Error(error?.message ?? 'Telegram did not accept the message')
+        );
         return;
       }
       case 'updateMessageContent':
+      case 'updateMessageEdited':
       case 'updateMessageInteractionInfo':
+      case 'updateMessageIsPinned':
         return this.refetch(update.chat_id as number, update.message_id as number);
+      case 'updateDeleteMessages': {
+        if (!update.is_permanent || update.from_cache) return;
+        const chatId = update.chat_id as number;
+        const ids = (update.message_ids as number[]).map((id) => messageIdOf(chatId, id));
+        for (const listener of this.deletedListeners) listener(String(chatId), ids);
+        return;
+      }
       case 'updateFile': {
         const file = update.file as TdFile;
         if (!file.local.is_downloading_completed) return;
@@ -356,20 +385,35 @@ export class TelegramSession implements ChatSession {
     for (const listener of this.conversationListeners) listener(conversation);
   }
 
+  private async announceUserChats(userId: number): Promise<void> {
+    for (const chat of this.td.chats.values()) {
+      if (chat.type['@type'] === 'chatTypePrivate' && chat.type.user_id === userId)
+        await this.announce(chat);
+    }
+  }
+
   private async emitMessage(raw: TdMessage): Promise<void> {
     if (this.messageListeners.size === 0) return;
-    const chat = await this.requireChat(raw.chat_id);
+    const chat = await this.td.requireChat(raw.chat_id);
     if (!this.included(chat)) return;
     const message = this.toMessage(raw, true);
     for (const listener of this.messageListeners) listener(message);
   }
 
-  private async refetch(chatId: number, messageId: number): Promise<void> {
-    if (this.messageListeners.size === 0) return;
-    const message = await this.api
-      .send<TdMessage>({ '@type': 'getMessage', chat_id: chatId, message_id: messageId })
-      .catch(() => null);
-    if (message) await this.emitMessage(message);
+  /** An edit arrives as two updates, content then edit date; they share one fetch. */
+  private refetch(chatId: number, messageId: number): Promise<void> {
+    if (this.messageListeners.size === 0) return Promise.resolve();
+    const key = messageIdOf(chatId, messageId);
+    let pending = this.refetching.get(key);
+    if (!pending) {
+      pending = this.api
+        .send<TdMessage>({ '@type': 'getMessage', chat_id: chatId, message_id: messageId })
+        .then((message) => this.emitMessage(message))
+        .catch(() => {})
+        .finally(() => this.refetching.delete(key));
+      this.refetching.set(key, pending);
+    }
+    return pending;
   }
 
   // ---- ChatSession ----
@@ -383,7 +427,7 @@ export class TelegramSession implements ChatSession {
       limit: CHAT_PAGE * MAX_CHAT_PAGES,
     });
     const chats = chat_ids
-      .map((id) => this.chats.get(id))
+      .map((id) => this.td.chats.get(id))
       .filter((chat): chat is TdChat => chat !== undefined && this.included(chat));
     return Promise.all(chats.map((chat) => this.toConversation(chat)));
   }
@@ -431,7 +475,7 @@ export class TelegramSession implements ChatSession {
         .send<TdChat>({ '@type': 'searchPublicChat', username: value.replace(/^@/, '') })
         .catch(() => null);
       if (!chat) return null;
-      this.chats.set(chat.id, chat);
+      this.td.chats.set(chat.id, chat);
       return chat.type['@type'] === 'chatTypePrivate' ? String(chat.type.user_id) : null;
     }
 
@@ -454,7 +498,7 @@ export class TelegramSession implements ChatSession {
   async resolveAddresses(ids: ParticipantId[]): Promise<Record<ParticipantId, string>> {
     const out: Record<ParticipantId, string> = {};
     for (const id of ids) {
-      const user = await this.userFor(id);
+      const user = await this.td.userFor(id);
       if (user) out[id] = handleOf(user);
     }
     return out;
@@ -463,14 +507,14 @@ export class TelegramSession implements ChatSession {
   async resolveNames(ids: ParticipantId[]): Promise<Record<ParticipantId, string>> {
     const out: Record<ParticipantId, string> = {};
     for (const id of ids) {
-      const user = await this.userFor(id);
+      const user = await this.td.userFor(id);
       if (user) {
         out[id] = nameOf(user);
         continue;
       }
       const chatId = chatSenderId(id);
       if (chatId !== null) {
-        const chat = await this.requireChat(chatId).catch(() => null);
+        const chat = await this.td.requireChat(chatId).catch(() => null);
         if (chat) out[id] = chat.title;
       }
     }
@@ -483,122 +527,119 @@ export class TelegramSession implements ChatSession {
       user_id: Number(peer),
       force: false,
     });
-    this.chats.set(chat.id, chat);
+    this.td.chats.set(chat.id, chat);
     return this.toConversation(chat);
   }
 
-  async createGroup(peers: ParticipantId[], title: string): Promise<Conversation> {
-    const created = await this.api.send<TdObject>({
-      '@type': 'createNewBasicGroupChat',
-      user_ids: peers.map(Number),
-      title,
-    });
-    const chatId =
-      created['@type'] === 'chat' ? (created as TdChat).id : (created.chat_id as number);
-    return this.toConversation(await this.requireChat(chatId));
+  createGroup(peers: ParticipantId[], title: string): Promise<Conversation> {
+    return this.groups.createGroup(peers, title);
   }
 
-  async getMembers(id: ConversationId): Promise<GroupMember[]> {
-    return this.membersOf(await this.requireChat(Number(id)));
+  getMembers(id: ConversationId): Promise<GroupMember[]> {
+    return this.groups.getMembers(id);
   }
 
-  async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
-    await this.api.send({
-      '@type': 'addChatMembers',
-      chat_id: Number(id),
-      user_ids: peers.map(Number),
-    });
-    this.members.delete(Number(id));
+  mentionCandidates(id: ConversationId, query: string): Promise<MentionCandidate[]> {
+    return this.groups.mentionCandidates(id, query);
   }
 
-  async removeMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
-    for (const peer of peers) {
-      await this.api.send({
-        '@type': 'setChatMemberStatus',
-        chat_id: Number(id),
-        member_id: { '@type': 'messageSenderUser', user_id: Number(peer) },
-        status: { '@type': 'chatMemberStatusLeft' },
-      });
-    }
-    this.members.delete(Number(id));
+  getGroupInfo(id: ConversationId): Promise<GroupInfo> {
+    return this.groups.getGroupInfo(id);
   }
 
-  async renameGroup(id: ConversationId, title: string): Promise<void> {
-    await this.api.send({ '@type': 'setChatTitle', chat_id: Number(id), title });
+  setSlowModeDelay(id: ConversationId, seconds: number): Promise<void> {
+    return this.groups.setSlowModeDelay(id, seconds);
   }
 
-  async leaveGroup(id: ConversationId): Promise<void> {
-    await this.api.send({ '@type': 'leaveChat', chat_id: Number(id) });
+  addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
+    return this.groups.addMembers(id, peers);
   }
 
-  async send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId> {
-    const chatId = Number(id);
-
-    if (content.kind === 'reaction') {
-      const reaction = { '@type': 'reactionTypeEmoji', emoji: content.emoji };
-      await this.api.send(
-        content.action === 'added'
-          ? {
-              '@type': 'addMessageReaction',
-              chat_id: chatId,
-              message_id: tdMessageId(content.targetId),
-              reaction_type: reaction,
-              is_big: false,
-              update_recent_reactions: false,
-            }
-          : {
-              '@type': 'removeMessageReaction',
-              chat_id: chatId,
-              message_id: tdMessageId(content.targetId),
-              reaction_type: reaction,
-            }
-      );
-      return `${content.targetId}_reaction`;
-    }
-
-    const request: TdObject = {
-      '@type': 'sendMessage',
-      chat_id: chatId,
-      input_message_content: inputContent(content),
-    };
-    if (replyTo) {
-      request.reply_to = {
-        '@type': 'inputMessageReplyToMessage',
-        message_id: tdMessageId(replyTo),
-      };
-    }
-    const sent = await this.api.send<TdMessage>(request);
-    const final = await this.awaitSent(sent);
-    return messageIdOf(chatId, final.id);
+  removeMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {
+    return this.groups.removeMembers(id, peers);
   }
 
-  /**
-   * TDLib answers sendMessage with a placeholder id and reports the real one
-   * later. Waiting for it turns a rejected send into a failed message instead
-   * of a phantom one; if the network is slow the placeholder is good enough.
-   */
-  private awaitSent(sent: TdMessage): Promise<TdMessage> {
-    if (!sent.sending_state) return Promise.resolve(sent);
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pendingSends.delete(sent.id);
-        resolve(sent);
-      }, SEND_TIMEOUT_MS);
-      this.pendingSends.set(sent.id, {
-        resolve: (message) => {
-          clearTimeout(timer);
-          resolve(message);
-        },
-        reject: (error) => {
-          clearTimeout(timer);
-          reject(error);
-        },
-      });
-    });
+  banMember(id: ConversationId, peer: ParticipantId): Promise<void> {
+    return this.groups.banMember(id, peer);
+  }
+
+  setMemberMuted(id: ConversationId, peer: ParticipantId, muted: boolean): Promise<void> {
+    return this.groups.setMemberMuted(id, peer, muted);
+  }
+
+  renameGroup(id: ConversationId, title: string): Promise<void> {
+    return this.groups.renameGroup(id, title);
+  }
+
+  leaveGroup(id: ConversationId): Promise<void> {
+    return this.groups.leaveGroup(id);
+  }
+
+  previewPublicChat(usernameOrLink: string): Promise<PublicChatPreview> {
+    return this.joining.previewPublicChat(usernameOrLink);
+  }
+
+  joinPublicChat(id: ConversationId): Promise<Conversation | null> {
+    return this.joining.joinPublicChat(id);
+  }
+
+  createInviteLink(id: ConversationId, requiresApproval: boolean): Promise<string> {
+    return this.joining.createInviteLink(id, requiresApproval);
+  }
+
+  getJoinRequests(id: ConversationId): Promise<JoinRequest[]> {
+    return this.joining.getJoinRequests(id);
+  }
+
+  processJoinRequest(id: ConversationId, userId: ParticipantId, approve: boolean): Promise<void> {
+    return this.joining.processJoinRequest(id, userId, approve);
+  }
+
+  send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId> {
+    return this.messages.send(id, content, replyTo);
+  }
+
+  editMessage(id: ConversationId, messageId: MessageId, text: string): Promise<void> {
+    return this.messages.editMessage(id, messageId, text);
+  }
+
+  deleteMessage(id: ConversationId, messageId: MessageId): Promise<void> {
+    return this.messages.deleteMessage(id, messageId);
+  }
+
+  deleteMessageForMe(id: ConversationId, messageId: MessageId): Promise<void> {
+    return this.messages.deleteMessageForMe(id, messageId);
+  }
+
+  votePoll(id: ConversationId, messageId: MessageId, optionIds: number[]): Promise<void> {
+    return this.messages.votePoll(id, messageId, optionIds);
+  }
+
+  createPoll(id: ConversationId, question: string, options: string[]): Promise<void> {
+    return this.messages.createPoll(id, question, options);
+  }
+
+  listPinnedMessages(id: ConversationId): Promise<ChatMessage[]> {
+    return this.messages.listPinnedMessages(id);
+  }
+
+  searchMessages(query: string, id?: ConversationId): Promise<ChatMessage[]> {
+    return this.messages.searchMessages(query, id);
+  }
+
+  setMessagePinned(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void> {
+    return this.messages.setMessagePinned(id, messageId, pinned);
+  }
+
+  async streamDeletedMessages(
+    listener: (id: ConversationId, messageIds: MessageId[]) => void
+  ): Promise<Unsubscribe> {
+    this.deletedListeners.add(listener);
+    return () => this.deletedListeners.delete(listener);
   }
 
   async setConsent(id: ConversationId, consent: 'allowed' | 'denied'): Promise<void> {
-    const chat = await this.requireChat(Number(id));
+    const chat = await this.td.requireChat(Number(id));
     if (chat.type['@type'] !== 'chatTypePrivate') return;
     await this.api.send({
       '@type': 'setMessageSenderBlockList',
@@ -608,13 +649,40 @@ export class TelegramSession implements ChatSession {
   }
 
   async sendReadReceipt(id: ConversationId): Promise<void> {
-    const chat = this.chats.get(Number(id));
+    const chat = this.td.chats.get(Number(id));
     if (!chat?.last_message) return;
     await this.api.send({
       '@type': 'viewMessages',
       chat_id: chat.id,
       message_ids: [chat.last_message.id],
       force_read: true,
+    });
+  }
+
+  async saveDraft(id: ConversationId, text: string): Promise<void> {
+    await this.api.send({
+      '@type': 'setChatDraftMessage',
+      chat_id: Number(id),
+      topic_id: null,
+      draft_message: text ? draftMessage(text) : null,
+    });
+  }
+
+  async setMarkedUnread(id: ConversationId, unread: boolean): Promise<void> {
+    await this.api.send({
+      '@type': 'toggleChatIsMarkedAsUnread',
+      chat_id: Number(id),
+      is_marked_as_unread: unread,
+    });
+  }
+
+  async setTyping(id: ConversationId, typing: boolean): Promise<void> {
+    await this.api.send({
+      '@type': 'sendChatAction',
+      chat_id: Number(id),
+      topic_id: null,
+      business_connection_id: '',
+      action: { '@type': typing ? 'chatActionTyping' : 'chatActionCancel' },
     });
   }
 
@@ -632,7 +700,7 @@ export class TelegramSession implements ChatSession {
   async streamConversations(onConversation: (c: Conversation) => void): Promise<Unsubscribe> {
     this.conversationListeners.add(onConversation);
     // Chats TDLib pushed before anyone was listening.
-    for (const chat of this.chats.values()) {
+    for (const chat of this.td.chats.values()) {
       if (this.included(chat) && inMainList(chat)) {
         void this.toConversation(chat).then((conversation) => {
           if (this.conversationListeners.has(onConversation)) onConversation(conversation);
@@ -643,29 +711,26 @@ export class TelegramSession implements ChatSession {
   }
 
   async disconnect(): Promise<void> {
-    this.stopped = true;
-    this.unsubscribe?.();
-    this.unsubscribe = null;
+    this.stop();
     await this.api.close();
   }
 
   async eraseLocalDatabase(): Promise<void> {
+    this.stop();
+    await this.api.destroy();
+  }
+
+  private stop(): void {
     this.stopped = true;
+    this.typing.clear();
     this.unsubscribe?.();
     this.unsubscribe = null;
-    await this.api.destroy();
   }
 
   // ---- mapping ----
 
   private included(chat: TdChat): boolean {
-    const type = chat.type;
-    if (type['@type'] === 'chatTypePrivate') return true;
-    if (type['@type'] === 'chatTypeBasicGroup') return true;
-    if (type['@type'] === 'chatTypeSupergroup') {
-      return !(type.is_channel || this.supergroups.get(type.supergroup_id)?.is_channel);
-    }
-    return false;
+    return chat.type['@type'] !== 'chatTypeSecret';
   }
 
   private ensureChatsLoaded(): Promise<void> {
@@ -688,287 +753,55 @@ export class TelegramSession implements ChatSession {
     }
   }
 
-  private async requireChat(chatId: number): Promise<TdChat> {
-    const cached = this.chats.get(chatId);
-    if (cached) return cached;
-    const chat = await this.api.send<TdChat>({ '@type': 'getChat', chat_id: chatId });
-    this.chats.set(chat.id, chat);
-    return chat;
-  }
-
-  private async userFor(id: ParticipantId): Promise<TdUser | null> {
-    if (!/^\d+$/.test(id)) return null;
-    const cached = this.users.get(Number(id));
-    if (cached) return cached;
-    const user = await this.api
-      .send<TdUser>({ '@type': 'getUser', user_id: Number(id) })
-      .catch(() => null);
-    if (user?.['@type'] !== 'user') return null;
-    this.users.set(user.id, user);
-    return user;
-  }
-
   private async toConversation(chat: TdChat): Promise<Conversation> {
     const selfId = this.self.participantId;
     const isDm = chat.type['@type'] === 'chatTypePrivate';
-    const memberIds = isDm
-      ? [...new Set([String((chat.type as { user_id: number }).user_id), selfId])]
-      : (await this.membersOf(chat)).map((member) => member.id);
+    const isChannel = chat.type['@type'] === 'chatTypeSupergroup' && chat.type.is_channel;
+    const memberIds = isChannel
+      ? [selfId]
+      : isDm
+        ? [...new Set([String((chat.type as { user_id: number }).user_id), selfId])]
+        : (await this.td.membersOf(chat)).map((member) => member.id);
+    const peer =
+      chat.type['@type'] === 'chatTypePrivate' ? this.td.users.get(chat.type.user_id) : undefined;
 
     return {
       id: String(chat.id),
-      kind: isDm ? 'dm' : 'group',
+      kind: isDm ? 'dm' : isChannel ? 'channel' : 'group',
       title: chat.title,
       memberIds,
       createdAt: chat.last_message ? chat.last_message.date * 1000 : 0,
       lastMessage: chat.last_message ? this.toMessage(chat.last_message, false) : undefined,
+      unreadCount: chat.unread_count,
+      mentionCount: chat.unread_mention_count,
+      ...(chat.is_marked_as_unread ? { markedUnread: true } : {}),
+      draft: draftText(chat.draft_message),
+      ...(chat.pending_join_requests?.total_count
+        ? { pendingJoinRequests: chat.pending_join_requests.total_count }
+        : {}),
+      canSend: this.td.canSend(chat),
+      typing: this.typing.isTyping(chat.id),
+      online: peer?.status?.['@type'] === 'userStatusOnline',
+      lastSeenAt:
+        peer?.status?.['@type'] === 'userStatusOffline' && peer.status.was_online
+          ? peer.status.was_online * 1000
+          : undefined,
       consent: chat.block_list ? 'denied' : 'allowed',
-      selfRole: isDm ? undefined : this.roleIn(chat),
+      selfRole: isDm ? undefined : this.td.roleIn(chat),
+      ...this.td.rightsIn(chat),
     };
   }
 
-  private roleIn(chat: TdChat): GroupRole {
-    const type = chat.type;
-    const status =
-      type['@type'] === 'chatTypeBasicGroup'
-        ? this.basicGroups.get(type.basic_group_id)?.status['@type']
-        : type['@type'] === 'chatTypeSupergroup'
-          ? this.supergroups.get(type.supergroup_id)?.status['@type']
-          : undefined;
-    return mapRole(status);
-  }
-
-  private membersOf(chat: TdChat): Promise<GroupMember[]> {
-    let pending = this.members.get(chat.id);
-    if (!pending) {
-      pending = this.fetchMembers(chat).catch(() => [
-        { id: this.self.participantId, role: 'member' as const },
-      ]);
-      this.members.set(chat.id, pending);
-    }
-    return pending;
-  }
-
-  private async fetchMembers(chat: TdChat): Promise<GroupMember[]> {
-    const type = chat.type;
-    let raw: TdChatMember[];
-    if (type['@type'] === 'chatTypeBasicGroup') {
-      const info = await this.api.send<TdBasicGroupFullInfo>({
-        '@type': 'getBasicGroupFullInfo',
-        basic_group_id: type.basic_group_id,
-      });
-      raw = info.members;
-    } else if (type['@type'] === 'chatTypeSupergroup') {
-      const page = await this.api.send<TdChatMembers>({
-        '@type': 'getSupergroupMembers',
-        supergroup_id: type.supergroup_id,
-        offset: 0,
-        limit: MEMBER_PAGE,
-      });
-      raw = page.members;
-    } else if (type['@type'] === 'chatTypePrivate') {
-      return [
-        { id: String(type.user_id), role: 'member' },
-        { id: this.self.participantId, role: 'member' },
-      ];
-    } else {
-      return [];
-    }
-    return raw
-      .filter(
-        (member) =>
-          !['chatMemberStatusLeft', 'chatMemberStatusBanned'].includes(member.status['@type'])
-      )
-      .map((member) => ({
-        id: senderIdOf(member.member_id),
-        role: mapRole(member.status['@type']),
-      }));
+  private mapping(raw: TdMessage, fetchMedia: boolean): MappingContext {
+    return {
+      selfId: this.me ? String(this.me.id) : undefined,
+      media: (file) => this.localUri(raw, file, fetchMedia),
+      names: (userIds) => this.td.namesOf(userIds),
+    };
   }
 
   private toMessage(raw: TdMessage, fetchMedia: boolean): ChatMessage {
-    const replyTo =
-      raw.reply_to?.['@type'] === 'messageReplyToMessage' &&
-      (raw.reply_to as { chat_id: number }).chat_id === raw.chat_id
-        ? messageIdOf(raw.chat_id, (raw.reply_to as { message_id: number }).message_id)
-        : undefined;
-    const reactions = this.reactionsOf(raw);
-    return {
-      id: messageIdOf(raw.chat_id, raw.id),
-      conversationId: String(raw.chat_id),
-      senderId: senderIdOf(raw.sender_id),
-      sentAt: raw.date * 1000,
-      content: this.toContent(raw, fetchMedia),
-      fromMe: raw.is_outgoing,
-      status: !raw.sending_state
-        ? 'sent'
-        : raw.sending_state['@type'] === 'messageSendingStateFailed'
-          ? 'failed'
-          : 'sending',
-      ...(replyTo ? { replyTo } : {}),
-      ...(reactions ? { reactions } : {}),
-      ...(raw.forward_info ? { forwarded: true } : {}),
-    };
-  }
-
-  /** TDLib lists a few recent senders per emoji; that is what there is to show. */
-  private reactionsOf(raw: TdMessage): Record<string, ParticipantId[]> | undefined {
-    const list = raw.interaction_info?.reactions?.reactions;
-    if (!list || list.length === 0) return undefined;
-    const out: Record<string, ParticipantId[]> = {};
-    for (const reaction of list) {
-      if (reaction.type['@type'] !== 'reactionTypeEmoji') continue;
-      const emoji = (reaction.type as { emoji: string }).emoji;
-      const people = new Set(reaction.recent_sender_ids.map(senderIdOf));
-      if (reaction.is_chosen && this.me) people.add(String(this.me.id));
-      if (people.size > 0) out[emoji] = [...people];
-    }
-    return Object.keys(out).length > 0 ? out : undefined;
-  }
-
-  private toContent(raw: TdMessage, fetchMedia: boolean): MessageContent {
-    const content = raw.content;
-    const caption = content.caption
-      ? formattedToMarkdown(content.caption as TdFormattedText).trim() || undefined
-      : undefined;
-    const withCaption = (label: string) => (caption ? `${label} · ${caption}` : label);
-
-    switch (content['@type']) {
-      case 'messageText':
-        return { kind: 'text', text: formattedToMarkdown(content.text as TdFormattedText) };
-
-      case 'messagePhoto': {
-        const sizes = (
-          content.photo as { sizes: { photo: TdFile; width: number; height: number }[] }
-        ).sizes;
-        const size = sizes[sizes.length - 1];
-        const uri = size ? this.localUri(raw, size.photo, fetchMedia) : null;
-        if (!uri)
-          return { kind: 'unsupported', typeId: 'photo', fallback: withCaption('📷 Photo') };
-        return {
-          kind: 'image',
-          uri,
-          width: size.width,
-          height: size.height,
-          size: size.photo.size,
-          ...(caption ? { caption } : {}),
-        };
-      }
-
-      case 'messageDocument': {
-        const document = content.document as {
-          document: TdFile;
-          file_name: string;
-          mime_type: string;
-        };
-        const uri = this.localUri(raw, document.document, fetchMedia);
-        if (!uri) {
-          return {
-            kind: 'unsupported',
-            typeId: 'document',
-            fallback: withCaption(`📎 ${document.file_name}`),
-          };
-        }
-        return {
-          kind: 'file',
-          uri,
-          name: document.file_name,
-          mimeType: document.mime_type,
-          size: document.document.size,
-        };
-      }
-
-      case 'messageVoiceNote': {
-        const voice = content.voice_note as { voice: TdFile; duration: number; mime_type: string };
-        const uri = this.localUri(raw, voice.voice, fetchMedia);
-        if (!uri) return { kind: 'unsupported', typeId: 'voice', fallback: '🎤 Voice message' };
-        return {
-          kind: 'voice',
-          uri,
-          durationMs: voice.duration * 1000,
-          size: voice.voice.size,
-          mimeType: voice.mime_type,
-        };
-      }
-
-      case 'messageSticker': {
-        const emoji = (content.sticker as { emoji?: string }).emoji;
-        return {
-          kind: 'unsupported',
-          typeId: 'sticker',
-          fallback: emoji ? `${emoji} Sticker` : 'Sticker',
-        };
-      }
-      case 'messageAnimation':
-        return { kind: 'unsupported', typeId: 'animation', fallback: withCaption('GIF') };
-      case 'messageVideo':
-        return { kind: 'unsupported', typeId: 'video', fallback: withCaption('🎬 Video') };
-      case 'messageVideoNote':
-        return { kind: 'unsupported', typeId: 'videoNote', fallback: '📹 Video message' };
-      case 'messageAudio': {
-        const audio = content.audio as { title?: string; file_name?: string };
-        return {
-          kind: 'unsupported',
-          typeId: 'audio',
-          fallback: withCaption(`🎵 ${audio.title || audio.file_name || 'Audio'}`),
-        };
-      }
-      case 'messageLocation':
-      case 'messageVenue':
-        return { kind: 'unsupported', typeId: 'location', fallback: '📍 Location' };
-      case 'messageContact': {
-        const contact = content.contact as { first_name: string; last_name: string };
-        return {
-          kind: 'unsupported',
-          typeId: 'contact',
-          fallback: `👤 ${[contact.first_name, contact.last_name].filter(Boolean).join(' ')}`,
-        };
-      }
-      case 'messagePoll':
-        return {
-          kind: 'unsupported',
-          typeId: 'poll',
-          fallback: `📊 ${(content.poll as { question: { text: string } }).question.text}`,
-        };
-      case 'messageDice':
-        return {
-          kind: 'unsupported',
-          typeId: 'dice',
-          fallback: `${content.emoji as string} ${content.value as number}`,
-        };
-
-      case 'messageChatAddMembers':
-        return {
-          kind: 'system',
-          text: `${this.namesOf(content.member_user_ids as number[])} joined`,
-        };
-      case 'messageChatDeleteMember':
-        return { kind: 'system', text: `${this.namesOf([content.user_id as number])} left` };
-      case 'messageChatJoinByLink':
-      case 'messageChatJoinByRequest':
-        return { kind: 'system', text: `${this.namesOf([userIdOf(raw.sender_id)])} joined` };
-      case 'messageChatChangeTitle':
-        return { kind: 'system', text: `Renamed to "${content.title as string}"` };
-      case 'messageChatChangePhoto':
-        return { kind: 'system', text: 'Group photo changed' };
-      case 'messageChatDeletePhoto':
-        return { kind: 'system', text: 'Group photo removed' };
-      case 'messageBasicGroupChatCreate':
-      case 'messageSupergroupChatCreate':
-        return { kind: 'system', text: 'Group created' };
-      case 'messagePinMessage':
-        return { kind: 'system', text: 'Message pinned' };
-      case 'messageContactRegistered':
-        return {
-          kind: 'system',
-          text: `${this.namesOf([userIdOf(raw.sender_id)])} joined Telegram`,
-        };
-      case 'messageChatUpgradeTo':
-      case 'messageChatUpgradeFrom':
-        return { kind: 'system', text: 'Group upgraded' };
-
-      default:
-        return { kind: 'unsupported', typeId: content['@type'], fallback: 'Unsupported message' };
-    }
+    return toMessage(raw, this.mapping(raw, fetchMedia));
   }
 
   /**
@@ -1000,138 +833,4 @@ export class TelegramSession implements ChatSession {
     }
     return null;
   }
-
-  private namesOf(userIds: number[]): string {
-    return userIds
-      .map((id) => {
-        const user = this.users.get(id);
-        return user ? nameOf(user) : String(id);
-      })
-      .join(', ');
-  }
-}
-
-// ---- helpers ----
-
-export function messageIdOf(chatId: number, messageId: number): MessageId {
-  return `${chatId}_${messageId}`;
-}
-
-export function tdMessageId(id: MessageId): number {
-  return Number(id.slice(id.lastIndexOf('_') + 1));
-}
-
-function senderIdOf(sender: TdSender): ParticipantId {
-  return sender['@type'] === 'messageSenderUser' ? String(sender.user_id) : `c${sender.chat_id}`;
-}
-
-function userIdOf(sender: TdSender): number {
-  return sender['@type'] === 'messageSenderUser' ? sender.user_id : sender.chat_id;
-}
-
-function chatSenderId(id: ParticipantId): number | null {
-  return /^c-?\d+$/.test(id) ? Number(id.slice(1)) : null;
-}
-
-function supergroupChatId(supergroupId: number): number {
-  return -1_000_000_000_000 - supergroupId;
-}
-
-function inMainList(chat: TdChat): boolean {
-  return chat.positions.some((p) => p.list['@type'] === 'chatListMain' && p.order !== '0');
-}
-
-function withPosition(positions: TdChatPosition[], position: TdChatPosition): TdChatPosition[] {
-  const rest = positions.filter((p) => p.list['@type'] !== position.list['@type']);
-  return position.order === '0' ? rest : [...rest, position];
-}
-
-function mapRole(status: TdMemberStatus | undefined): GroupRole {
-  if (status === 'chatMemberStatusCreator') return 'owner';
-  if (status === 'chatMemberStatusAdministrator') return 'admin';
-  return 'member';
-}
-
-export function handleOf(user: TdUser): string {
-  const username = user.usernames?.active_usernames[0];
-  if (username) return `@${username}`;
-  if (user.phone_number) return `+${user.phone_number}`;
-  return String(user.id);
-}
-
-export function nameOf(user: TdUser): string {
-  if (user.type['@type'] === 'userTypeDeleted') return 'Deleted account';
-  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || handleOf(user);
-}
-
-function inputContent(content: MessageContent): TdObject {
-  switch (content.kind) {
-    case 'text':
-      return { '@type': 'inputMessageText', text: formatted(content.text) };
-    case 'image':
-      return {
-        '@type': 'inputMessagePhoto',
-        photo: localFile(content.uri),
-        width: content.width ?? 0,
-        height: content.height ?? 0,
-        ...(content.caption ? { caption: formatted(content.caption) } : {}),
-      };
-    case 'file':
-      return { '@type': 'inputMessageDocument', document: localFile(content.uri) };
-    case 'voice':
-      return {
-        '@type': 'inputMessageVoiceNote',
-        voice_note: localFile(content.uri),
-        duration: Math.round(content.durationMs / 1000),
-      };
-    default:
-      throw new Error(`Telegram cannot send "${content.kind}" content`);
-  }
-}
-
-function formatted(text: string): TdObject {
-  return markdownToFormatted(text);
-}
-
-function localFile(uri: string): TdObject {
-  return { '@type': 'inputFileLocal', path: pathOfFileUri(uri) };
-}
-
-function describeCodeDelivery(type: string | undefined): string {
-  switch (type) {
-    case 'authenticationCodeTypeTelegramMessage':
-      return 'Telegram sent the code to your other signed-in devices.';
-    case 'authenticationCodeTypeSms':
-    case 'authenticationCodeTypeSmsWord':
-    case 'authenticationCodeTypeSmsPhrase':
-      return 'Telegram sent the code by SMS.';
-    case 'authenticationCodeTypeCall':
-      return 'Telegram is calling you with the code.';
-    case 'authenticationCodeTypeFlashCall':
-    case 'authenticationCodeTypeMissedCall':
-      return 'Telegram is calling you; the code is the last digits of the calling number.';
-    case 'authenticationCodeTypeFragment':
-      return 'The code is on fragment.com for this number.';
-    default:
-      return 'Enter the code Telegram sent you.';
-  }
-}
-
-function describeAuthError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('PHONE_NUMBER_INVALID'))
-    return 'That is not a valid phone number. Include the country code, like +44.';
-  if (message.includes('PHONE_NUMBER_UNOCCUPIED'))
-    return 'There is no Telegram account for that number.';
-  if (message.includes('PHONE_NUMBER_BANNED')) return 'Telegram has banned that number.';
-  if (message.includes('PHONE_CODE_INVALID')) return 'That code is not right.';
-  if (message.includes('PHONE_CODE_EXPIRED'))
-    return 'That code has expired. Save and reconnect to get a new one.';
-  if (message.includes('PASSWORD_HASH_INVALID')) return 'Wrong password.';
-  if (message.includes('API_ID_INVALID') || message.includes('API_ID_PUBLISHED_FLOOD')) {
-    return 'Telegram rejected the API ID and hash. Check them at my.telegram.org.';
-  }
-  const flood = message.match(/retry after (\d+)/i);
-  if (flood) return `Too many attempts. Wait ${flood[1]} seconds before trying again.`;
-  return message;
 }

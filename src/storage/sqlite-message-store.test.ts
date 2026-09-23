@@ -138,6 +138,46 @@ describe('conversations', () => {
 });
 
 describe('messages', () => {
+  it('searches stored message text across chats and within one chat', async () => {
+    const store = new SqliteMessageStore(freshAccount());
+    await store.insertMessage(
+      message({ id: 'm1', conversationId: 'c1', content: { kind: 'text', text: 'Blue moon' } })
+    );
+    await store.insertMessage(
+      message({
+        id: 'm2',
+        conversationId: 'c2',
+        sentAt: 2000,
+        content: { kind: 'text', text: 'blue sky' },
+      })
+    );
+    expect((await store.searchMessages('blue')).map((item) => item.message.id)).toEqual([
+      'm2',
+      'm1',
+    ]);
+    expect((await store.searchMessages('blue', 'c2')).map((item) => item.message.id)).toEqual([
+      'm2',
+    ]);
+  });
+
+  it('counts incoming messages since the local read time', async () => {
+    const store = new SqliteMessageStore(freshAccount());
+    await store.insertMessage(message({ id: 'old', conversationId: 'c1', sentAt: 1000 }));
+    await store.insertMessage(message({ id: 'new', conversationId: 'c1', sentAt: 2000 }));
+    await store.insertMessage(
+      message({ id: 'mine', conversationId: 'c1', sentAt: 3000, fromMe: true })
+    );
+    await store.insertMessage(
+      message({
+        id: 'reaction',
+        conversationId: 'c1',
+        sentAt: 4000,
+        content: { kind: 'reaction', targetId: 'new', emoji: '👍', action: 'added' },
+      })
+    );
+    await store.insertMessage(message({ id: 'other-chat', conversationId: 'c2', sentAt: 3000 }));
+    expect(await store.countUnreadMessages('c1', 1500)).toBe(1);
+  });
   it('rolls back conversation metadata when an atomic ingest fails', async () => {
     const id = freshAccount();
     const store = new SqliteMessageStore(id);

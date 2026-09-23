@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ChatBackground,
+  ConfirmSheet,
   EmptyState,
   Icon,
   Pressable,
@@ -23,6 +24,7 @@ import type { ChatMessage, MessageContent } from '@/core/messaging/types';
 import { useAppearanceStore } from '@/core/app/appearance';
 import { useBack } from '@/features/navigation/use-back';
 import { contentPreview, isNewDay } from '@/core/messaging/preview';
+import { MARKED_UNREAD } from '@/core/messaging/unread';
 import { errorMessage } from '@/core/errors';
 import { Composer } from '@/features/chat/composer';
 import { ConsentBar } from '@/features/chat/consent-bar';
@@ -30,14 +32,25 @@ import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { DateSeparator } from '@/features/chat/date-separator';
 import { CommandPending } from '@/features/chat/command-pending';
 import { ForwardSheet } from '@/features/chat/forward-sheet';
-import { MessageBubble } from '@/features/chat/message-bubble';
+import { headerSubtitle } from '@/features/chat/header-subtitle';
+import { MessageBubble, type ReplyPreview } from '@/features/chat/message-bubble';
 import {
   conversationPeers,
   conversationTitle,
   useDisplayNames,
 } from '@/features/chat/use-display-names';
-import { protocolSubtitle } from '@/features/protocols/presentation';
+import { useSupports } from '@/features/chat/use-supports';
+import { useComposerMode } from '@/features/chat/composer-mode';
+import { useAction } from '@/features/chat/use-action';
+import { usePinnedMessages } from '@/features/chat/use-pinned-messages';
+import type { MessageAction } from '@/features/chat/message-actions';
+import {
+  type ActionSupport,
+  type ConversationActions,
+  messageActions,
+} from '@/features/chat/message-commands';
 import { HistoryStatus } from '@/features/chat/history-status';
+import { PinnedMessages } from '@/features/chat/pinned-messages';
 
 const GROUP_WINDOW_MS = 60_000;
 
@@ -45,7 +58,18 @@ const NO_MESSAGES: ChatMessage[] = [];
 
 const MISSING_REPLY = { author: '', preview: 'Original message' };
 
-type ReplyPreview = { author: string; preview: string };
+const DELETE_COPY = {
+  everyone: {
+    title: 'Delete message for everyone?',
+    body: 'This removes the message for everyone in the chat.',
+    label: 'Delete for everyone',
+  },
+  me: {
+    title: 'Delete message for you?',
+    body: 'This removes the message from your account. The others in the chat keep it.',
+    label: 'Delete for me',
+  },
+};
 
 export default function ConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,10 +94,21 @@ export default function ConversationScreen() {
   const messageHistory = useChatStore((s) => s.messageHistory[id]);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const retryMessage = useChatStore((s) => s.retryMessage);
+  const deleteMessage = useChatStore((s) => s.deleteMessage);
   const react = useChatStore((s) => s.react);
+  const votePoll = useChatStore((s) => s.votePoll);
+  const setMessagePinned = useChatStore((s) => s.setMessagePinned);
+  const ingestMessage = useChatStore((s) => s.ingestMessage);
   const markRead = useChatStore((s) => s.markRead);
+  const watchPresence = useChatStore((s) => s.watchPresence);
+  const muted = useChatStore((s) => Boolean(s.chatPrefs[id]?.muted));
+  const setChatPref = useChatStore((s) => s.setChatPref);
 
   const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
+  const [deleting, setDeleting] = useState<{ message: ChatMessage; forEveryone: boolean } | null>(
+    null
+  );
+  const [showPinned, setShowPinned] = useState(false);
 
   const selfId = selfIdFor({ sessions }, conversation?.protocol);
 
@@ -91,18 +126,30 @@ export default function ConversationScreen() {
   const { nameFor } = useDisplayNames(peers);
 
   const accountId = useChatStore((s) => s.accountId);
+  const { session, supports } = useSupports(id);
+  const pinnedMessages = usePinnedMessages(id, messages, supports('listPinnedMessages'));
+  const deleteCopy = DELETE_COPY[deleting?.forEveryone ? 'everyone' : 'me'];
+  const remove = useAction(
+    ({ message, forEveryone }: { message: ChatMessage; forEveryone: boolean }) =>
+      deleteMessage(id, message.id, forEveryone),
+    {
+      failure: 'Could not delete message',
+    }
+  );
   useEffect(() => {
     if (id && accountId) loadMessages(id);
   }, [id, accountId, loadMessages]);
 
+  useEffect(() => (session ? watchPresence(id) : undefined), [id, session, watchPresence]);
+
   const newest = messages[messages.length - 1];
   const newestFromPeer = newest && !newest.fromMe ? newest.id : null;
+  const marked = useChatStore((s) => s.readAt[id] === MARKED_UNREAD);
   useEffect(() => {
-    if (id && newestFromPeer) markRead(id);
-  }, [id, markRead, newestFromPeer]);
+    if (id && (newestFromPeer || marked)) markRead(id);
+  }, [id, markRead, newestFromPeer, marked]);
 
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
-  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const runCommand = (command: string) => setPendingCommand(command);
   const clearPendingCommand = () => setPendingCommand(null);
@@ -126,22 +173,40 @@ export default function ConversationScreen() {
     preview: contentPreview(target.content) || 'Message',
   });
 
-  const replyTarget = replyTo ? byId.get(replyTo) : undefined;
-  const replyPreview = replyTarget ? { id: replyTarget.id, ...previewOf(replyTarget) } : null;
+  const composer = useComposerMode(id, followNewest);
 
-  const onSendText = async (text: string) => {
-    followNewest();
-    await sendMessage(id, { kind: 'text', text }, replyTo ?? undefined);
-    setReplyTo(null);
-  };
-
-  const onRetryId = (messageId: string) => void retryMessage(id, messageId);
   const onReactTo = (messageId: string, emoji: string) => {
     react(id, messageId, emoji).catch((e) => toast.error(errorMessage(e, 'Could not react')));
+  };
+  const onPinMessage = async (message: ChatMessage) => {
+    try {
+      const isPinned = !message.isPinned;
+      await setMessagePinned(id, message.id, isPinned);
+      ingestMessage({ ...message, isPinned });
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not change pinned message'));
+    }
   };
 
   const isGroup = conversation?.kind === 'group';
   const botName = conversation?.title ?? 'Bot';
+  const handlers: ConversationActions = {
+    reply: (message) => composer.reply(message),
+    forward: setForwarding,
+    edit: (message) => composer.edit(message),
+    remove: (message, forEveryone) => setDeleting({ message, forEveryone }),
+    retry: (message) => void retryMessage(id, message.id),
+    togglePin: (message) => void onPinMessage(message),
+  };
+  const can: ActionSupport = {
+    edit: supports('editMessage'),
+    delete: supports('deleteMessage'),
+    deleteForMe: supports('deleteMessageForMe'),
+    deleteOthers: conversation?.canDeleteOthers ?? false,
+    pin: supports('setMessagePinned') && conversation?.canPin !== false,
+  };
+  const canVote = supports('votePoll');
+
   const renderItem = ({ item, index }: ListRenderItemInfo<ChatMessage>) => (
     <MessageRow
       message={item}
@@ -151,10 +216,9 @@ export default function ConversationScreen() {
       isGroup={isGroup}
       previewOf={previewOf}
       onCommand={runCommand}
-      onReplyTo={setReplyTo}
-      onForwardMessage={setForwarding}
-      onRetryId={onRetryId}
-      onReactTo={onReactTo}
+      actions={messageActions(item, handlers, can)}
+      onReact={item.privateToMe ? undefined : (emoji) => onReactTo(item.id, emoji)}
+      onVote={canVote ? (optionIds) => votePoll(id, item.id, optionIds) : undefined}
     />
   );
 
@@ -203,14 +267,20 @@ export default function ConversationScreen() {
               {title}
             </Text>
             <Text variant="micro" numberOfLines={1} className="text-center">
-              {isBot
-                ? (botTagline ?? 'On this device only')
-                : conversation?.kind === 'group'
-                  ? `${conversation.memberIds.length} members · ${protocolSubtitle(conversation?.protocol)}`
-                  : protocolSubtitle(conversation?.protocol)}
+              {isBot ? (botTagline ?? 'On this device only') : headerSubtitle(conversation)}
             </Text>
           </View>
         </Pressable>
+
+        {conversation ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search in chat"
+            onPress={() => router.push(`/search?chatId=${encodeURIComponent(id)}`)}
+            className="h-10 w-10 items-center justify-center">
+            <Icon name="search-outline" size={20} color={colors.brand} />
+          </Pressable>
+        ) : null}
 
         {conversation ? (
           <Pressable
@@ -224,6 +294,15 @@ export default function ConversationScreen() {
           <View className="h-10 w-10" />
         )}
       </View>
+
+      <PinnedMessages
+        messages={pinnedMessages}
+        visible={showPinned}
+        onOpen={() => setShowPinned(true)}
+        onClose={() => setShowPinned(false)}
+        onUnpin={(message) => void onPinMessage(message)}
+        top={insets.top + frame.top + 62}
+      />
 
       <KeyboardAvoidingView
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
@@ -293,7 +372,10 @@ export default function ConversationScreen() {
               </View>
             }
             ListFooterComponent={running ? <CommandPending label={`Running ${running}…`} /> : null}
-            contentContainerStyle={{ paddingTop: insets.top + frame.top + 62, paddingBottom: 8 }}
+            contentContainerStyle={{
+              paddingTop: insets.top + frame.top + (pinnedMessages.length ? 116 : 62),
+              paddingBottom: 8,
+            }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             renderItem={renderItem}
@@ -303,13 +385,31 @@ export default function ConversationScreen() {
         <View style={{ paddingBottom: insets.bottom }}>
           {conversation?.consent === 'unknown' ? (
             <ConsentBar conversationId={id} />
+          ) : conversation?.kind === 'channel' && conversation.canSend !== true ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={muted ? 'Unmute channel' : 'Mute channel'}
+              onPress={() => void setChatPref(id, { muted: !muted })}
+              className="mx-gutter mb-2 min-h-tap flex-row items-center justify-center gap-2 rounded-pill border border-line bg-surface-raised">
+              <Icon
+                name={muted ? 'volume-high-outline' : 'volume-mute-outline'}
+                size={18}
+                color={colors.brand}
+              />
+              <Text className="font-semibold text-brand">{muted ? 'Unmute' : 'Mute'}</Text>
+            </Pressable>
+          ) : conversation?.canSend === false ? (
+            <View className="mx-gutter mb-2 min-h-tap items-center justify-center rounded-pill border border-line bg-surface-raised px-4">
+              <Text variant="caption">You cannot send messages in this chat.</Text>
+            </View>
           ) : (
             <Composer
               conversationId={id}
-              onSendText={onSendText}
+              onSendText={(text) => composer.submit(text)}
               onSendContent={onSendContent}
-              replyTo={replyPreview}
-              onCancelReply={() => setReplyTo(null)}
+              editing={composer.mode.kind === 'edit'}
+              banner={composer.banner(previewOf)}
+              onCancelBanner={() => composer.cancel()}
               pendingCommand={pendingCommand}
               onPendingCommandHandled={clearPendingCommand}
               onRunningChange={(command) => {
@@ -327,6 +427,20 @@ export default function ConversationScreen() {
         nameFor={nameFor}
         onClose={() => setForwarding(null)}
       />
+      <ConfirmSheet
+        visible={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={deleteCopy.title}
+        body={deleteCopy.body}
+        busy={remove.busy}
+        confirm={{
+          label: deleteCopy.label,
+          tone: 'danger',
+          onPress: async () => {
+            if (deleting && (await remove.run(deleting))) setDeleting(null);
+          },
+        }}
+      />
     </View>
   );
 }
@@ -339,10 +453,9 @@ function MessageRow({
   isGroup,
   previewOf,
   onCommand,
-  onReplyTo,
-  onForwardMessage,
-  onRetryId,
-  onReactTo,
+  actions,
+  onReact,
+  onVote,
 }: {
   message: ChatMessage;
   previous: ChatMessage | undefined;
@@ -351,10 +464,9 @@ function MessageRow({
   isGroup: boolean;
   previewOf: (target: ChatMessage) => ReplyPreview;
   onCommand: (command: string) => void;
-  onReplyTo: (id: string) => void;
-  onForwardMessage: (message: ChatMessage) => void;
-  onRetryId: (id: string) => void;
-  onReactTo: (id: string, emoji: string) => void;
+  actions: MessageAction[];
+  onReact?: (emoji: string) => void;
+  onVote?: (optionIds: number[]) => Promise<void>;
 }) {
   const grouped =
     !!previous &&
@@ -373,13 +485,12 @@ function MessageRow({
         senderName={senderName}
         showSender={isGroup && !grouped && !message.privateToMe}
         onCommand={onCommand}
-        onReply={message.privateToMe ? undefined : () => onReplyTo(message.id)}
-        onForward={() => onForwardMessage(message)}
-        onRetry={message.status === 'failed' ? () => onRetryId(message.id) : undefined}
+        actions={actions}
         replyPreview={
           message.replyTo ? (replyTarget ? previewOf(replyTarget) : MISSING_REPLY) : undefined
         }
-        onReact={message.privateToMe ? undefined : (emoji) => onReactTo(message.id, emoji)}
+        onReact={onReact}
+        onVote={onVote}
       />
     </>
   );

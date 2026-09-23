@@ -1,4 +1,4 @@
-import { localpart } from './ids';
+import { localpart, serverName } from './ids';
 
 export interface KnownBridge {
   network: string;
@@ -48,7 +48,7 @@ export function bridgedNetwork(userIds: (string | null | undefined)[]): string |
 }
 
 export function bridgeBotId(bridge: KnownBridge, selfUserId: string): string {
-  return `@${bridge.localpart}:${selfUserId.slice(selfUserId.indexOf(':') + 1)}`;
+  return `@${bridge.localpart}:${serverName(selfUserId)}`;
 }
 
 /** Where the bridge's login API sits under the homeserver: `/_matrix/provision/<name>/`. */

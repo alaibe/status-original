@@ -41,7 +41,12 @@ describe('the merged list', () => {
     await connect();
 
     const conversations = useChatStore.getState().conversations;
-    expect(conversations.map((c) => c.id).sort()).toEqual([ns('c1'), ns('c1', 'nostr')].sort());
+    expect(
+      conversations
+        .filter((c) => c.protocol !== 'local')
+        .map((c) => c.id)
+        .sort()
+    ).toEqual([ns('c1'), ns('c1', 'nostr')].sort());
     expect(conversations.find((c) => c.protocol === 'nostr')?.title).toBe('Bob');
     expect(conversations.find((c) => c.protocol === 'xmtp')?.title).toBe('Alice');
   });
@@ -52,10 +57,12 @@ describe('the merged list', () => {
     nostr.seedConversation({ id: 'newer', createdAt: 5_000 });
     await connect();
 
-    expect(useChatStore.getState().conversations.map((c) => c.id)).toEqual([
-      ns('newer', 'nostr'),
-      ns('older'),
-    ]);
+    expect(
+      useChatStore
+        .getState()
+        .conversations.filter((c) => c.protocol !== 'local')
+        .map((c) => c.id)
+    ).toEqual([ns('newer', 'nostr'), ns('older')]);
   });
 
   it('keeps local bot conversations alongside both', async () => {
@@ -153,7 +160,9 @@ describe('independent failure', () => {
     });
     expect(state.protocols.nostr.status).toBe('error');
     expect(state.protocols.nostr.error).toBe('every relay refused');
-    expect(state.conversations.map((c) => c.id)).toEqual([ns('c1')]);
+    expect(state.conversations.filter((c) => c.protocol !== 'local').map((c) => c.id)).toEqual([
+      ns('c1'),
+    ]);
   });
 
   it('reports error only when every transport failed', async () => {

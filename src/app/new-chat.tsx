@@ -25,6 +25,8 @@ import { useBack } from '@/features/navigation/use-back';
 import { openChatFromSheet } from '@/features/navigation/open';
 import { toneFor } from '@/features/protocols/presentation';
 import { errorMessage } from '@/core/errors';
+import { JoinPublicChat } from '@/features/chat/join-public-chat';
+import { supports } from '@/core/messaging/capability';
 
 interface Recipient {
   input: string;
@@ -237,6 +239,10 @@ export default function NewChatScreen() {
               ? `${descriptor.recipient.hint} Add more than one to make it a group.`
               : 'Connecting…'}
           </Text>
+
+          {descriptor?.publicChats && supports(sessions[active], 'previewPublicChat') ? (
+            <JoinPublicChat key={active} protocol={active} copy={descriptor.publicChats} />
+          ) : null}
 
           {descriptor ? (
             <View className="gap-1">

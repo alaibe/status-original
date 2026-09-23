@@ -1,5 +1,10 @@
 import { HYDRATE_LIMIT } from '@/core/messaging/message-store';
-import type { MessageStore, StoredConversation } from '@/core/messaging/message-store';
+import { matchesSearch, SEARCH_LIMIT } from '@/core/messaging/search';
+import type {
+  MessageStore,
+  StoredConversation,
+  StoredSearchHit,
+} from '@/core/messaging/message-store';
 import type {
   ChatMessage,
   ConversationId,
@@ -77,6 +82,46 @@ export class SqliteMessageStore implements MessageStore {
     );
 
     return rows.map(toMessage).reverse();
+  }
+
+  async searchMessages(
+    query: string,
+    conversationId?: ConversationId,
+    protocolId?: string
+  ): Promise<StoredSearchHit[]> {
+    const rows = await this.operation((db) =>
+      db.getAllAsync<MessageRow & { protocol_id: string | null }>(
+        `SELECT m.*, c.protocol_id FROM messages m
+         LEFT JOIN conversations c ON c.id = m.conversation_id
+         WHERE instr(lower(m.content), lower(?)) > 0
+           AND (? IS NULL OR m.conversation_id = ?)
+           AND (? IS NULL OR c.protocol_id = ?)
+         ORDER BY m.sent_at DESC`,
+        query,
+        conversationId ?? null,
+        conversationId ?? null,
+        protocolId ?? null,
+        protocolId ?? null
+      )
+    );
+    const needle = query.toLowerCase();
+    return rows
+      .map((row) => ({ message: toMessage(row), protocolId: row.protocol_id ?? undefined }))
+      .filter(({ message }) => matchesSearch(message, needle))
+      .slice(0, SEARCH_LIMIT);
+  }
+
+  async countUnreadMessages(conversationId: ConversationId, since: number): Promise<number> {
+    const row = await this.operation((db) =>
+      db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) AS count FROM messages
+         WHERE conversation_id = ? AND sent_at > ? AND from_me = 0
+           AND json_extract(content, '$.kind') NOT IN ('system', 'reaction')`,
+        conversationId,
+        since
+      )
+    );
+    return row?.count ?? 0;
   }
 
   async upsertConversation(conversation: StoredConversation): Promise<void> {

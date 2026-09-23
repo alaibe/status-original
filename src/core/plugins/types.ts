@@ -1,3 +1,4 @@
+import type { Capability } from '../messaging/capability';
 import type { ComponentType } from 'react';
 import type { Address, Hex, LocalAccount } from 'viem';
 
@@ -140,6 +141,8 @@ export type CommandResult =
 
 export interface SlashCommand {
   name: string;
+  /** Offered only in chats whose network can do this. */
+  requires?: Capability;
   aliases?: string[];
   description: string;
   usage: string;

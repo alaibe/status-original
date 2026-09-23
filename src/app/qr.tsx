@@ -1,9 +1,8 @@
-import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { Share, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
-import { Button, Card, Icon, Pressable, Screen, Text, toast, useThemeColors } from '@/design';
+import { Button, Card, copyText, Icon, Pressable, Screen, Text, useThemeColors } from '@/design';
 import { useIdentityStore } from '@/core/identity/identity-store';
 import { shortAddress } from '@/core/identity/keyring';
 
@@ -68,10 +67,7 @@ export default function QrScreen() {
           label="Copy address"
           tone="neutral"
           fullWidth
-          onPress={async () => {
-            await Clipboard.setStringAsync(keyring.address);
-            toast.success('Address copied');
-          }}
+          onPress={() => void copyText(keyring.address, 'Address copied')}
         />
       </View>
     </Screen>

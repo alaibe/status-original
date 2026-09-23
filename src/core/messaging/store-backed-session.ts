@@ -285,6 +285,10 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     });
   }
 
+  countUnread(id: ConversationId, since: number): Promise<number> {
+    return this.store.countUnreadMessages(id, since);
+  }
+
   subscribeHistory(listener: (state: HistoryState) => void): Unsubscribe {
     return this.history.subscribe(listener);
   }

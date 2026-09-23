@@ -8,6 +8,8 @@
 import { reportError } from '../app/report-error';
 import { botConversationId, type Bot } from '../messaging/bots';
 import { inScope, type ConversationScope } from '../messaging/conversation-scope';
+import { supports } from '../messaging/capability';
+import type { ChatSession } from '../messaging/protocol';
 import type { ConversationId } from '../messaging/types';
 import type {
   ActivePlugin,
@@ -25,6 +27,10 @@ interface CommandEntry {
   command: SlashCommand;
   context: PluginContext;
   pluginId: PluginId;
+}
+
+export function worksOn(command: SlashCommand, session: ChatSession | undefined): boolean {
+  return !command.requires || supports(session, command.requires);
 }
 
 export const CORE_ID = 'status';

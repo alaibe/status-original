@@ -5,9 +5,11 @@ import type {
   MxMember,
   MxOutgoing,
   MxProfile,
+  MxPublicRoom,
   MxRoom,
   MxSession,
   MxStartParams,
+  MxTextOutgoing,
   MxUpdate,
 } from '../api';
 
@@ -20,6 +22,7 @@ export class FakeMatrix implements MatrixApi {
   readonly roomsById = new Map<string, MxRoom>();
   readonly timelines = new Map<string, MxEvent[]>();
   readonly roomMembers = new Map<string, MxMember[]>();
+  readonly pinnedIds = new Map<string, string[]>();
   readonly profiles = new Map<string, MxProfile>();
   readonly calls: { name: string; args: unknown[] }[] = [];
   startParams: MxStartParams | null = null;
@@ -70,6 +73,34 @@ export class FakeMatrix implements MatrixApi {
     return this.profiles.get(userId) ?? null;
   }
 
+  async previewPublicRoom(idOrAlias: string, via: string[]): Promise<MxPublicRoom> {
+    this.record('previewPublicRoom', idOrAlias, via);
+    const room = this.roomsById.get(idOrAlias);
+    if (!room) throw new Error('Room not found');
+    return {
+      id: room.id,
+      name: room.name,
+      topic: room.topic,
+      avatarUrl: room.avatarUrl,
+      memberCount: room.memberCount ?? 0,
+      joined: room.membership === 'joined',
+      canJoin: true,
+      canRequestJoin: false,
+    };
+  }
+
+  async joinPublicRoom(idOrAlias: string, via: string[]): Promise<string> {
+    this.record('joinPublicRoom', idOrAlias, via);
+    const room = this.roomsById.get(idOrAlias);
+    if (!room) throw new Error('Room not found');
+    this.roomsById.set(room.id, { ...room, membership: 'joined' });
+    return room.id;
+  }
+
+  async knockPublicRoom(idOrAlias: string, via: string[]): Promise<void> {
+    this.record('knockPublicRoom', idOrAlias, via);
+  }
+
   async createDm(userId: string): Promise<string> {
     this.record('createDm', userId);
     const id = `!dm-${userId}`;
@@ -90,6 +121,14 @@ export class FakeMatrix implements MatrixApi {
 
   async kick(roomId: string, userId: string): Promise<void> {
     this.record('kick', roomId, userId);
+  }
+
+  async ban(roomId: string, userId: string): Promise<void> {
+    this.record('ban', roomId, userId);
+  }
+
+  async setPowerLevel(roomId: string, userId: string, level: number): Promise<void> {
+    this.record('setPowerLevel', roomId, userId, level);
   }
 
   async setName(roomId: string, name: string): Promise<void> {
@@ -116,8 +155,47 @@ export class FakeMatrix implements MatrixApi {
     this.record('toggleReaction', roomId, eventId, key);
   }
 
+  async redact(roomId: string, eventId: string): Promise<void> {
+    this.record('redact', roomId, eventId);
+  }
+
+  async pinnedMessages(roomId: string): Promise<MxEvent[]> {
+    this.record('pinnedMessages', roomId);
+    const ids = this.pinnedIds.get(roomId) ?? [];
+    return (this.timelines.get(roomId) ?? []).filter((event) => ids.includes(event.id));
+  }
+
+  async setPinned(roomId: string, eventId: string, pinned: boolean): Promise<void> {
+    this.record('setPinned', roomId, eventId, pinned);
+    const ids = this.pinnedIds.get(roomId) ?? [];
+    this.pinnedIds.set(
+      roomId,
+      pinned ? [...new Set([...ids, eventId])] : ids.filter((id) => id !== eventId)
+    );
+  }
+
+  async edit(roomId: string, eventId: string, content: MxTextOutgoing): Promise<void> {
+    this.record('edit', roomId, eventId, content);
+  }
+
+  async setMarkedUnread(roomId: string, unread: boolean): Promise<void> {
+    this.record('setMarkedUnread', roomId, unread);
+  }
+
   async markRead(roomId: string): Promise<void> {
     this.record('markRead', roomId);
+  }
+
+  async setTyping(roomId: string, typing: boolean): Promise<void> {
+    this.record('setTyping', roomId, typing);
+  }
+
+  async createPoll(roomId: string, question: string, options: string[]): Promise<void> {
+    this.record('createPoll', roomId, question, options);
+  }
+
+  async votePoll(roomId: string, eventId: string, answerIds: string[]): Promise<void> {
+    this.record('votePoll', roomId, eventId, answerIds);
   }
 
   async media(media: MxMedia): Promise<string> {

@@ -11,6 +11,7 @@ export interface ComposerInputProps {
   value: string;
   onChangeText(text: string): void;
   onSubmit(): void;
+  onFile?(file: File): void;
   placeholder: string;
   placeholderColor: string;
 }
