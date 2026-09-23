@@ -248,7 +248,7 @@ want.
 | Bot | Network | Ways to sign in |
 | --- | --- | --- |
 | `@facebookbot:example.org` | Messenger, Facebook | `messenger-lite`: email and password. `facebook` or `messenger`: cookies copied from the website |
-| `@instagrambot:example.org` | Instagram | `android` or `instagram-password`: username and password. `instagram`: cookies copied from the website |
+| `@instagrambot:example.org` | Instagram | `instagram-password`: username and password. `instagram`: cookies copied from the website |
 | `@slackbot:example.org` | Slack | `login token`: a request copied as cURL from Slack in a desktop browser (see below). One sign-in per workspace. The email way needs a CAPTCHA a chat cannot show |
 | `@discordbot:example.org` | Discord | `login-qr`: scan the QR code with the Discord app on your phone. `login-token`: a token from the browser |
 

@@ -377,7 +377,7 @@ describe('MatrixSession messages', () => {
   });
 
   it('drops the brackets around Markdown autolinks', async () => {
-    const { chat, api } = await connect(SESSION, (api) => {
+    const { chat } = await connect(SESSION, (api) => {
       api.roomsById.set(DM.id, DM);
       api.timelines.set(DM.id, [
         textEvent('$1', DM.id, BOB, 'Login URL: <https://www.messenger.com/?no_redirect=true>'),

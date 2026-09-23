@@ -10,6 +10,7 @@ mod paths;
 mod probe;
 mod tdlib;
 mod vault;
+mod web_login;
 
 use tauri::{AppHandle, Manager};
 
@@ -69,6 +70,9 @@ pub fn run() {
             tdlib::td_destroy,
             paths::account_dir,
             paths::erase_account_dir,
+            web_login::web_login_open,
+            web_login::web_login_poll,
+            web_login::web_login_close,
             matrix::mx_start,
             matrix::mx_login,
             matrix::mx_logout,

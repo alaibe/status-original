@@ -3,15 +3,27 @@ export interface KnownBridge {
   localpart: string;
   /** What the bot is sent first; a bare `login` makes it list its sign-in methods. */
   firstCommand: string;
+  /** The login flow offered first when the app signs in through the bridge's API. */
+  preferredFlow?: string;
 }
 
 /** mautrix bridges under their default bot names, so a homeserver's bridges can be found by profile. */
 export const KNOWN_BRIDGES: readonly KnownBridge[] = [
-  { network: 'WhatsApp', localpart: 'whatsappbot', firstCommand: 'login qr' },
-  { network: 'Signal', localpart: 'signalbot', firstCommand: 'login qr' },
-  { network: 'Messenger', localpart: 'facebookbot', firstCommand: 'login messenger-lite' },
-  { network: 'Instagram', localpart: 'instagrambot', firstCommand: 'login android' },
-  { network: 'Slack', localpart: 'slackbot', firstCommand: 'login token' },
+  { network: 'WhatsApp', localpart: 'whatsappbot', firstCommand: 'login qr', preferredFlow: 'qr' },
+  { network: 'Signal', localpart: 'signalbot', firstCommand: 'login qr', preferredFlow: 'qr' },
+  {
+    network: 'Messenger',
+    localpart: 'facebookbot',
+    firstCommand: 'login messenger-lite',
+    preferredFlow: 'messenger',
+  },
+  {
+    network: 'Instagram',
+    localpart: 'instagrambot',
+    firstCommand: 'login instagram-password',
+    preferredFlow: 'instagram',
+  },
+  { network: 'Slack', localpart: 'slackbot', firstCommand: 'login token', preferredFlow: 'token' },
   { network: 'Discord', localpart: 'discordbot', firstCommand: 'login-qr' },
   { network: 'Telegram', localpart: 'telegrambot', firstCommand: 'login' },
   { network: 'Google Messages', localpart: 'gmessagesbot', firstCommand: 'login' },
@@ -25,4 +37,13 @@ export const KNOWN_BRIDGES: readonly KnownBridge[] = [
 
 export function bridgeBotId(bridge: KnownBridge, selfUserId: string): string {
   return `@${bridge.localpart}:${selfUserId.slice(selfUserId.indexOf(':') + 1)}`;
+}
+
+/** Where the bridge's login API sits under the homeserver: `/_matrix/provision/<name>/`. */
+export function provisioningName(bridge: KnownBridge): string {
+  return bridge.localpart.replace(/bot$/, '');
+}
+
+export function knownBridge(localpart: string): KnownBridge | undefined {
+  return KNOWN_BRIDGES.find((bridge) => bridge.localpart === localpart);
 }

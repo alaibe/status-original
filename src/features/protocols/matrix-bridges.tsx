@@ -1,40 +1,32 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 
-import { Button, Card, ListItem, Text, toast } from '@/design';
-import { errorMessage } from '@/core/errors';
+import { Button, Card, ListItem, Text } from '@/design';
 import { useChatStore } from '@/core/messaging/chat-store';
 import type { ChatSession } from '@/core/messaging/protocol';
 import { guideUrl } from '@/lib/guide';
 import { openExternal } from '@/lib/open-url';
-import { openChat } from '@/features/navigation/open';
-import { bridgeBotId, KNOWN_BRIDGES, type KnownBridge } from '@/protocols/matrix/bridges';
+import { connectByChat, existingBotChat } from '@/features/bridge-login/connect-by-chat';
+import {
+  bridgeBotId,
+  KNOWN_BRIDGES,
+  provisioningName,
+  type KnownBridge,
+} from '@/protocols/matrix/bridges';
+import type { MatrixCapabilities } from '@/protocols/matrix/provisioning';
 
 const PROTOCOL = 'matrix';
-const JOIN_TIMEOUT_MS = 20_000;
 
 interface FoundBridge {
   bridge: KnownBridge;
   botId: string;
+  /** Signed-in accounts, or `null` when the bridge's login API is out of reach. */
+  accounts: string[] | null;
 }
 
-async function hasJoined(conversationId: string, botId: string): Promise<boolean> {
-  const deadline = Date.now() + JOIN_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const members = await useChatStore
-      .getState()
-      .getMembers(conversationId)
-      .catch(() => []);
-    if (members.some((member) => member.id === botId)) return true;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  return false;
-}
-
-export function MatrixBridges({ session }: { session: ChatSession }) {
+export function MatrixBridges({ session }: { session: ChatSession & Partial<MatrixCapabilities> }) {
   const resolvePeer = useChatStore((s) => s.resolvePeer);
-  const startDm = useChatStore((s) => s.startDm);
-  const sendMessage = useChatStore((s) => s.sendMessage);
-  const conversations = useChatStore((s) => s.conversations);
+  useChatStore((s) => s.conversations);
   const [found, setFound] = useState<FoundBridge[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const self = session.self.address;
@@ -42,10 +34,15 @@ export function MatrixBridges({ session }: { session: ChatSession }) {
   useEffect(() => {
     let cancelled = false;
     Promise.all(
-      KNOWN_BRIDGES.map(async (bridge) => {
-        const botId = bridgeBotId(bridge, self);
-        const peer = await resolvePeer(PROTOCOL, botId).catch(() => null);
-        return peer ? { bridge, botId: peer } : null;
+      KNOWN_BRIDGES.map(async (bridge): Promise<FoundBridge | null> => {
+        const botId = await resolvePeer(PROTOCOL, bridgeBotId(bridge, self)).catch(() => null);
+        if (!botId) return null;
+        const whoami = await session
+          .bridgeProvisioning?.(provisioningName(bridge))
+          ?.whoami()
+          .catch(() => null);
+        const accounts = whoami ? whoami.logins.map((login) => login.name || login.id) : null;
+        return { bridge, botId, accounts };
       })
     ).then((results) => {
       if (!cancelled) setFound(results.filter((result) => result !== null));
@@ -53,34 +50,15 @@ export function MatrixBridges({ session }: { session: ChatSession }) {
     return () => {
       cancelled = true;
     };
-  }, [resolvePeer, self]);
+  }, [resolvePeer, self, session]);
 
-  function existingChat(botId: string) {
-    return conversations.find(
-      (c) => c.protocol === PROTOCOL && c.kind === 'dm' && c.memberIds.includes(botId)
-    );
-  }
-
-  async function connect({ bridge, botId }: FoundBridge) {
-    const existing = existingChat(botId);
-    if (existing) {
-      openChat(existing.id);
+  async function connect(item: FoundBridge) {
+    if (item.accounts !== null) {
+      router.push({ pathname: '/bridge-login', params: { bridge: item.bridge.localpart } });
       return;
     }
-    setBusy(botId);
-    try {
-      const conversation = await startDm(PROTOCOL, botId);
-      openChat(conversation.id);
-      if (!(await hasJoined(conversation.id, botId))) {
-        toast.error(
-          `The ${bridge.network} bridge did not answer. Send it “${bridge.firstCommand}” once it joins.`
-        );
-      } else {
-        await sendMessage(conversation.id, { kind: 'text', text: bridge.firstCommand });
-      }
-    } catch (e) {
-      toast.error(errorMessage(e, `Could not reach the ${bridge.network} bridge`));
-    }
+    setBusy(item.botId);
+    await connectByChat(item.bridge, item.botId);
     setBusy(null);
   }
 
@@ -107,27 +85,31 @@ export function MatrixBridges({ session }: { session: ChatSession }) {
       ) : (
         <>
           <Text variant="caption">
-            Connect opens a chat with the network’s bridge bot and asks it to sign you in. Answer
-            its questions there; your chats from that network then appear here.
+            Connect signs you in to the network through its bridge. Your chats from there then
+            appear in this list.
           </Text>
-          {found.map((item) => (
-            <ListItem
-              key={item.botId}
-              testID={`matrix-bridge-${item.bridge.localpart}`}
-              title={item.bridge.network}
-              subtitle={item.botId}
-              trailing={
-                <Button
-                  label={existingChat(item.botId) ? 'Open' : 'Connect'}
-                  size="sm"
-                  tone={existingChat(item.botId) ? 'neutral' : undefined}
-                  loading={busy === item.botId}
-                  disabled={busy !== null}
-                  onPress={() => connect(item)}
-                />
-              }
-            />
-          ))}
+          {found.map((item) => {
+            const connected = item.accounts !== null && item.accounts.length > 0;
+            const chat = item.accounts === null && existingBotChat(item.botId);
+            return (
+              <ListItem
+                key={item.botId}
+                testID={`matrix-bridge-${item.bridge.localpart}`}
+                title={item.bridge.network}
+                subtitle={connected ? `Signed in as ${item.accounts!.join(', ')}` : item.botId}
+                trailing={
+                  <Button
+                    label={connected ? 'Manage' : chat ? 'Open' : 'Connect'}
+                    size="sm"
+                    tone={connected || chat ? 'neutral' : undefined}
+                    loading={busy === item.botId}
+                    disabled={busy !== null}
+                    onPress={() => connect(item)}
+                  />
+                }
+              />
+            );
+          })}
         </>
       )}
     </Card>

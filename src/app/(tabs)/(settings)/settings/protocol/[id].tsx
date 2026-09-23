@@ -15,6 +15,8 @@ import { protocolById } from '@/protocols';
 import { errorMessage } from '@/core/errors';
 import { LoginStep, SignedIn } from '@/features/protocols/login';
 import { MatrixBridges } from '@/features/protocols/matrix-bridges';
+import type { ChatSession } from '@/core/messaging/protocol';
+import type { MatrixCapabilities } from '@/protocols/matrix/provisioning';
 import { describeProtocol, toneFor } from '@/features/protocols/presentation';
 import { accountRuntime } from '@/runtime';
 import { openExternal } from '@/lib/open-url';
@@ -122,7 +124,7 @@ export default function ProtocolConfigScreen() {
             ) : null}
 
             {id === 'matrix' && session?.self.address && !connection?.login ? (
-              <MatrixBridges session={session} />
+              <MatrixBridges session={session as ChatSession & Partial<MatrixCapabilities>} />
             ) : null}
 
             {config === null ? (

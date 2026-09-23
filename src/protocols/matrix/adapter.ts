@@ -25,6 +25,7 @@ import type {
   MxUpdate,
 } from './api';
 import { conversationIdOf, localpart, parseUserId, roomIdOf, USER_ID } from './ids';
+import { BridgeProvisioning, type MatrixCapabilities } from './provisioning';
 
 /** Bots write links as Markdown autolinks; the brackets are not part of the URL. */
 const AUTOLINK = /<(https?:\/\/[^\s<>]+)>/g;
@@ -43,7 +44,7 @@ export interface MatrixConnectOptions {
  * in its own store. Joined rooms and invitations are surfaced; spaces are
  * not conversations.
  */
-export class MatrixSession implements ChatSession {
+export class MatrixSession implements ChatSession, MatrixCapabilities {
   private api!: MatrixApi;
   private unsubscribe: Unsubscribe | null = null;
   private userId: string | null = null;
@@ -117,6 +118,30 @@ export class MatrixSession implements ChatSession {
       this.setLogin({ ...current, error: message });
       throw new Error(message);
     }
+  }
+
+  bridgeProvisioning(bridge: string): BridgeProvisioning | null {
+    const { session, homeserverUrl } = this.options.parameters;
+    if (!session || !this.userId) return null;
+    const base = `${homeserverUrl}/_matrix/provision/${encodeURIComponent(bridge)}`;
+    const query = `user_id=${encodeURIComponent(this.userId)}`;
+    return new BridgeProvisioning(async (path, init = {}) => {
+      const response = await fetch(`${base}${path}${path.includes('?') ? '&' : '?'}${query}`, {
+        method: init.method ?? 'GET',
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      });
+      const text = await response.text();
+      let json: { error?: string } = {};
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch {}
+      if (!response.ok) throw new Error(json.error ?? `The bridge answered ${response.status}.`);
+      return json;
+    });
   }
 
   async signOut(): Promise<void> {

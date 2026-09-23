@@ -151,6 +151,7 @@ function AppShell() {
           <Stack.Screen name="new-chat" options={SHEET_OPTIONS} />
           <Stack.Screen name="invite" options={SHEET_OPTIONS} />
           <Stack.Screen name="qr" options={SHEET_OPTIONS} />
+          <Stack.Screen name="bridge-login" options={SHEET_OPTIONS} />
           <Stack.Screen
             name="sheet"
             options={{
