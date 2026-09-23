@@ -6,6 +6,8 @@ import {
   FadeInUp,
   FadeOut,
   ReduceMotion,
+  SlideInLeft,
+  SlideInRight,
   type WithSpringConfig,
 } from 'react-native-reanimated';
 
@@ -75,6 +77,12 @@ export const Enter = {
       .easing(EASE_OUT)
       .withInitialValues({ transform: [{ translateY: 16 }] })
       .reduceMotion(R),
+
+  /** Going one level in, as into a folder. */
+  fromRight: () => SlideInRight.duration(Duration.base).easing(EASE_OUT).reduceMotion(R),
+
+  /** Coming back out a level. */
+  fromLeft: () => SlideInLeft.duration(Duration.base).easing(EASE_OUT).reduceMotion(R),
 } as const;
 
 export const Exit = {

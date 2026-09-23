@@ -80,6 +80,8 @@ export interface Conversation {
   lastMessage?: ChatMessage;
   consent: 'allowed' | 'denied' | 'unknown';
   protocol?: string;
+  /** Where the chat really lives when a bridge carries it: "Slack", "Discord". */
+  network?: string;
   selfRole?: GroupRole;
 }
 

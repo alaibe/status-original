@@ -21,6 +21,7 @@ export const MATRIX_PROTOCOL = {
   id: 'matrix',
   docsUrl: guideUrl('networks', 'matrix'),
   label: 'Matrix',
+  external: true,
   description:
     'Your Matrix account: encrypted rooms and DMs on any homeserver, plus whatever your ' +
     'homeserver bridges in (WhatsApp, Signal, Slack, iMessage…).',

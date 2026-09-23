@@ -42,6 +42,8 @@ export interface ProtocolDescriptor {
   meta: ChatProtocolMeta;
   description: string;
   docsUrl?: string;
+  /** An account on someone else's network, signed into, rather than one made from your keys. */
+  external?: boolean;
   recipient: RecipientCopy;
   configSchema: ProtocolConfigSchema;
   connect?(params: ProtocolConnectParams): Promise<ChatSession>;

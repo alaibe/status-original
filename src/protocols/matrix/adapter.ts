@@ -26,6 +26,7 @@ import type {
   MxStartParams,
   MxUpdate,
 } from './api';
+import { bridgedNetwork } from './bridges';
 import { conversationIdOf, localpart, parseUserId, roomIdOf, USER_ID } from './ids';
 import { BridgeProvisioning, type MatrixCapabilities } from './provisioning';
 
@@ -58,6 +59,8 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private readonly members = new Map<string, MxMember[]>();
   private readonly pendingMembers = new Map<string, Promise<MxMember[]>>();
   private readonly names = new Map<string, string>();
+  /** Once a room shows its bridge it keeps it, even after the bridged users fall out of the summary. */
+  private readonly networks = new Map<string, string>();
   private readonly mediaPaths = new Map<string, string>();
   private readonly awaitedMedia = new Map<string, MxEvent>();
 
@@ -412,9 +415,15 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
       ? [...new Set([peer ?? room.id, selfId])]
       : [...new Set([...(known?.map((member) => member.userId) ?? room.heroes), selfId])];
 
+    const network =
+      this.networks.get(room.id) ??
+      bridgedNetwork([...memberIds, peer, room.latest?.sender, room.inviter]);
+    if (network) this.networks.set(room.id, network);
+
     return {
       id: conversationIdOf(room.id),
       kind: room.isDm ? 'dm' : 'group',
+      network,
       title: room.name || (room.isDm ? (peer ?? room.id) : 'Untitled room'),
       memberIds,
       createdAt: room.latest?.timestamp ?? 0,

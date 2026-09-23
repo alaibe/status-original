@@ -10,6 +10,7 @@ export const TELEGRAM_PROTOCOL = {
   id: 'telegram',
   docsUrl: guideUrl('networks', 'telegram'),
   label: 'Telegram',
+  external: true,
   description: 'Your Telegram account: private chats and groups, signed in with your phone number.',
   recipient: {
     label: 'Username or phone number',

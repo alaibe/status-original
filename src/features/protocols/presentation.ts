@@ -65,3 +65,8 @@ export function protocolLabel(protocol: ProtocolId | undefined): string {
   if (!protocol || protocol === LOCAL_PROTOCOL) return 'On device';
   return protocolById(protocol)?.label ?? protocol;
 }
+
+/** A network folder's name: a bridged network as the bridge names it, a protocol by its label. */
+export function networkLabel(network: string): string {
+  return protocolById(network)?.label ?? network;
+}

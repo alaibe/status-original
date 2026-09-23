@@ -57,7 +57,3 @@ export function orderConversations(
       return recency(b) - recency(a);
     });
 }
-
-export function archivedCount(conversations: Conversation[], prefs: ChatPrefsMap): number {
-  return conversations.filter((c) => prefs[c.id]?.archived).length;
-}

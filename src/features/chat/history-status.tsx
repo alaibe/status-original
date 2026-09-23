@@ -5,7 +5,14 @@ import { Pressable, Text, useThemeColors } from '@/design';
 import { protocolLabel } from '@/features/protocols/presentation';
 
 /** Shared by the inbox and the oldest end of a conversation's transcript. */
-export function HistoryStatus({ protocol }: { protocol?: string }) {
+export function HistoryStatus({
+  protocol,
+  compact = false,
+}: {
+  protocol?: string;
+  /** One quiet line, for the top of the chat list. */
+  compact?: boolean;
+}) {
   const colors = useThemeColors();
   const protocols = useChatStore((s) => s.protocols);
   const syncProtocol = useChatStore((s) => s.syncProtocol);
@@ -22,7 +29,9 @@ export function HistoryStatus({ protocol }: { protocol?: string }) {
   if (active.length === 0 && failed.length === 0 && partial.length === 0) return null;
 
   return (
-    <View className="gap-1 px-gutter py-3" accessibilityLiveRegion="polite">
+    <View
+      className={compact ? 'gap-0.5 px-gutter py-1.5' : 'gap-1 px-gutter py-3'}
+      accessibilityLiveRegion="polite">
       {active.length > 0 ? (
         <View
           className="flex-row items-center gap-2"
@@ -44,7 +53,9 @@ export function HistoryStatus({ protocol }: { protocol?: string }) {
             for (const [id] of failed) void syncProtocol(id);
           }}
           className="py-1">
-          <Text variant="caption">{details(failed)} · Retry</Text>
+          <Text variant="caption" numberOfLines={1}>
+            {compact ? summary(failed) : details(failed)} · Retry
+          </Text>
         </Pressable>
       ) : null}
       {partial.length > 0 ? (
@@ -55,11 +66,17 @@ export function HistoryStatus({ protocol }: { protocol?: string }) {
             for (const [id] of partial) void syncProtocol(id);
           }}
           className="py-1">
-          <Text variant="caption">{details(partial)} · Retry</Text>
+          <Text variant="caption" numberOfLines={1}>
+            {compact ? summary(partial) : details(partial)} · Retry
+          </Text>
         </Pressable>
       ) : null}
     </View>
   );
+}
+
+function summary(entries: [string, unknown][]): string {
+  return `${entries.map(([id]) => protocolLabel(id)).join(', ')}: some history unavailable`;
 }
 
 function details(entries: [string, { history?: { error?: string } }][]): string {

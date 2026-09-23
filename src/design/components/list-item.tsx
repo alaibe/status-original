@@ -9,6 +9,8 @@ export interface ListItemProps {
   testID?: string;
   title: React.ReactNode;
   subtitle?: string;
+  /** Beside the subtitle, at the end of the second line. */
+  subtitleTrailing?: React.ReactNode;
   meta?: React.ReactNode;
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
@@ -29,6 +31,7 @@ export function ListItem({
   testID,
   title,
   subtitle,
+  subtitleTrailing,
   meta,
   leading,
   trailing,
@@ -60,13 +63,16 @@ export function ListItem({
             meta
           )}
         </View>
-        {subtitle ? (
-          <Text
-            variant="footnote"
-            numberOfLines={numberOfLinesSubtitle}
-            className={cn(unread && 'font-medium text-content-muted')}>
-            {subtitle}
-          </Text>
+        {subtitle || subtitleTrailing ? (
+          <View className="flex-row items-center gap-2">
+            <Text
+              variant="footnote"
+              numberOfLines={numberOfLinesSubtitle}
+              className={cn('min-w-0 flex-1', unread && 'font-medium text-content-muted')}>
+              {subtitle}
+            </Text>
+            {subtitleTrailing}
+          </View>
         ) : null}
       </View>
       {trailing}

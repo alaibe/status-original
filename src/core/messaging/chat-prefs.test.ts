@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { createAccountStorage } from '@/storage/account';
 import {
-  archivedCount,
   loadChatPrefs,
   orderConversations,
   saveChatPrefs,
@@ -110,12 +109,5 @@ describe('persistence', () => {
     expect(await loadChatPrefs(b)).toEqual({});
 
     expect(await loadChatPrefs(a)).toEqual({ c1: { pinned: true } });
-  });
-});
-
-describe('archivedCount', () => {
-  it('counts only archived conversations', () => {
-    const list = [conversation('a', 1), conversation('b', 2)];
-    expect(archivedCount(list, { a: { archived: true } })).toBe(1);
   });
 });

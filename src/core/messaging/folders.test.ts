@@ -1,4 +1,4 @@
-import { availableFolders, countInFolder, matchesFolder } from './folders';
+import { inboxRows, inDirectory, isUnreadHere, matchesFilter, type InboxRow } from './folders';
 import type { Conversation } from './types';
 
 function conversation(over: Partial<Conversation> & { id: string }): Conversation {
@@ -22,111 +22,82 @@ function conversation(over: Partial<Conversation> & { id: string }): Conversatio
 }
 
 const empty = { prefs: {}, readAt: {} };
+const shape = (rows: InboxRow[]) =>
+  rows.map((r) =>
+    r.kind === 'chat' ? r.conversation.id : `${r.directory}[${r.chats.map((c) => c.id)}]`
+  );
 
-describe('matchesFolder', () => {
-  it('puts everything in All', () => {
-    expect(matchesFolder(conversation({ id: 'c1' }), 'all', empty)).toBe(true);
+describe('matchesFilter', () => {
+  it('sorts chats into Direct and Groups, keeping the app’s own bots out of Direct', () => {
+    expect(matchesFilter(conversation({ id: 'dm' }), 'direct', empty)).toBe(true);
+    expect(matchesFilter(conversation({ id: 'g', kind: 'group' }), 'groups', empty)).toBe(true);
+    expect(matchesFilter(conversation({ id: 'local-status' }), 'direct', empty)).toBe(false);
   });
 
-  it('matches groups and bots by their own shape', () => {
-    expect(matchesFolder(conversation({ id: 'c1', kind: 'group' }), 'groups', empty)).toBe(true);
-    expect(matchesFolder(conversation({ id: 'local-status' }), 'bots', empty)).toBe(true);
-    expect(matchesFolder(conversation({ id: 'c1' }), 'bots', empty)).toBe(false);
-  });
-
-  it('puts one-to-one chats in Direct, but not the app’s own bot rooms', () => {
-    expect(matchesFolder(conversation({ id: 'dm' }), 'direct', empty)).toBe(true);
-    expect(matchesFolder(conversation({ id: 'g', kind: 'group' }), 'direct', empty)).toBe(false);
-    expect(matchesFolder(conversation({ id: 'local-status' }), 'direct', empty)).toBe(false);
-  });
-
-  it('matches a transport', () => {
-    const c = conversation({ id: 'c1', protocol: 'nostr' });
-    expect(matchesFolder(c, 'protocol:nostr', empty)).toBe(true);
-    expect(matchesFolder(c, 'protocol:xmtp', empty)).toBe(false);
-  });
-
-  it('counts an unread conversation as unread', () => {
-    expect(matchesFolder(conversation({ id: 'c1' }), 'unread', empty)).toBe(true);
-  });
-
-  it('excludes muted conversations from Unread', () => {
-    // Muting says "stop drawing my attention"; an Unread folder is nothing but
-    // attention, so honouring one means honouring the other.
+  it('counts unread, but not muted or already read', () => {
     const c = conversation({ id: 'c1' });
-    expect(matchesFolder(c, 'unread', { prefs: { c1: { muted: true } }, readAt: {} })).toBe(false);
-  });
-
-  it('excludes a conversation already read', () => {
-    const c = conversation({ id: 'c1' });
-    expect(matchesFolder(c, 'unread', { prefs: {}, readAt: { c1: 5_000 } })).toBe(false);
+    expect(isUnreadHere(c, empty)).toBe(true);
+    expect(isUnreadHere(c, { prefs: { c1: { muted: true } }, readAt: {} })).toBe(false);
+    expect(isUnreadHere(c, { prefs: {}, readAt: { c1: 5_000 } })).toBe(false);
   });
 });
 
-describe('availableFolders', () => {
-  it('always offers All, even with nothing to show', () => {
-    expect(availableFolders([], empty).map((f) => f.id)).toEqual(['all']);
-  });
+describe('inDirectory', () => {
+  it('holds a network’s chats, bridged or native, and the archive holds only archived ones', () => {
+    const slack = conversation({ id: 's', protocol: 'matrix', network: 'Slack' });
+    expect(inDirectory(slack, 'network:Slack', empty)).toBe(true);
+    expect(inDirectory(slack, 'network:matrix', empty)).toBe(false);
 
-  it('omits folders that would be empty', () => {
-    // A tab that leads nowhere is noise, and the set grows with every
-    // transport ever added.
-    const ids = availableFolders([conversation({ id: 'c1' })], {
-      prefs: {},
-      readAt: { c1: 5_000 },
-    }).map((f) => f.id);
-    expect(ids).not.toContain('groups');
-    expect(ids).not.toContain('bots');
-    expect(ids).not.toContain('unread');
-  });
-
-  it('offers Groups and Bots when they exist', () => {
-    const ids = availableFolders(
-      [conversation({ id: 'g', kind: 'group' }), conversation({ id: 'local-status' })],
-      { prefs: {}, readAt: { g: 5_000, 'local-status': 5_000 } }
-    ).map((f) => f.id);
-
-    expect(ids).toContain('groups');
-    expect(ids).toContain('bots');
-    expect(ids).not.toContain('direct');
-  });
-
-  it('offers Direct next to Groups when there are one-to-one chats', () => {
-    const ids = availableFolders(
-      [conversation({ id: 'dm' }), conversation({ id: 'g', kind: 'group' })],
-      { prefs: {}, readAt: { dm: 5_000, g: 5_000 } }
-    ).map((f) => f.id);
-    expect(ids).toEqual(['all', 'direct', 'groups']);
-  });
-
-  it('offers transport folders only when more than one is in use', () => {
-    const single = availableFolders([conversation({ id: 'a', protocol: 'xmtp' })], empty);
-    expect(single.some((f) => f.id.startsWith('protocol:'))).toBe(false);
-
-    const many = availableFolders(
-      [conversation({ id: 'a', protocol: 'xmtp' }), conversation({ id: 'b', protocol: 'nostr' })],
-      empty
-    );
-    expect(many.map((f) => f.id)).toContain('protocol:xmtp');
-    expect(many.map((f) => f.id)).toContain('protocol:nostr');
-  });
-
-  it('ignores the local pseudo-protocol when deciding', () => {
-    const folders = availableFolders(
-      [
-        conversation({ id: 'a', protocol: 'xmtp' }),
-        conversation({ id: 'local-x', protocol: 'local' }),
-      ],
-      empty
-    );
-    expect(folders.some((f) => f.id.startsWith('protocol:'))).toBe(false);
+    const archived = { prefs: { s: { archived: true } }, readAt: {} };
+    expect(inDirectory(slack, 'network:Slack', archived)).toBe(false);
+    expect(inDirectory(slack, 'archive', archived)).toBe(true);
   });
 });
 
-describe('countInFolder', () => {
-  it('counts matches', () => {
-    const list = [conversation({ id: 'a', kind: 'group' }), conversation({ id: 'b' })];
-    expect(countInFolder(list, 'groups', empty)).toBe(1);
-    expect(countInFolder(list, 'all', empty)).toBe(2);
+describe('inboxRows', () => {
+  const folded = (network: string) => network !== 'nostr';
+  const all = () => true;
+
+  it('folds other networks into one row where their latest chat sits', () => {
+    const ordered = [
+      conversation({ id: 's1', protocol: 'matrix', network: 'Slack' }),
+      conversation({ id: 'n1', protocol: 'nostr' }),
+      conversation({ id: 't1', protocol: 'telegram' }),
+      conversation({ id: 's2', protocol: 'matrix', network: 'Slack' }),
+      conversation({ id: 'bot', protocol: 'local' }),
+    ];
+    expect(shape(inboxRows(ordered, all, folded, empty))).toEqual([
+      'network:Slack[s1,s2]',
+      'n1',
+      'network:telegram[t1]',
+      'bot',
+    ]);
+  });
+
+  it('puts Archive first and keeps archived chats out of the rest', () => {
+    const ordered = [
+      conversation({ id: 'n1', protocol: 'nostr' }),
+      conversation({ id: 's1', protocol: 'matrix', network: 'Slack' }),
+    ];
+    const context = { prefs: { s1: { archived: true } }, readAt: {} };
+    expect(shape(inboxRows(ordered, all, folded, context))).toEqual(['archive[s1]', 'n1']);
+  });
+
+  it('leaves a pinned chat out of its folder', () => {
+    const ordered = [
+      conversation({ id: 's1', protocol: 'matrix', network: 'Slack' }),
+      conversation({ id: 's2', protocol: 'matrix', network: 'Slack' }),
+    ];
+    const context = { prefs: { s1: { pinned: true } }, readAt: {} };
+    expect(shape(inboxRows(ordered, all, folded, context))).toEqual(['s1', 'network:Slack[s2]']);
+  });
+
+  it('shows a folder only when something in it passes the filter', () => {
+    const ordered = [
+      conversation({ id: 's1', protocol: 'matrix', network: 'Slack', kind: 'group' }),
+      conversation({ id: 't1', protocol: 'telegram' }),
+    ];
+    const direct = (c: Conversation) => matchesFilter(c, 'direct', empty);
+    expect(shape(inboxRows(ordered, direct, folded, empty))).toEqual(['network:telegram[t1]']);
   });
 });

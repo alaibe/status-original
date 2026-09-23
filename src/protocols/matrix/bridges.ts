@@ -33,6 +33,23 @@ export const KNOWN_BRIDGES: readonly KnownBridge[] = [
   { network: 'Google Voice', localpart: 'gvoicebot', firstCommand: 'login' },
 ];
 
+/**
+ * The network behind a bridged room, read from who is in it: a bridge's bot
+ * (`@slackbot:hs`) or the users it puppets (`@slack_…:hs`).
+ */
+export function bridgedNetwork(userIds: (string | null | undefined)[]): string | undefined {
+  for (const id of userIds) {
+    if (!id?.startsWith('@')) continue;
+    const localpart = id.slice(1, id.indexOf(':'));
+    const bridge = KNOWN_BRIDGES.find(
+      (b) =>
+        localpart === b.localpart || localpart.startsWith(`${b.localpart.replace(/bot$/, '')}_`)
+    );
+    if (bridge) return bridge.network;
+  }
+  return undefined;
+}
+
 export function bridgeBotId(bridge: KnownBridge, selfUserId: string): string {
   return `@${bridge.localpart}:${selfUserId.slice(selfUserId.indexOf(':') + 1)}`;
 }

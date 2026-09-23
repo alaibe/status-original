@@ -7,6 +7,7 @@ export {
 export { Avatar, type AvatarProps } from './avatar';
 export { BackHeader } from './back-header';
 export { Badge } from './badge';
+export { NetworkMark } from './network-mark';
 export { Button } from './button';
 export { Chevron } from './chevron';
 export { ConfirmSheet, type ConfirmSheetProps } from './confirm-sheet';

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
 import { useEffect, useState } from 'react';
 import { FlashList } from '@shopify/flash-list';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {
@@ -12,23 +12,36 @@ import {
   Enter,
   Icon,
   ListItem,
+  NetworkMark,
   type MenuAnchor,
   Pressable,
   SwipeableRow,
   type SwipeAction,
   Text,
+  useEscapeKey,
   useThemeColors,
 } from '@/design';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type { Conversation } from '@/core/messaging/types';
 import { formatTimestamp, messagePreview } from '@/core/messaging/preview';
-import { archivedCount, orderConversations, type ChatPrefs } from '@/core/messaging/chat-prefs';
-import { availableFolders, matchesFolder, type FolderId } from '@/core/messaging/folders';
+import { orderConversations, type ChatPrefs } from '@/core/messaging/chat-prefs';
+import {
+  type Directory,
+  type InboxRow,
+  inboxRows,
+  inDirectory,
+  isUnreadHere,
+  matchesFilter,
+  networkOf,
+} from '@/core/messaging/folders';
 import { isUnread } from '@/core/messaging/unread';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
-import { protocolBadge, protocolSubtitle } from '@/features/protocols/presentation';
+import { networkLabel, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
+import { CountBadge, FilterTabs } from '@/features/chat/folder-tabs';
+import { useFolderStore } from '@/features/chat/folder-store';
+import { protocolById } from '@/protocols';
 import { openChat } from '@/features/navigation/open';
 
 export interface ChatListProps {
@@ -74,8 +87,12 @@ export function ChatList({ query, selectedId }: ChatListProps) {
     anchor: MenuAnchor | null;
   } | null>(null);
   const managing = menu?.conversation ?? null;
-  const [showArchived, setShowArchived] = useState(false);
-  const [chosenFolder, setFolder] = useState<FolderId>('all');
+  const directory = useFolderStore((s) => s.directory);
+  const setDirectory = useFolderStore((s) => s.setDirectory);
+  const filter = useFolderStore((s) => s.filter);
+  const setFilter = useFolderStore((s) => s.setFilter);
+  const [motion, setMotion] = useState<'in' | 'out' | null>(null);
+  const messages = useChatStore((s) => s.messages);
 
   const { allowed, requests } = {
     allowed: conversations.filter((c) => c.consent === 'allowed'),
@@ -83,40 +100,75 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   };
 
   const folderContext = { prefs: chatPrefs, readAt };
-  const folders = availableFolders(allowed, folderContext);
-
-  const folder = folders.some((f) => f.id === chosenFolder) ? chosenFolder : 'all';
-
-  const ordered = showArchived
-    ? orderConversations(allowed, chatPrefs, { includeArchived: true }).filter(
-        (c) => chatPrefs[c.id]?.archived
-      )
-    : orderConversations(allowed, chatPrefs);
-  const inFolder = ordered.filter((c) => matchesFolder(c, folder, folderContext));
+  const ordered = orderConversations(allowed, chatPrefs, { includeArchived: true });
+  const scope = directory
+    ? ordered.filter((c) => inDirectory(c, directory, folderContext))
+    : ordered.filter((c) => !chatPrefs[c.id]?.archived);
 
   const q = query.trim().toLowerCase();
-  const visible = q
-    ? inFolder.filter((c) => {
-        const title = conversationTitle(c, selfIdOf(c), nameFor).toLowerCase();
-        return title.includes(q) || messagePreview(c.lastMessage).toLowerCase().includes(q);
-      })
-    : inFolder;
+  const matchesQuery = (c: Conversation) =>
+    !q ||
+    conversationTitle(c, selfIdOf(c), nameFor).toLowerCase().includes(q) ||
+    messagePreview(c.lastMessage).toLowerCase().includes(q);
 
-  const archived = archivedCount(allowed, chatPrefs);
+  // A chat read under Unread stays until the view changes, rather than vanishing under the pointer.
+  const view = `${directory}|${filter}`;
+  const [kept, setKept] = useState<{ view: string; ids: string[] }>({ view, ids: [] });
+  if (filter === 'unread') {
+    const held = kept.view === view ? kept.ids : [];
+    const added = scope
+      .filter((c) => isUnreadHere(c, folderContext) && !held.includes(c.id))
+      .map((c) => c.id);
+    if (kept.view !== view || added.length > 0) setKept({ view, ids: [...held, ...added] });
+  }
+  const include = (c: Conversation) =>
+    matchesQuery(c) &&
+    (matchesFilter(c, filter, folderContext) ||
+      (filter === 'unread' && kept.view === view && kept.ids.includes(c.id)));
+
+  // Your own networks stay in the inbox one chat at a time; accounts elsewhere fold into a row.
+  const folded = (network: string) => protocolById(network)?.external ?? true;
+  const rows: InboxRow[] =
+    directory || q
+      ? scope.filter(include).map((conversation) => ({ kind: 'chat', conversation }))
+      : inboxRows(ordered, include, folded, folderContext);
+  const unreadHere = scope.filter((c) => isUnreadHere(c, folderContext)).length;
+
+  const openDirectory = (next: Directory) => {
+    setMotion('in');
+    setDirectory(next);
+  };
+  const leaveDirectory = () => {
+    setMotion('out');
+    setDirectory(null);
+  };
+  useEscapeKey(directory !== null, leaveDirectory);
 
   const managed = managing ? chatPrefs[managing.id] : undefined;
   const choose = (key: keyof ChatPrefs) => {
     if (managing) toggle(managing.id, key);
   };
 
-  const networked = new Set(
-    conversations.map((c) => c.protocol).filter((p): p is string => Boolean(p) && p !== 'local')
+  const nativeNetworks = new Set(
+    scope.map(networkOf).filter((n): n is string => n !== undefined && !folded(n))
   );
-  const showProtocol = networked.size > 1;
+  const showNetwork = !directory && nativeNetworks.size > 1;
+  const unreadCount = (conversation: Conversation) => {
+    const since = readAt[conversation.id] ?? 0;
+    return (messages[conversation.id] ?? []).filter(
+      (m) => !m.fromMe && m.sentAt > since && m.content.kind !== 'system'
+    ).length;
+  };
 
   return (
     <>
-      <HistoryStatus />
+      {conversations.length > 0 ? (
+        <FilterTabs active={filter} onSelect={setFilter} unread={unreadHere} />
+      ) : null}
+      {directory ? (
+        <DirectoryHeader directory={directory} onBack={leaveDirectory} count={scope.length} />
+      ) : null}
+      <HistoryStatus compact />
       {(status === 'connecting' || fetchingHistory) && conversations.length === 0 ? (
         <ConnectingState />
       ) : conversations.length === 0 ? (
@@ -128,143 +180,115 @@ export function ChatList({ query, selectedId }: ChatListProps) {
           onAction={() => router.push('/new-chat')}
         />
       ) : (
-        <FlashList
-          data={visible}
-          keyExtractor={(c) => c.id}
-          contentInsetAdjustmentBehavior="automatic"
-          ListEmptyComponent={
-            <EmptyState
-              icon={<Icon name="search-outline" size={40} color={colors['content-subtle']} />}
-              title={
-                query.trim()
-                  ? 'No matching chats'
-                  : showArchived
-                    ? 'No archived chats'
-                    : 'Nothing in this folder'
-              }
-              description={
-                query.trim()
-                  ? `No chats match “${query.trim()}”.`
-                  : showArchived
-                    ? 'Chats you archive will appear here.'
-                    : 'Choose another folder to see your other chats.'
-              }
-            />
+        <Animated.View
+          key={directory ?? 'inbox'}
+          entering={
+            motion === 'in' ? Enter.fromRight() : motion === 'out' ? Enter.fromLeft() : undefined
           }
-          refreshControl={
-            <RefreshControl refreshing={syncing} onRefresh={sync} tintColor={colors.brand} />
-          }
-          ListHeaderComponent={
-            <>
-              {folders.length > 1 && !showArchived ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerClassName="gap-2 px-gutter pb-3 pt-2.5">
-                  {folders.map((entry) => {
-                    const active = entry.id === folder;
-                    return (
-                      <Pressable
-                        key={entry.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={entry.label}
-                        onPress={() => setFolder(entry.id)}
-                        hitSlop={8}
-                        className={
-                          active
-                            ? 'rounded-pill bg-brand px-3.5 py-2'
-                            : 'rounded-pill bg-surface-sunken px-3.5 py-2'
-                        }>
-                        <Text
-                          variant="caption"
-                          className={
-                            active ? 'font-semibold text-brand-on' : 'font-medium text-content'
-                          }>
-                          {entry.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              ) : null}
-              {archived > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setShowArchived((v) => !v)}
-                  className="mx-gutter mb-2 min-h-tap flex-row items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
-                  <Icon
-                    name={showArchived ? 'arrow-back' : 'archive-outline'}
-                    size={20}
-                    color={colors['content-muted']}
-                  />
-                  <View className="min-w-0 flex-1">
-                    <Text className="font-semibold">
-                      {showArchived ? 'Back to chats' : 'Archived'}
-                    </Text>
-                  </View>
-                  {!showArchived ? <Badge label={String(archived)} tone="neutral" /> : null}
-                </Pressable>
-              ) : null}
-              {requests.length > 0 && !showArchived ? (
-                <Pressable
-                  testID="open-requests"
-                  accessibilityRole="button"
-                  onPress={() => router.push('/requests')}
-                  className="mx-gutter mb-2 min-h-tap flex-row items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
-                  <Icon name="mail-unread-outline" size={20} color={colors.brand} />
-                  <View className="min-w-0 flex-1">
-                    <Text className="font-semibold">Message requests</Text>
-                    <Text variant="caption">From people you haven’t replied to</Text>
-                  </View>
-                  <Badge label={String(requests.length)} tone="brand" />
-                </Pressable>
-              ) : null}
-            </>
-          }
-          renderItem={({ item }) => {
-            const prefs = chatPrefs[item.id];
-            return (
-              <ConversationRow
-                conversation={item}
-                selfId={selfIdOf(item)}
-                nameFor={nameFor}
-                unread={isUnread(item, readAt)}
-                showProtocol={showProtocol}
-                pinned={Boolean(prefs?.pinned)}
-                muted={Boolean(prefs?.muted)}
-                onPress={() => openChat(item.id)}
-                selected={item.id === selectedId}
-                onLongPress={() => setMenu({ conversation: item, anchor: null })}
-                onContextMenu={(anchor) => setMenu({ conversation: item, anchor })}
-                left={[
-                  {
-                    id: 'pin',
-                    label: prefs?.pinned ? 'Unpin' : 'Pin',
-                    icon: 'pin-outline',
-                    tone: 'neutral',
-                    onPress: () => toggle(item.id, 'pinned'),
-                  },
-                ]}
-                right={[
-                  {
-                    id: 'mute',
-                    label: prefs?.muted ? 'Unmute' : 'Mute',
-                    icon: prefs?.muted ? 'volume-high-outline' : 'volume-mute-outline',
-                    tone: 'warning',
-                    onPress: () => toggle(item.id, 'muted'),
-                  },
-                  {
-                    id: 'archive',
-                    label: prefs?.archived ? 'Unarchive' : 'Archive',
-                    icon: 'archive-outline',
-                    tone: 'brand',
-                    onPress: () => toggle(item.id, 'archived'),
-                  },
-                ]}
+          className="flex-1">
+          <FlashList
+            data={rows}
+            keyExtractor={(row) => (row.kind === 'chat' ? row.conversation.id : row.directory)}
+            getItemType={(row) => row.kind}
+            ItemSeparatorComponent={Separator}
+            contentInsetAdjustmentBehavior="automatic"
+            ListEmptyComponent={
+              <EmptyState
+                icon={<Icon name="search-outline" size={40} color={colors['content-subtle']} />}
+                title={
+                  query.trim()
+                    ? 'No matching chats'
+                    : filter === 'unread'
+                      ? 'All caught up'
+                      : 'Nothing here'
+                }
+                description={
+                  query.trim()
+                    ? `No chats match “${query.trim()}”.`
+                    : filter === 'unread'
+                      ? 'Nothing unread here.'
+                      : 'Try another filter.'
+                }
               />
-            );
-          }}
-        />
+            }
+            refreshControl={
+              <RefreshControl refreshing={syncing} onRefresh={sync} tintColor={colors.brand} />
+            }
+            ListHeaderComponent={
+              <>
+                {requests.length > 0 && !directory ? (
+                  <Pressable
+                    testID="open-requests"
+                    accessibilityRole="button"
+                    onPress={() => router.push('/requests')}
+                    className="mx-gutter mb-2 min-h-tap flex-row items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
+                    <Icon name="mail-unread-outline" size={20} color={colors.brand} />
+                    <View className="min-w-0 flex-1">
+                      <Text className="font-semibold">Message requests</Text>
+                      <Text variant="caption">From people you haven’t replied to</Text>
+                    </View>
+                    <Badge label={String(requests.length)} tone="brand" />
+                  </Pressable>
+                ) : null}
+              </>
+            }
+            renderItem={({ item: row }) => {
+              if (row.kind === 'directory') {
+                return (
+                  <DirectoryRow
+                    row={row}
+                    unread={row.chats.filter((c) => isUnreadHere(c, folderContext)).length}
+                    preview={`${conversationTitle(row.latest, selfIdOf(row.latest), nameFor)}: ${messagePreview(row.latest.lastMessage)}`}
+                    onPress={() => openDirectory(row.directory)}
+                  />
+                );
+              }
+              const item = row.conversation;
+              const prefs = chatPrefs[item.id];
+              return (
+                <ConversationRow
+                  conversation={item}
+                  selfId={selfIdOf(item)}
+                  nameFor={nameFor}
+                  unread={isUnread(item, readAt)}
+                  unreadCount={unreadCount(item)}
+                  network={showNetwork ? networkOf(item) : undefined}
+                  pinned={Boolean(prefs?.pinned)}
+                  muted={Boolean(prefs?.muted)}
+                  onPress={() => openChat(item.id)}
+                  selected={item.id === selectedId}
+                  onLongPress={() => setMenu({ conversation: item, anchor: null })}
+                  onContextMenu={(anchor) => setMenu({ conversation: item, anchor })}
+                  left={[
+                    {
+                      id: 'pin',
+                      label: prefs?.pinned ? 'Unpin' : 'Pin',
+                      icon: 'pin-outline',
+                      tone: 'neutral',
+                      onPress: () => toggle(item.id, 'pinned'),
+                    },
+                  ]}
+                  right={[
+                    {
+                      id: 'mute',
+                      label: prefs?.muted ? 'Unmute' : 'Mute',
+                      icon: prefs?.muted ? 'volume-high-outline' : 'volume-mute-outline',
+                      tone: 'warning',
+                      onPress: () => toggle(item.id, 'muted'),
+                    },
+                    {
+                      id: 'archive',
+                      label: prefs?.archived ? 'Unarchive' : 'Archive',
+                      icon: 'archive-outline',
+                      tone: 'brand',
+                      onPress: () => toggle(item.id, 'archived'),
+                    },
+                  ]}
+                />
+              );
+            }}
+          />
+        </Animated.View>
       )}
 
       <ActionSheet
@@ -305,7 +329,8 @@ function ConversationRow({
   selfId,
   nameFor,
   unread,
-  showProtocol,
+  unreadCount,
+  network,
   pinned,
   muted,
   onPress,
@@ -319,7 +344,8 @@ function ConversationRow({
   selfId: string;
   nameFor: (id: string) => string;
   unread: boolean;
-  showProtocol: boolean;
+  unreadCount: number;
+  network?: string;
   pinned: boolean;
   muted: boolean;
   onPress: () => void;
@@ -331,72 +357,159 @@ function ConversationRow({
 }) {
   const colors = useThemeColors();
   const title = conversationTitle(conversation, selfId, nameFor);
-  const badge = showProtocol ? protocolBadge(conversation.protocol) : null;
+  const last = conversation.lastMessage;
 
   return (
-    <View>
-      <SwipeableRow left={left} right={right}>
-        <ListItem
-          testID={`conversation-${conversation.id}`}
-          title={title}
-          subtitle={messagePreview(conversation.lastMessage)}
-          onPress={onPress}
-          onLongPress={onLongPress}
-          onContextMenu={onContextMenu}
-          selected={selected}
-          unread={unread && !muted}
-          leading={<ConversationAvatar conversation={conversation} selfId={selfId} size="md" />}
-          trailing={
-            <View className="items-end gap-1">
-              {conversation.lastMessage ? (
-                <View className="flex-row items-center gap-1">
-                  {conversation.lastMessage.fromMe ? (
-                    <Icon
-                      name={
-                        conversation.lastMessage.status === 'failed'
-                          ? 'alert-circle'
-                          : conversation.lastMessage.status === 'sending'
-                            ? 'time-outline'
-                            : 'checkmark-done'
-                      }
-                      size={14}
-                      color={
-                        conversation.lastMessage.status === 'failed'
-                          ? colors.danger
-                          : conversation.lastMessage.readAt
-                            ? colors.brand
-                            : colors['content-subtle']
-                      }
-                    />
-                  ) : null}
-                  <Text
-                    variant="caption"
-                    className={unread ? 'font-semibold text-brand' : undefined}>
-                    {formatTimestamp(conversation.lastMessage.sentAt)}
-                  </Text>
-                </View>
+    <SwipeableRow left={left} right={right}>
+      <ListItem
+        testID={`conversation-${conversation.id}`}
+        title={
+          <>
+            {title}
+            {muted ? (
+              <>
+                {' '}
+                <Icon name="volume-mute-outline" size={13} color={colors['content-subtle']} />
+              </>
+            ) : null}
+          </>
+        }
+        accessibilityLabel={[title, messagePreview(last)].filter(Boolean).join(', ')}
+        subtitle={messagePreview(last)}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onContextMenu={onContextMenu}
+        selected={selected}
+        unread={unread && !muted}
+        leading={
+          <ConversationAvatar
+            conversation={conversation}
+            selfId={selfId}
+            size="md"
+            network={network ? networkLabel(network) : undefined}
+          />
+        }
+        meta={
+          last ? (
+            <View className="flex-row items-center gap-1">
+              {last.fromMe ? (
+                <Icon
+                  name={
+                    last.status === 'failed'
+                      ? 'alert-circle'
+                      : last.status === 'sending'
+                        ? 'time-outline'
+                        : 'checkmark-done'
+                  }
+                  size={14}
+                  color={
+                    last.status === 'failed'
+                      ? colors.danger
+                      : last.readAt
+                        ? colors.brand
+                        : colors['content-subtle']
+                  }
+                />
               ) : null}
-
-              {muted || pinned || badge || unread ? (
-                <View className="flex-row items-center gap-1.5">
-                  {muted ? (
-                    <Icon name="volume-mute-outline" size={13} color={colors['content-subtle']} />
-                  ) : null}
-                  {pinned ? <Icon name="pin" size={13} color={colors['content-subtle']} /> : null}
-                  {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
-                  {unread ? <UnreadDot /> : null}
-                </View>
-              ) : null}
+              <Text variant="caption" className={unread && !muted ? 'text-brand' : undefined}>
+                {formatTimestamp(last.sentAt)}
+              </Text>
             </View>
-          }
-        />
-      </SwipeableRow>
+          ) : undefined
+        }
+        subtitleTrailing={
+          unread ? (
+            <CountBadge count={unreadCount} muted={muted} />
+          ) : pinned ? (
+            <Icon name="pin" size={14} color={colors['content-subtle']} />
+          ) : undefined
+        }
+      />
+    </SwipeableRow>
+  );
+}
+
+function directoryLabel(directory: Directory): string {
+  return directory === 'archive' ? 'Archive' : networkLabel(directory.slice('network:'.length));
+}
+
+function DirectoryIcon({ directory, size }: { directory: Directory; size: number }) {
+  const colors = useThemeColors();
+  if (directory !== 'archive') {
+    return <NetworkMark network={directoryLabel(directory)} size={size} />;
+  }
+  return (
+    <View
+      style={{ width: size, height: size }}
+      className="items-center justify-center rounded-pill bg-surface-sunken">
+      <Icon name="archive-outline" size={size * 0.5} color={colors['content-muted']} />
     </View>
   );
 }
 
-function UnreadDot() {
-  return <View accessibilityLabel="Unread" className="h-2.5 w-2.5 rounded-pill bg-brand" />;
+/** A folder in the inbox: the network, its latest chat, and how many are unread inside. */
+function DirectoryRow({
+  row,
+  unread,
+  preview,
+  onPress,
+}: {
+  row: Extract<InboxRow, { kind: 'directory' }>;
+  unread: number;
+  preview: string;
+  onPress: () => void;
+}) {
+  const archive = row.directory === 'archive';
+  return (
+    <ListItem
+      testID={`directory-${row.directory}`}
+      title={directoryLabel(row.directory)}
+      subtitle={preview}
+      accessibilityLabel={`${directoryLabel(row.directory)}, ${row.chats.length} chats${unread ? `, ${unread} unread` : ''}`}
+      onPress={onPress}
+      unread={unread > 0 && !archive}
+      leading={<DirectoryIcon directory={row.directory} size={44} />}
+      meta={
+        row.latest.lastMessage ? (
+          <Text variant="caption" className={unread > 0 && !archive ? 'text-brand' : undefined}>
+            {formatTimestamp(row.latest.lastMessage.sentAt)}
+          </Text>
+        ) : undefined
+      }
+      subtitleTrailing={unread > 0 ? <CountBadge count={unread} muted={archive} /> : undefined}
+    />
+  );
+}
+
+/** Above a folder's chats: the way back to the inbox. */
+function DirectoryHeader({
+  directory,
+  count,
+  onBack,
+}: {
+  directory: Directory;
+  count: number;
+  onBack: () => void;
+}) {
+  const colors = useThemeColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Back to all chats from ${directoryLabel(directory)}`}
+      onPress={onBack}
+      className="flex-row items-center gap-2 border-b border-line px-3 py-2">
+      <Icon name="chevron-back" size={20} color={colors.brand} />
+      <DirectoryIcon directory={directory} size={22} />
+      <Text className="flex-1 font-semibold" numberOfLines={1}>
+        {directoryLabel(directory)}
+      </Text>
+      <Text variant="caption">{count} chats</Text>
+    </Pressable>
+  );
+}
+
+function Separator() {
+  return <View className="ml-[76px] mr-3 h-px bg-line" />;
 }
 
 function ConnectingState() {
