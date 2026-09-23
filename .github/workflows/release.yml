@@ -52,12 +52,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="v${{ steps.version.outputs.version }}"
-          id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq .id 2>/dev/null || true)
+          # Looking a release up by tag never finds a draft.
+          id=$(gh api "repos/${{ github.repository }}/releases" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
           if [ -z "$id" ]; then
             id=$(gh api "repos/${{ github.repository }}/releases" \
               -f tag_name="$TAG" -f name="Status Original ${{ steps.version.outputs.version }}" \
               -F draft=true -F prerelease=false --jq .id)
           fi
+          [[ "$id" =~ ^[0-9]+$ ]] || { echo "no release id: $id" >&2; exit 1; }
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   desktop:
@@ -139,6 +142,6 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit "v${{ needs.prepare.outputs.version }}" \
-            --repo "${{ github.repository }}" --draft=false
+          gh api -X PATCH "repos/${{ github.repository }}/releases/${{ needs.prepare.outputs.release_id }}" \
+            -F draft=false --silent
           gh workflow run site.yml --repo "${{ github.repository }}" --ref main
