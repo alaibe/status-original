@@ -29,7 +29,7 @@ use matrix_sdk::ruma::{EventId, OwnedEventId, OwnedRoomId, RoomId, UserId};
 use matrix_sdk::sliding_sync::{Version as SlidingSyncVersion, VersionBuilder};
 use matrix_sdk::{
     AuthSession, Client, Room, RoomMemberships, RoomState, SessionChange, SessionMeta,
-    SessionTokens,
+    SessionTokens, SqliteStoreConfig,
 };
 use matrix_sdk_ui::eyeball_im::{Vector, VectorDiff};
 use matrix_sdk_ui::room_list_service::filters::{
@@ -1078,7 +1078,14 @@ async fn build_session(app: AppHandle, params: StartParams) -> Result<Arc<Sessio
     std::fs::create_dir_all(&data_directory).map_err(err)?;
     let client = Client::builder()
         .homeserver_url(&params.homeserver_url)
-        .sqlite_store(data_directory.join("store"), Some(&params.store_passphrase))
+        // The default pool is four connections per physical core for each of four
+        // databases, which alone exhausts macOS's 256 open files on a large Mac.
+        .sqlite_store_with_config_and_cache_path(
+            SqliteStoreConfig::new(data_directory.join("store"))
+                .passphrase(Some(&params.store_passphrase))
+                .pool_max_size(4),
+            None::<PathBuf>,
+        )
         .sliding_sync_version_builder(VersionBuilder::DiscoverNative)
         .with_encryption_settings(EncryptionSettings {
             auto_enable_cross_signing: true,

@@ -25,8 +25,28 @@ async fn set_badge(app: AppHandle, count: i64) -> Result<(), String> {
     Ok(())
 }
 
+/// An app opened from Finder gets launchd's soft limit of 256 open files, too
+/// few for TDLib, Matrix and SQLCipher together. 10240 is the most macOS allows.
+#[cfg(unix)]
+fn raise_open_file_limit() {
+    let mut limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    unsafe {
+        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 {
+            return;
+        }
+        limit.rlim_cur = limit.rlim_cur.max(limit.rlim_max.min(10240));
+        libc::setrlimit(libc::RLIMIT_NOFILE, &limit);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(unix)]
+    raise_open_file_limit();
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
     #[cfg(feature = "updater")]

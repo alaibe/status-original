@@ -5958,6 +5958,7 @@ dependencies = [
  "keyring",
  "ledger-apdu",
  "ledger-transport-hid",
+ "libc",
  "libloading 0.8.9",
  "log",
  "matrix-sdk",
