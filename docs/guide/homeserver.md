@@ -236,9 +236,14 @@ has the rest.
 
 ## Sign in to each network
 
-Start a chat with the bridge's bot and send `login`. The bot lists the ways it
-can sign in; send `login` followed by the one you want, then answer its
-questions in the same chat.
+Open **Settings → Protocols → Matrix**. Under **Bridges on this server** the
+app lists every bridge it finds on your homeserver. **Connect** opens a chat
+with that bridge's bot, waits for the bot to join, and sends the sign-in
+command below; you answer the bot's questions in that chat.
+
+Without the app's help, start a chat with the bot yourself and send `login`.
+The bot lists the ways it can sign in; send `login` followed by the one you
+want.
 
 | Bot | Network | Ways to sign in |
 | --- | --- | --- |
@@ -247,10 +252,12 @@ questions in the same chat.
 | `@slackbot:example.org` | Slack | Email and a confirmation code, or a token and cookie from the browser. One sign-in per workspace |
 | `@discordbot:example.org` | Discord | `login-qr`: scan the QR code with the Discord app on your phone. `login-token`: a token from the browser |
 
-Copying cookies means opening the site in a desktop browser, signing in, and
-reading the cookie values from the developer tools. That is easiest on a Mac,
-with this app open next to the browser. Messenger and Instagram sometimes ask
-you to confirm the new sign-in from the phone app.
+Prefer the ways that ask for a password or a QR code; Connect starts with
+those. The cookie ways need the site open in a desktop browser and the cookie
+values read from its developer tools. If a bot asks for cookies you did not
+mean to give, send `cancel` and start again with the command in the table.
+Messenger and Instagram sometimes ask you to confirm the new sign-in from the
+phone app.
 
 Once signed in, your chats appear in this app's list as Matrix conversations
 and fill in as the bridge catches up. `help` in the bot's chat lists what else

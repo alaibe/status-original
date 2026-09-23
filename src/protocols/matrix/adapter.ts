@@ -26,6 +26,9 @@ import type {
 } from './api';
 import { conversationIdOf, localpart, parseUserId, roomIdOf, USER_ID } from './ids';
 
+/** Bots write links as Markdown autolinks; the brackets are not part of the URL. */
+const AUTOLINK = /<(https?:\/\/[^\s<>]+)>/g;
+
 export const MATRIX_PROTOCOL_ID = 'matrix';
 
 export interface MatrixConnectOptions {
@@ -160,6 +163,7 @@ export class MatrixSession implements ChatSession {
 
   private onRoom(room: MxRoom): void {
     this.rooms.set(room.id, room);
+    if (room.isDm) this.forgetMembers(room.id);
     if (room.isDm && room.heroes.length === 1 && room.name)
       this.names.set(room.heroes[0], room.name);
     if (included(room)) this.announce(room);
@@ -415,11 +419,10 @@ export class MatrixSession implements ChatSession {
   private toContent(raw: MxEvent, fetchMedia: boolean): MessageContent {
     const content = raw.content;
     switch (content.kind) {
-      case 'text':
-        return {
-          kind: 'text',
-          text: content.msgtype === 'emote' ? `* ${content.body}` : content.body,
-        };
+      case 'text': {
+        const body = content.body.replace(AUTOLINK, '$1');
+        return { kind: 'text', text: content.msgtype === 'emote' ? `* ${body}` : body };
+      }
 
       case 'image': {
         const uri = this.mediaUri(raw, content, fetchMedia);

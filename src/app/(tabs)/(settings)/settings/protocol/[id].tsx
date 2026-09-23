@@ -14,6 +14,7 @@ import {
 import { protocolById } from '@/protocols';
 import { errorMessage } from '@/core/errors';
 import { LoginStep, SignedIn } from '@/features/protocols/login';
+import { MatrixBridges } from '@/features/protocols/matrix-bridges';
 import { describeProtocol, toneFor } from '@/features/protocols/presentation';
 import { accountRuntime } from '@/runtime';
 import { openExternal } from '@/lib/open-url';
@@ -118,6 +119,10 @@ export default function ProtocolConfigScreen() {
               />
             ) : session?.subscribeLogin && session.self.address ? (
               <SignedIn session={session} label={descriptor.label} />
+            ) : null}
+
+            {id === 'matrix' && session?.self.address && !connection?.login ? (
+              <MatrixBridges session={session} />
             ) : null}
 
             {config === null ? (

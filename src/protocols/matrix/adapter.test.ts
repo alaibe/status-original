@@ -243,6 +243,22 @@ describe('MatrixSession conversations', () => {
     expect(conversations.at(-1)?.memberIds).toEqual([ME, BOB, CAROL, '@dan:example.org']);
   });
 
+  it('sees who has joined a DM once the room changes', async () => {
+    const { chat, api } = await connect(SESSION, (api) => {
+      api.roomsById.set(DM.id, DM);
+      api.roomMembers.set(DM.id, [{ userId: ME, role: 'admin' }]);
+    });
+    expect((await chat.getMembers(DM_ID)).map((m) => m.id)).toEqual([ME]);
+
+    api.roomMembers.set(DM.id, [
+      { userId: ME, role: 'admin' },
+      { userId: BOB, role: 'admin' },
+    ]);
+    api.emit({ type: 'room', room: DM });
+    await flush();
+    expect((await chat.getMembers(DM_ID)).map((m) => m.id)).toEqual([ME, BOB]);
+  });
+
   it('resolves Matrix IDs, matrix.to links and matrix: URIs against the profile API', async () => {
     const { chat, api } = await connect(SESSION, (api) => {
       api.profiles.set(BOB, { userId: BOB, displayName: 'Bob' });
@@ -358,6 +374,20 @@ describe('MatrixSession messages', () => {
     const all = await chat.getMessages(GROUP_ID);
     expect(all[2]).toMatchObject({ id: '$3', status: 'failed' });
     expect(await chat.resolveNames([BOB])).toEqual({ [BOB]: 'Bob' });
+  });
+
+  it('drops the brackets around Markdown autolinks', async () => {
+    const { chat, api } = await connect(SESSION, (api) => {
+      api.roomsById.set(DM.id, DM);
+      api.timelines.set(DM.id, [
+        textEvent('$1', DM.id, BOB, 'Login URL: <https://www.messenger.com/?no_redirect=true>'),
+      ]);
+    });
+    const [message] = await chat.getMessages(DM_ID);
+    expect(message.content).toEqual({
+      kind: 'text',
+      text: 'Login URL: https://www.messenger.com/?no_redirect=true',
+    });
   });
 
   it('renders membership and state changes as system lines', async () => {
