@@ -222,7 +222,9 @@ class RnMatrixClient implements MatrixApi {
       id: info.id,
       name: info.displayName ?? info.rawName ?? '',
       isDm: info.isDm,
-      peer: info.isDm ? heroes.find((id) => id !== room.ownUserId()) : undefined,
+      peer: info.isDm
+        ? heroes.find((id) => id !== room.ownUserId() && !info.serviceMembers.includes(id))
+        : undefined,
       membership,
       heroes,
       selfRole,

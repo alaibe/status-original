@@ -484,7 +484,15 @@ impl Session {
             | matrix_sdk::RoomDisplayName::EmptyWas(n) => n,
             matrix_sdk::RoomDisplayName::Empty => String::new(),
         };
-        let is_dm = room.is_direct().await.unwrap_or(false) && room.active_members_count() <= 2;
+        // A bridge's bot sits in every room it bridges and declares itself a service member.
+        let service_members = room
+            .update_active_service_members()
+            .await
+            .ok()
+            .flatten()
+            .map_or(0, |members| members.len() as u64);
+        let is_dm = room.is_direct().await.unwrap_or(false)
+            && room.active_members_count().saturating_sub(service_members) <= 2;
         let peer = is_dm
             .then(|| {
                 room.direct_targets()
