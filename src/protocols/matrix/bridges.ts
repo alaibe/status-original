@@ -11,7 +11,7 @@ export const KNOWN_BRIDGES: readonly KnownBridge[] = [
   { network: 'Signal', localpart: 'signalbot', firstCommand: 'login qr' },
   { network: 'Messenger', localpart: 'facebookbot', firstCommand: 'login messenger-lite' },
   { network: 'Instagram', localpart: 'instagrambot', firstCommand: 'login android' },
-  { network: 'Slack', localpart: 'slackbot', firstCommand: 'login' },
+  { network: 'Slack', localpart: 'slackbot', firstCommand: 'login token' },
   { network: 'Discord', localpart: 'discordbot', firstCommand: 'login-qr' },
   { network: 'Telegram', localpart: 'telegrambot', firstCommand: 'login' },
   { network: 'Google Messages', localpart: 'gmessagesbot', firstCommand: 'login' },

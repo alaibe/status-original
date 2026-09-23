@@ -249,8 +249,13 @@ want.
 | --- | --- | --- |
 | `@facebookbot:example.org` | Messenger, Facebook | `messenger-lite`: email and password. `facebook` or `messenger`: cookies copied from the website |
 | `@instagrambot:example.org` | Instagram | `android` or `instagram-password`: username and password. `instagram`: cookies copied from the website |
-| `@slackbot:example.org` | Slack | Email and a confirmation code, or a token and cookie from the browser. One sign-in per workspace |
+| `@slackbot:example.org` | Slack | `login token`: a request copied as cURL from Slack in a desktop browser (see below). One sign-in per workspace. The email way needs a CAPTCHA a chat cannot show |
 | `@discordbot:example.org` | Discord | `login-qr`: scan the QR code with the Discord app on your phone. `login-token`: a token from the browser |
+
+For Slack, open your workspace at app.slack.com in a desktop browser, open the
+developer tools on the Network tab, type `api/` in the filter, right-click any
+request and choose Copy as cURL. Paste that as your answer to `login token`.
+The bridge reads your session token and cookie from it and discards the rest.
 
 Prefer the ways that ask for a password or a QR code; Connect starts with
 those. The cookie ways need the site open in a desktop browser and the cookie
