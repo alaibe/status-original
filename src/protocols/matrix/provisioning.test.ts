@@ -47,7 +47,7 @@ describe('web sign-in fields', () => {
   it('takes cookies by name and domain, and special values from extract_js', () => {
     const seen = snapshot({
       cookies: [
-        { name: 'd', value: 'xoxd-abc/123=', domain: '.slack.com' },
+        { name: 'd', value: 'xoxd-abc%2F123%3D', domain: '.slack.com' },
         { name: 'd', value: 'other', domain: 'example.com' },
       ],
       extracted: { 'fi.mau.slack.auth_token': 'xoxc-1-2-3' },

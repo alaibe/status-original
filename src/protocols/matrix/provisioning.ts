@@ -209,12 +209,23 @@ export function localStorageKeys(params: CookiesParams): string[] {
 }
 
 /**
- * Runs in the sign-in page: starts `extract_js` once the document exists and
- * keeps its result on `window` for the app to read. Page navigations reload it.
+ * Runs in the sign-in page: keeps new-tab links in the one window, starts
+ * `extract_js` once the document exists and keeps its result on `window` for
+ * the app to read. Page navigations reload it.
  */
 export function extractionScript(params: CookiesParams): string {
   const extract = params.extract_js ? `(${params.extract_js})` : 'null';
   return `(() => {
+  window.open = (url) => {
+    if (url) location.assign(new URL(url, location.href).href);
+    return window;
+  };
+  document.addEventListener('click', (event) => {
+    const link = event.target instanceof Element && event.target.closest('a[target="_blank"]');
+    if (!link || !link.href) return;
+    event.preventDefault();
+    location.assign(link.href);
+  }, true);
   if (window.__statusLoginStarted) return;
   window.__statusLoginStarted = true;
   const run = () => {
@@ -242,18 +253,29 @@ export function readbackScript(keys: string[]): string {
 
 function sourceValue(source: CookieSource, snapshot: WebSnapshot): string | undefined {
   switch (source.type) {
-    case 'cookie':
-      return snapshot.cookies.find(
+    case 'cookie': {
+      const value = snapshot.cookies.find(
         (cookie) =>
           cookie.name === source.name &&
           (!source.cookie_domain || domainMatches(cookie.domain, source.cookie_domain))
       )?.value;
+      return value === undefined ? undefined : decodeCookie(value);
+    }
     case 'local_storage':
       return snapshot.localStorage[source.name];
     case 'special':
       return snapshot.extracted?.[source.name];
     default:
       return undefined;
+  }
+}
+
+/** Browsers keep cookie values percent-encoded; bridges expect them decoded, as their cURL import does. */
+function decodeCookie(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
 }
 

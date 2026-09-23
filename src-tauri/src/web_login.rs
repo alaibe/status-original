@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
+use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 use tokio::sync::oneshot;
 
@@ -79,7 +80,16 @@ pub async fn web_login_open(
         .inner_size(480.0, 760.0)
         .incognito(true)
         .visible(!hidden)
-        .initialization_script(script);
+        .initialization_script(script)
+        .on_new_window({
+            let app = app.clone();
+            move |url, _| {
+                if let Some(window) = app.get_webview_window(LABEL) {
+                    let _ = window.navigate(url);
+                }
+                NewWindowResponse::Deny
+            }
+        });
     if let Some(agent) = user_agent
         .filter(|agent| !agent.is_empty())
         .or_else(browser_user_agent)
