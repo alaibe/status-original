@@ -731,14 +731,22 @@ function mapMsgLike(kind: sdk.MsgLikeKind): MxContent | null {
   }
 }
 
+function textOf(content: { body: string; formatted?: sdk.FormattedBody }) {
+  const html =
+    content.formatted?.format.tag === sdk.MessageFormat_Tags.Html
+      ? content.formatted.body
+      : undefined;
+  return { body: content.body, html };
+}
+
 function mapMessage(type: sdk.MessageType): MxContent | null {
   switch (type.tag) {
     case sdk.MessageType_Tags.Text:
-      return { kind: 'text', body: type.inner.content.body };
+      return { kind: 'text', ...textOf(type.inner.content) };
     case sdk.MessageType_Tags.Notice:
-      return { kind: 'text', body: type.inner.content.body, msgtype: 'notice' };
+      return { kind: 'text', ...textOf(type.inner.content), msgtype: 'notice' };
     case sdk.MessageType_Tags.Emote:
-      return { kind: 'text', body: type.inner.content.body, msgtype: 'emote' };
+      return { kind: 'text', ...textOf(type.inner.content), msgtype: 'emote' };
     case sdk.MessageType_Tags.Image: {
       const c = type.inner.content;
       return {

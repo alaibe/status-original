@@ -226,6 +226,10 @@ export function Composer({
   }, [value]);
 
   useEffect(() => {
+    if (process.env.EXPO_OS === 'web') inputRef.current?.focus();
+  }, [conversationId]);
+
+  useEffect(() => {
     if (!pendingCommand) return;
     if (busy) {
       onPendingCommandHandled?.();

@@ -10,6 +10,7 @@ import type {
   SelfIdentity,
   Unsubscribe,
 } from '@/core/messaging/types';
+import { htmlToMarkdown } from '@/core/messaging/html-markdown';
 import { markdownHtml } from '@/core/messaging/markdown';
 import { localFileUri, pathOfFileUri } from '@/storage/media';
 
@@ -446,7 +447,9 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     const content = raw.content;
     switch (content.kind) {
       case 'text': {
-        const body = content.body.replace(AUTOLINK, '$1');
+        const body = content.html
+          ? htmlToMarkdown(content.html)
+          : content.body.replace(AUTOLINK, '$1');
         return { kind: 'text', text: content.msgtype === 'emote' ? `\\* ${body}` : body };
       }
 

@@ -1,5 +1,7 @@
 import { Marked, type Token, type Tokens } from 'marked';
 
+import { replaceShortcodes, SHORTCODE } from './shortcodes';
+
 export interface SpanStyle {
   bold?: boolean;
   italic?: boolean;
@@ -46,8 +48,12 @@ export function hasMarkup(text: string): boolean {
   return MARKUP.test(text);
 }
 
+const hasShortcode = (text: string) => text.includes(':') && new RegExp(SHORTCODE).test(text);
+
 export function parseMarkdown(text: string): Block[] {
-  if (!hasMarkup(text)) return [{ kind: 'paragraph', spans: [{ text, style: {} }] }];
+  if (!hasMarkup(text)) {
+    return [{ kind: 'paragraph', spans: [{ text: replaceShortcodes(text), style: {} }] }];
+  }
   return blocks(marked.lexer(text));
 }
 
@@ -61,6 +67,14 @@ function blocks(tokens: Token[]): Block[] {
     }
     const block = toBlock(token);
     if (!block) continue;
+    const last = out.at(-1);
+    // Bridges send one quote per paragraph; a reader sees a single quote.
+    if (block.kind === 'quote' && last?.kind === 'quote') {
+      if (block.blocks[0]) block.blocks[0].spaced = spaced;
+      last.blocks.push(...block.blocks);
+      spaced = false;
+      continue;
+    }
     if (spaced) block.spaced = true;
     spaced = false;
     out.push(block);
@@ -139,7 +153,7 @@ function inline(tokens: Token[], style: SpanStyle = {}, href?: string): Span[] {
       case 'text':
         if ('tokens' in token && token.tokens?.length)
           spans.push(...inline(token.tokens, style, href));
-        else push((token as Tokens.Text).text);
+        else push(replaceShortcodes((token as Tokens.Text).text));
         break;
       case 'escape':
         push((token as Tokens.Escape).text);
@@ -166,7 +180,7 @@ export function listMarker(list: Extract<Block, { kind: 'list' }>, index: number
 
 /** The text a reader sees, with the markup gone: for previews, copying and finding links. */
 export function plainText(text: string): string {
-  if (!hasMarkup(text)) return text;
+  if (!hasMarkup(text)) return hasShortcode(text) ? replaceShortcodes(text) : text;
   return blocksText(parseMarkdown(text));
 }
 

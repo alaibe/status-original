@@ -30,6 +30,7 @@
     "@xmtp/browser-sdk": "^7.1.0",
     "@xmtp/react-native-sdk": "5.7.0",
     "clsx": "^2.1.1",
+    "emojibase-data": "^17.0.0",
     "expo": "~57.0.24",
     "expo-asset": "~57.0.16",
     "expo-audio": "~57.0.5",

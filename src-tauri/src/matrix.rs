@@ -21,7 +21,8 @@ use matrix_sdk::ruma::api::client::receipt::create_receipt::v3::ReceiptType;
 use matrix_sdk::ruma::api::client::room::create_room;
 use matrix_sdk::ruma::events::room::encryption::RoomEncryptionEventContent;
 use matrix_sdk::ruma::events::room::message::{
-    AddMentions, MessageType, RoomMessageEventContentWithoutRelation, TextMessageEventContent,
+    AddMentions, FormattedBody, MessageFormat, MessageType, RoomMessageEventContentWithoutRelation,
+    TextMessageEventContent,
 };
 use matrix_sdk::ruma::events::{EmptyStateKey, InitialStateEvent, StateEventContentChange};
 use matrix_sdk::ruma::{EventId, OwnedEventId, OwnedRoomId, RoomId, UserId};
@@ -158,6 +159,8 @@ pub struct MxMediaOut {
 pub enum MxContent {
     Text {
         body: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        html: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         msgtype: Option<&'static str>,
     },
@@ -917,18 +920,27 @@ fn map_content(content: &TimelineItemContent) -> Option<MxContent> {
     }
 }
 
+fn html_of(formatted: Option<&FormattedBody>) -> Option<String> {
+    formatted
+        .filter(|f| f.format == MessageFormat::Html)
+        .map(|f| f.body.clone())
+}
+
 fn map_message(msgtype: &MessageType) -> Option<MxContent> {
     Some(match msgtype {
         MessageType::Text(t) => MxContent::Text {
             body: t.body.clone(),
+            html: html_of(t.formatted.as_ref()),
             msgtype: None,
         },
         MessageType::Notice(n) => MxContent::Text {
             body: n.body.clone(),
+            html: html_of(n.formatted.as_ref()),
             msgtype: Some("notice"),
         },
         MessageType::Emote(e) => MxContent::Text {
             body: e.body.clone(),
+            html: html_of(e.formatted.as_ref()),
             msgtype: Some("emote"),
         },
         MessageType::Image(i) => MxContent::Image {

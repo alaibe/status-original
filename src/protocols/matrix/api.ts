@@ -98,7 +98,7 @@ export type MxStateChange = 'name' | 'topic' | 'avatar' | 'created' | 'encryptio
 
 /** Only what the app renders; drivers drop the rest before it counts as a message. */
 export type MxContent =
-  | { kind: 'text'; body: string; msgtype?: 'notice' | 'emote' }
+  | { kind: 'text'; body: string; html?: string; msgtype?: 'notice' | 'emote' }
   | ({ kind: 'image'; width?: number; height?: number; caption?: string } & MxMedia)
   | ({ kind: 'file'; caption?: string } & MxMedia)
   | ({ kind: 'audio'; durationMs?: number; voice: boolean } & MxMedia)
