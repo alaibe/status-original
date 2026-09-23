@@ -4,7 +4,6 @@ import Svg, { Path } from 'react-native-svg';
 import { NETWORK_MARKS } from '../network-marks';
 import { Text } from './text';
 
-/** A network's logo in a small disc, for the corner of an avatar or a folder. */
 export function NetworkMark({ network, size = 16 }: { network: string; size?: number }) {
   const mark = NETWORK_MARKS[network];
   const glyph = Math.round(size * 0.62);
@@ -27,7 +26,7 @@ export function NetworkMark({ network, size = 16 }: { network: string; size?: nu
         <Text
           style={{ fontSize: size * 0.6, lineHeight: size * 0.75, color: '#FFFFFF' }}
           className="font-bold">
-          {network === 'Slack' ? '#' : network.slice(0, 1).toUpperCase()}
+          {mark?.glyph ?? network.slice(0, 1).toUpperCase()}
         </Text>
       )}
     </View>

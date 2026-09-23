@@ -9,7 +9,6 @@ export interface ListItemProps {
   testID?: string;
   title: React.ReactNode;
   subtitle?: string;
-  /** Beside the subtitle, at the end of the second line. */
   subtitleTrailing?: React.ReactNode;
   meta?: React.ReactNode;
   leading?: React.ReactNode;

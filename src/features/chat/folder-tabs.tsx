@@ -10,7 +10,6 @@ const FILTERS: { id: ChatFilter; label: string }[] = [
   { id: 'groups', label: 'Groups' },
 ];
 
-/** The filters that stay above the list, inside a folder as well as outside. */
 export function FilterTabs({
   active,
   onSelect,

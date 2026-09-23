@@ -4,7 +4,6 @@ import { LOCAL_PROTOCOL } from './namespace';
 import { isUnread } from './unread';
 import type { Conversation, ConversationId } from './types';
 
-/** A row in the inbox that opens onto a list of its own, as Telegram's Archived Chats does. */
 export type Directory = 'archive' | `network:${string}`;
 
 export type ChatFilter = 'all' | 'unread' | 'direct' | 'groups';
@@ -18,13 +17,11 @@ export type InboxRow =
   | { kind: 'chat'; conversation: Conversation }
   | { kind: 'directory'; directory: Directory; latest: Conversation; chats: Conversation[] };
 
-/** The network a chat lives on: the bridged one when there is a bridge, else its protocol. */
 export function networkOf(conversation: Conversation): string | undefined {
   if (!conversation.protocol || conversation.protocol === LOCAL_PROTOCOL) return undefined;
   return conversation.network ?? conversation.protocol;
 }
 
-/** Muting says "stop drawing my attention", so a muted chat never counts as unread here. */
 export function isUnreadHere(conversation: Conversation, context: FolderContext): boolean {
   return !context.prefs[conversation.id]?.muted && isUnread(conversation, context.readAt);
 }
@@ -56,11 +53,7 @@ export function inDirectory(
   return !archived && networkOf(conversation) === directory.slice('network:'.length);
 }
 
-/**
- * The inbox: chats on your own networks one by one, chats elsewhere folded
- * into one row per network where its latest chat would sit, and Archive on
- * top. A pinned chat stays out of its folder, since pinning asks to see it.
- */
+/** A pinned chat stays out of its folder, since pinning asks to see it. */
 export function inboxRows(
   ordered: Conversation[],
   include: (conversation: Conversation) => boolean,

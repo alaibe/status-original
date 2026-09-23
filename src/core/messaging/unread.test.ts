@@ -1,6 +1,6 @@
 import type { ChatMessage, Conversation } from './types';
 
-import { isUnread, totalUnread } from './unread';
+import { isUnread, totalUnread, unreadCount } from './unread';
 
 const message = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   id: 'm1',
@@ -59,5 +59,19 @@ describe('totalUnread', () => {
       conversation({ id: 'c3', lastMessage: message({ fromMe: true, sentAt: 3_000 }) }),
     ];
     expect(totalUnread(conversations, { c1: 5_000 })).toBe(1);
+  });
+});
+
+describe('unreadCount', () => {
+  it('counts what others sent since the chat was read, by the same rule as isUnread', () => {
+    const messages = [
+      message({ id: 'old', sentAt: 500 }),
+      message({ id: 'new', sentAt: 1_500 }),
+      message({ id: 'mine', sentAt: 1_600, fromMe: true }),
+      message({ id: 'system', sentAt: 1_700, content: { kind: 'system', text: 'joined' } }),
+      message({ id: 'newer', sentAt: 1_800 }),
+    ];
+    expect(unreadCount(messages, 1_000)).toBe(2);
+    expect(unreadCount(messages, 2_000)).toBe(0);
   });
 });

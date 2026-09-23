@@ -14,7 +14,6 @@ export function ConversationAvatar({
   conversation: Conversation;
   selfId: ParticipantId;
   size?: AvatarProps['size'];
-  /** Shown as a logo on the corner, when the list mixes networks. */
   network?: string;
 }) {
   const isBot = isLocalConversation(conversation.id);
@@ -38,7 +37,7 @@ export function ConversationAvatar({
     <View>
       {avatar}
       <View className="absolute -bottom-0.5 -right-0.5 rounded-pill border-2 border-surface">
-        <NetworkMark network={network} size={16} />
+        <NetworkMark network={network} />
       </View>
     </View>
   );

@@ -417,7 +417,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
 
     const network =
       this.networks.get(room.id) ??
-      bridgedNetwork([...memberIds, peer, room.latest?.sender, room.inviter]);
+      bridgedNetwork([peer, room.latest?.sender, room.inviter, ...room.heroes]);
     if (network) this.networks.set(room.id, network);
 
     return {

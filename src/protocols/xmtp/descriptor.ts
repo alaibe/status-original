@@ -5,6 +5,7 @@ import { loadDbEncryptionKey } from '@/core/identity/keyring';
 export const XMTP_PROTOCOL = {
   id: 'xmtp',
   label: 'XMTP',
+  external: false,
   description: 'Messages addressed to Ethereum accounts, encrypted with MLS.',
   docsUrl: guideUrl('networks', 'xmtp'),
   recipient: {

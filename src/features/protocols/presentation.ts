@@ -4,23 +4,6 @@ import { protocolById } from '@/protocols';
 
 export type ProtocolTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
 
-export interface ProtocolBadge {
-  label: string;
-  tone: ProtocolTone;
-}
-
-const LOCAL_BADGE: ProtocolBadge = { label: 'On device', tone: 'neutral' };
-
-export function protocolBadge(protocol: string | undefined): ProtocolBadge | null {
-  if (!protocol) return null;
-  if (protocol === LOCAL_PROTOCOL) return LOCAL_BADGE;
-
-  const descriptor = protocolById(protocol);
-  if (!descriptor) return { label: protocol, tone: 'neutral' };
-
-  return { label: descriptor.label, tone: toneFor(descriptor.meta) };
-}
-
 export function toneFor(meta: ChatProtocolMeta): ProtocolTone {
   if (!meta.properties.endToEndEncrypted) return 'danger';
   if (meta.properties.groupModel === 'enforced' && meta.properties.forwardSecrecy) {
@@ -64,9 +47,4 @@ const GROUP_MODEL: Record<ChatProtocolMeta['properties']['groupModel'], string> 
 export function protocolLabel(protocol: ProtocolId | undefined): string {
   if (!protocol || protocol === LOCAL_PROTOCOL) return 'On device';
   return protocolById(protocol)?.label ?? protocol;
-}
-
-/** A network folder's name: a bridged network as the bridge names it, a protocol by its label. */
-export function networkLabel(network: string): string {
-  return protocolById(network)?.label ?? network;
 }

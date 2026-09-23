@@ -10,7 +10,6 @@ export function HistoryStatus({
   compact = false,
 }: {
   protocol?: string;
-  /** One quiet line, for the top of the chat list. */
   compact?: boolean;
 }) {
   const colors = useThemeColors();
@@ -27,6 +26,7 @@ export function HistoryStatus({
   ];
 
   if (active.length === 0 && failed.length === 0 && partial.length === 0) return null;
+  const describe = compact ? summary : details;
 
   return (
     <View
@@ -54,7 +54,7 @@ export function HistoryStatus({
           }}
           className="py-1">
           <Text variant="caption" numberOfLines={1}>
-            {compact ? summary(failed) : details(failed)} · Retry
+            {describe(failed)} · Retry
           </Text>
         </Pressable>
       ) : null}
@@ -67,7 +67,7 @@ export function HistoryStatus({
           }}
           className="py-1">
           <Text variant="caption" numberOfLines={1}>
-            {compact ? summary(partial) : details(partial)} · Retry
+            {describe(partial)} · Retry
           </Text>
         </Pressable>
       ) : null}

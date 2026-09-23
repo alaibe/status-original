@@ -5,6 +5,7 @@ export const WAKU_PROTOCOL = {
   id: 'waku',
   docsUrl: guideUrl('networks', 'waku'),
   label: 'Waku',
+  external: false,
   description: 'Store-and-forward messaging through an nwaku node you supply.',
   recipient: {
     label: 'Public key',

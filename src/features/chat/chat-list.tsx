@@ -34,10 +34,10 @@ import {
   matchesFilter,
   networkOf,
 } from '@/core/messaging/folders';
-import { isUnread } from '@/core/messaging/unread';
+import { isUnread, unreadCount } from '@/core/messaging/unread';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
 import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
-import { networkLabel, protocolSubtitle } from '@/features/protocols/presentation';
+import { protocolLabel, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
 import { CountBadge, FilterTabs } from '@/features/chat/folder-tabs';
 import { useFolderStore } from '@/features/chat/folder-store';
@@ -91,8 +91,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   const setDirectory = useFolderStore((s) => s.setDirectory);
   const filter = useFolderStore((s) => s.filter);
   const setFilter = useFolderStore((s) => s.setFilter);
-  const [motion, setMotion] = useState<'in' | 'out' | null>(null);
-  const messages = useChatStore((s) => s.messages);
+  const [navigated, setNavigated] = useState(false);
 
   const { allowed, requests } = {
     allowed: conversations.filter((c) => c.consent === 'allowed'),
@@ -105,7 +104,8 @@ export function ChatList({ query, selectedId }: ChatListProps) {
     ? ordered.filter((c) => inDirectory(c, directory, folderContext))
     : ordered.filter((c) => !chatPrefs[c.id]?.archived);
 
-  const q = query.trim().toLowerCase();
+  const trimmed = query.trim();
+  const q = trimmed.toLowerCase();
   const matchesQuery = (c: Conversation) =>
     !q ||
     conversationTitle(c, selfIdOf(c), nameFor).toLowerCase().includes(q) ||
@@ -123,10 +123,8 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   }
   const include = (c: Conversation) =>
     matchesQuery(c) &&
-    (matchesFilter(c, filter, folderContext) ||
-      (filter === 'unread' && kept.view === view && kept.ids.includes(c.id)));
+    (matchesFilter(c, filter, folderContext) || (filter === 'unread' && kept.ids.includes(c.id)));
 
-  // Your own networks stay in the inbox one chat at a time; accounts elsewhere fold into a row.
   const folded = (network: string) => protocolById(network)?.external ?? true;
   const rows: InboxRow[] =
     directory || q
@@ -134,14 +132,11 @@ export function ChatList({ query, selectedId }: ChatListProps) {
       : inboxRows(ordered, include, folded, folderContext);
   const unreadHere = scope.filter((c) => isUnreadHere(c, folderContext)).length;
 
-  const openDirectory = (next: Directory) => {
-    setMotion('in');
+  const go = (next: Directory | null) => {
+    setNavigated(true);
     setDirectory(next);
   };
-  const leaveDirectory = () => {
-    setMotion('out');
-    setDirectory(null);
-  };
+  const leaveDirectory = () => go(null);
   useEscapeKey(directory !== null, leaveDirectory);
 
   const managed = managing ? chatPrefs[managing.id] : undefined;
@@ -153,12 +148,6 @@ export function ChatList({ query, selectedId }: ChatListProps) {
     scope.map(networkOf).filter((n): n is string => n !== undefined && !folded(n))
   );
   const showNetwork = !directory && nativeNetworks.size > 1;
-  const unreadCount = (conversation: Conversation) => {
-    const since = readAt[conversation.id] ?? 0;
-    return (messages[conversation.id] ?? []).filter(
-      (m) => !m.fromMe && m.sentAt > since && m.content.kind !== 'system'
-    ).length;
-  };
 
   return (
     <>
@@ -182,9 +171,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
       ) : (
         <Animated.View
           key={directory ?? 'inbox'}
-          entering={
-            motion === 'in' ? Enter.fromRight() : motion === 'out' ? Enter.fromLeft() : undefined
-          }
+          entering={navigated ? (directory ? Enter.fromRight() : Enter.fromLeft()) : undefined}
           className="flex-1">
           <FlashList
             data={rows}
@@ -196,15 +183,15 @@ export function ChatList({ query, selectedId }: ChatListProps) {
               <EmptyState
                 icon={<Icon name="search-outline" size={40} color={colors['content-subtle']} />}
                 title={
-                  query.trim()
+                  trimmed
                     ? 'No matching chats'
                     : filter === 'unread'
                       ? 'All caught up'
                       : 'Nothing here'
                 }
                 description={
-                  query.trim()
-                    ? `No chats match “${query.trim()}”.`
+                  trimmed
+                    ? `No chats match “${trimmed}”.`
                     : filter === 'unread'
                       ? 'Nothing unread here.'
                       : 'Try another filter.'
@@ -239,7 +226,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
                     row={row}
                     unread={row.chats.filter((c) => isUnreadHere(c, folderContext)).length}
                     preview={`${conversationTitle(row.latest, selfIdOf(row.latest), nameFor)}: ${messagePreview(row.latest.lastMessage)}`}
-                    onPress={() => openDirectory(row.directory)}
+                    onPress={() => go(row.directory)}
                   />
                 );
               }
@@ -251,7 +238,6 @@ export function ChatList({ query, selectedId }: ChatListProps) {
                   selfId={selfIdOf(item)}
                   nameFor={nameFor}
                   unread={isUnread(item, readAt)}
-                  unreadCount={unreadCount(item)}
                   network={showNetwork ? networkOf(item) : undefined}
                   pinned={Boolean(prefs?.pinned)}
                   muted={Boolean(prefs?.muted)}
@@ -329,7 +315,6 @@ function ConversationRow({
   selfId,
   nameFor,
   unread,
-  unreadCount,
   network,
   pinned,
   muted,
@@ -344,7 +329,6 @@ function ConversationRow({
   selfId: string;
   nameFor: (id: string) => string;
   unread: boolean;
-  unreadCount: number;
   network?: string;
   pinned: boolean;
   muted: boolean;
@@ -358,6 +342,8 @@ function ConversationRow({
   const colors = useThemeColors();
   const title = conversationTitle(conversation, selfId, nameFor);
   const last = conversation.lastMessage;
+  const loaded = useChatStore((s) => s.messages[conversation.id]);
+  const since = useChatStore((s) => s.readAt[conversation.id] ?? 0);
 
   return (
     <SwipeableRow left={left} right={right}>
@@ -386,7 +372,7 @@ function ConversationRow({
             conversation={conversation}
             selfId={selfId}
             size="md"
-            network={network ? networkLabel(network) : undefined}
+            network={network ? protocolLabel(network) : undefined}
           />
         }
         meta={
@@ -419,7 +405,7 @@ function ConversationRow({
         }
         subtitleTrailing={
           unread ? (
-            <CountBadge count={unreadCount} muted={muted} />
+            <CountBadge count={loaded ? unreadCount(loaded, since) : 0} muted={muted} />
           ) : pinned ? (
             <Icon name="pin" size={14} color={colors['content-subtle']} />
           ) : undefined
@@ -429,8 +415,10 @@ function ConversationRow({
   );
 }
 
+const chatCount = (n: number) => `${n} ${n === 1 ? 'chat' : 'chats'}`;
+
 function directoryLabel(directory: Directory): string {
-  return directory === 'archive' ? 'Archive' : networkLabel(directory.slice('network:'.length));
+  return directory === 'archive' ? 'Archive' : protocolLabel(directory.slice('network:'.length));
 }
 
 function DirectoryIcon({ directory, size }: { directory: Directory; size: number }) {
@@ -447,7 +435,6 @@ function DirectoryIcon({ directory, size }: { directory: Directory; size: number
   );
 }
 
-/** A folder in the inbox: the network, its latest chat, and how many are unread inside. */
 function DirectoryRow({
   row,
   unread,
@@ -460,18 +447,19 @@ function DirectoryRow({
   onPress: () => void;
 }) {
   const archive = row.directory === 'archive';
+  const highlight = unread > 0 && !archive;
   return (
     <ListItem
       testID={`directory-${row.directory}`}
       title={directoryLabel(row.directory)}
       subtitle={preview}
-      accessibilityLabel={`${directoryLabel(row.directory)}, ${row.chats.length} chats${unread ? `, ${unread} unread` : ''}`}
+      accessibilityLabel={`${directoryLabel(row.directory)}, ${chatCount(row.chats.length)}${unread ? `, ${unread} unread` : ''}`}
       onPress={onPress}
-      unread={unread > 0 && !archive}
+      unread={highlight}
       leading={<DirectoryIcon directory={row.directory} size={44} />}
       meta={
         row.latest.lastMessage ? (
-          <Text variant="caption" className={unread > 0 && !archive ? 'text-brand' : undefined}>
+          <Text variant="caption" className={highlight ? 'text-brand' : undefined}>
             {formatTimestamp(row.latest.lastMessage.sentAt)}
           </Text>
         ) : undefined
@@ -481,7 +469,6 @@ function DirectoryRow({
   );
 }
 
-/** Above a folder's chats: the way back to the inbox. */
 function DirectoryHeader({
   directory,
   count,
@@ -503,7 +490,7 @@ function DirectoryHeader({
       <Text className="flex-1 font-semibold" numberOfLines={1}>
         {directoryLabel(directory)}
       </Text>
-      <Text variant="caption">{count} chats</Text>
+      <Text variant="caption">{chatCount(count)}</Text>
     </Pressable>
   );
 }

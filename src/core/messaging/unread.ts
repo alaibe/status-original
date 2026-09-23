@@ -1,14 +1,19 @@
-import type { Conversation, ConversationId } from './types';
+import type { ChatMessage, Conversation, ConversationId } from './types';
+
+function arrivedUnread(message: ChatMessage, since: number): boolean {
+  return !message.fromMe && message.content.kind !== 'system' && message.sentAt > since;
+}
 
 export function isUnread(
   conversation: Conversation,
   readAt: Record<ConversationId, number>
 ): boolean {
   const last = conversation.lastMessage;
-  if (!last || last.fromMe) return false;
-  if (last.content.kind === 'system') return false;
+  return last !== undefined && arrivedUnread(last, readAt[conversation.id] ?? 0);
+}
 
-  return last.sentAt > (readAt[conversation.id] ?? 0);
+export function unreadCount(messages: ChatMessage[], since: number): number {
+  return messages.filter((m) => arrivedUnread(m, since)).length;
 }
 
 export function totalUnread(
