@@ -61,6 +61,7 @@
     "expo-system-ui": "~57.0.4",
     "expo-updates": "~57.0.23",
     "expo-web-browser": "~57.0.3",
+    "marked": "^18.0.14",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",

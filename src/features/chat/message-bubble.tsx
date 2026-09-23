@@ -9,6 +9,7 @@ import type { ChatMessage, WidgetContent } from '@/core/messaging/types';
 import { MessageActions, type MessageAction, type MessageAnchor } from './message-actions';
 import { findTransactionHash } from '@/lib/evm/transactions';
 import { segmentText, type LinkSegment } from '@/core/messaging/links';
+import { labelledLinks, plainText } from '@/core/messaging/markdown';
 import { parseLocation } from '@/core/messaging/locations';
 import { AddressPreview } from './address-preview';
 import { LinkPreviewCard } from './link-preview-card';
@@ -194,16 +195,19 @@ function TextBody({
     );
   }
 
-  const segments = segmentText(text);
-  const transactionHash = findTransactionHash(text);
-  const link = segments.find((s): s is LinkSegment => s.kind === 'url' || s.kind === 'location');
+  const plain = plainText(text);
+  const segments = segmentText(plain);
+  const transactionHash = findTransactionHash(plain);
+  const link =
+    segments.find((s): s is LinkSegment => s.kind === 'url' || s.kind === 'location') ??
+    labelledLinks(text).map((href): LinkSegment => ({ kind: 'url', text: href, href }))[0];
   const location = link ? parseLocation(link.href) : null;
   const account = segments.find((s) => s.kind === 'address' || s.kind === 'ens');
 
   return (
     <>
       <MessageText
-        segments={segments}
+        text={text}
         fromMe={fromMe}
         className={className}
         conversationId={message.conversationId}
@@ -445,7 +449,7 @@ function Footer({ message }: { message: ChatMessage }) {
 function copyableText(content: ChatMessage['content']): string | undefined {
   switch (content.kind) {
     case 'text':
-      return content.text;
+      return plainText(content.text);
     case 'system':
       return content.text;
     case 'image':

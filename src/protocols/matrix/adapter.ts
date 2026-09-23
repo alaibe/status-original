@@ -10,6 +10,7 @@ import type {
   SelfIdentity,
   Unsubscribe,
 } from '@/core/messaging/types';
+import { markdownHtml } from '@/core/messaging/markdown';
 import { localFileUri, pathOfFileUri } from '@/storage/media';
 
 import type {
@@ -446,7 +447,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     switch (content.kind) {
       case 'text': {
         const body = content.body.replace(AUTOLINK, '$1');
-        return { kind: 'text', text: content.msgtype === 'emote' ? `* ${body}` : body };
+        return { kind: 'text', text: content.msgtype === 'emote' ? `\\* ${body}` : body };
       }
 
       case 'image': {
@@ -615,7 +616,7 @@ function withCaption(label: string, caption: string | undefined): string {
 function outgoing(content: MessageContent): MxOutgoing {
   switch (content.kind) {
     case 'text':
-      return { kind: 'text', body: content.text };
+      return { kind: 'text', body: content.text, html: markdownHtml(content.text) ?? undefined };
     case 'image':
       return {
         kind: 'image',

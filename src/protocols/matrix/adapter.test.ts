@@ -420,7 +420,7 @@ describe('MatrixSession messages', () => {
       { kind: 'system', text: 'Carol joined' },
       { kind: 'system', text: 'Bob removed Carol' },
       { kind: 'system', text: 'Renamed to "Crew"' },
-      { kind: 'text', text: '* waves' },
+      { kind: 'text', text: '\\* waves' },
       {
         kind: 'unsupported',
         typeId: 'undecryptable',

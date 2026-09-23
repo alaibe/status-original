@@ -289,7 +289,7 @@ export function Composer({
         </Animated.View>
       ) : null}
 
-      {quickActions.length > 0 && value.length === 0 ? (
+      {quickActions.length > 0 ? (
         <Animated.View entering={Enter.fade()} exiting={Exit.fade()}>
           <ScrollView
             horizontal

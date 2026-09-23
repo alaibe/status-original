@@ -21,8 +21,7 @@ use matrix_sdk::ruma::api::client::receipt::create_receipt::v3::ReceiptType;
 use matrix_sdk::ruma::api::client::room::create_room;
 use matrix_sdk::ruma::events::room::encryption::RoomEncryptionEventContent;
 use matrix_sdk::ruma::events::room::message::{
-    AddMentions, MessageType, RoomMessageEventContent, RoomMessageEventContentWithoutRelation,
-    TextMessageEventContent,
+    AddMentions, MessageType, RoomMessageEventContentWithoutRelation, TextMessageEventContent,
 };
 use matrix_sdk::ruma::events::{EmptyStateKey, InitialStateEvent, StateEventContentChange};
 use matrix_sdk::ruma::{EventId, OwnedEventId, OwnedRoomId, RoomId, UserId};
@@ -213,6 +212,7 @@ pub enum MxContent {
 pub enum MxOutgoing {
     Text {
         body: String,
+        html: Option<String>,
     },
     Image {
         path: String,
@@ -674,23 +674,20 @@ impl Session {
             .map(|id| EventId::parse(id).map_err(err))
             .transpose()?;
         match content {
-            MxOutgoing::Text { body } => match reply_to {
-                Some(event_id) => {
-                    let content = room
-                        .make_reply_event(
-                            RoomMessageEventContentWithoutRelation::text_plain(body),
-                            reply(event_id),
-                        )
+            MxOutgoing::Text { body, html } => {
+                let content = match html {
+                    Some(html) => RoomMessageEventContentWithoutRelation::text_html(body, html),
+                    None => RoomMessageEventContentWithoutRelation::text_plain(body),
+                };
+                let content = match reply_to {
+                    Some(event_id) => room
+                        .make_reply_event(content, reply(event_id))
                         .await
-                        .map_err(err)?;
-                    room.send(content).await.map_err(err)?;
-                }
-                None => {
-                    room.send(RoomMessageEventContent::text_plain(body))
-                        .await
-                        .map_err(err)?;
-                }
-            },
+                        .map_err(err)?,
+                    None => content.with_relation(None),
+                };
+                room.send(content).await.map_err(err)?;
+            }
             other => {
                 let (name, mime, data, info, caption) = attachment(other).await?;
                 let config = AttachmentConfig::new()

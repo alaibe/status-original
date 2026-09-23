@@ -1,9 +1,10 @@
+import { plainText } from './markdown';
 import type { ChatMessage, MessageContent } from './types';
 
 export function contentPreview(content: MessageContent): string {
   switch (content.kind) {
     case 'text':
-      return content.text.replace(/\s+/g, ' ').trim();
+      return plainText(content.text).replace(/\s+/g, ' ').trim();
     case 'system':
       return content.text;
     case 'widget':

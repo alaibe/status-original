@@ -12,6 +12,7 @@ import type {
   Unsubscribe,
 } from '@/core/messaging/types';
 import { TdRequestError, type TdApi, type TdObject } from './api';
+import { formattedToMarkdown, markdownToFormatted } from './formatting';
 import { localFileUri, pathOfFileUri } from '@/storage/media';
 import type {
   TdAuthorizationState,
@@ -23,6 +24,7 @@ import type {
   TdChatPosition,
   TdChats,
   TdFile,
+  TdFormattedText,
   TdMemberStatus,
   TdMessage,
   TdMessages,
@@ -825,12 +827,14 @@ export class TelegramSession implements ChatSession {
 
   private toContent(raw: TdMessage, fetchMedia: boolean): MessageContent {
     const content = raw.content;
-    const caption = (content.caption as { text?: string } | undefined)?.text?.trim();
+    const caption = content.caption
+      ? formattedToMarkdown(content.caption as TdFormattedText).trim() || undefined
+      : undefined;
     const withCaption = (label: string) => (caption ? `${label} · ${caption}` : label);
 
     switch (content['@type']) {
       case 'messageText':
-        return { kind: 'text', text: (content.text as { text: string }).text };
+        return { kind: 'text', text: formattedToMarkdown(content.text as TdFormattedText) };
 
       case 'messagePhoto': {
         const sizes = (
@@ -1086,7 +1090,7 @@ function inputContent(content: MessageContent): TdObject {
 }
 
 function formatted(text: string): TdObject {
-  return { '@type': 'formattedText', text, entities: [] };
+  return markdownToFormatted(text);
 }
 
 function localFile(uri: string): TdObject {

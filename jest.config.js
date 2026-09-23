@@ -20,6 +20,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/assets/(.*)$': '<rootDir>/assets/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Babel under Jest breaks marked's Unicode-property regexes; the UMD build needs no transform.
+    '^marked$': '<rootDir>/node_modules/marked/lib/marked.umd.js',
   },
   // These packages ship untranspiled ESM/Flow and must go through Babel.
   transformIgnorePatterns: [

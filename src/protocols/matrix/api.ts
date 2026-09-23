@@ -112,7 +112,7 @@ export type MxContent =
   | { kind: 'state'; change: MxStateChange; value?: string };
 
 export type MxOutgoing =
-  | { kind: 'text'; body: string }
+  | { kind: 'text'; body: string; html?: string }
   | {
       kind: 'image';
       path: string;

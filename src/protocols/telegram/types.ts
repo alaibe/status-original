@@ -76,7 +76,7 @@ export interface TdFile extends TdObject {
   local: { path: string; is_downloading_completed: boolean; is_downloading_active: boolean };
 }
 
-export interface TdFormattedText {
+export interface TdFormattedText extends TdObject {
   '@type': 'formattedText';
   text: string;
   entities: TdObject[];

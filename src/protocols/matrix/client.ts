@@ -417,7 +417,14 @@ class RnMatrixClient implements MatrixApi {
       const relates = replyTo ? { 'm.relates_to': { 'm.in_reply_to': { event_id: replyTo } } } : {};
       await room.sendRaw(
         'm.room.message',
-        JSON.stringify({ msgtype: 'm.text', body: content.body, ...relates })
+        JSON.stringify({
+          msgtype: 'm.text',
+          body: content.body,
+          ...(content.html
+            ? { format: 'org.matrix.custom.html', formatted_body: content.html }
+            : {}),
+          ...relates,
+        })
       );
       return;
     }

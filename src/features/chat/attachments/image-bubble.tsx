@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Modal, Pressable as RNPressable, View, useWindowDimensions } from 'react-native';
 import { Icon, Pressable, useThemeColors } from '@/design';
-import { segmentText } from '@/core/messaging/links';
 import { MessageText } from '../message-text';
 
 export interface ImageBubbleProps {
@@ -43,7 +42,7 @@ export function ImageBubble({ uri, width, height, caption, fromMe }: ImageBubble
 
       {caption ? (
         <MessageText
-          segments={segmentText(caption)}
+          text={caption}
           fromMe={fromMe}
           className={fromMe ? 'text-bubble-out-on' : 'text-bubble-in-on'}
         />
