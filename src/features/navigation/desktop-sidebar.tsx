@@ -24,6 +24,7 @@ import {
 } from '@/features/settings/settings-sections';
 
 import { DIALOG_SEGMENTS } from './routes';
+import { UpdateBar } from './update-bar';
 
 type Tab = 'chats' | 'contacts' | 'settings';
 
@@ -142,6 +143,8 @@ export function DesktopSidebar() {
           <ChatList query={query} selectedId={selectedId} />
         )}
       </View>
+
+      <UpdateBar />
 
       <View className="flex-row border-t border-line">
         {TABS.map((entry) => {

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Status Original",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "identifier": "com.statusoriginal.app",
   "build": {
     "frontendDist": "../dist",
@@ -71,7 +71,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMzQzJDRUYzMjYzQjhGNkEKUldScWp6c204ODdDdzUrb1k3QmtnT1ZmM1AvcDVUMmN2aUxCaFFLTjJoblkxd3k0Um5pT01pMWIK",
       "endpoints": [
         "https://github.com/alaibe/status-original/releases/latest/download/latest.json"
       ]

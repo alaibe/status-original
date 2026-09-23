@@ -1,7 +1,7 @@
 {
   "name": "status-original",
   "main": "index.js",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "dependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.22.1",
     "@ledgerhq/hw-app-eth": "^7.8.16",
@@ -21,6 +21,8 @@
     "@tauri-apps/plugin-http": "^2.6.1",
     "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-opener": "^2.5.5",
+    "@tauri-apps/plugin-process": "~2.3.1",
+    "@tauri-apps/plugin-updater": "~2.12.0",
     "@unomed/react-native-matrix-sdk": "^0.10.0",
     "@walletconnect/core": "^2.24.0",
     "@walletconnect/react-native-compat": "^2.24.0",

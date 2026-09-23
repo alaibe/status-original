@@ -1,6 +1,6 @@
 [package]
 name = "status-original"
-version = "1.0.0"
+version = "0.1.0"
 description = "A self-custodial messenger."
 edition = "2021"
 rust-version = "1.77.2"
@@ -29,6 +29,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-process = "~2.3"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 aes-gcm = "0.10"
 getrandom = "0.2"

@@ -90,9 +90,22 @@ On the phone it fetches its own improvements when you open it, and uses them
 the next time. Anything that changes the parts of the app Apple and Google
 review still arrives as a normal store update.
 
-On the Mac it checks for a new version, and installs it only after checking the
-signature, so a tampered download is refused. A version installed from a `.deb`
-or `.rpm` is updated by your package manager instead.
+On a computer it looks for a new version each time it opens and downloads it in
+the background. It checks the download's signature first and refuses one that
+doesn't match. When the update is ready, a Restart button shows at the bottom of
+the sidebar.
+
+## Why does my computer warn me when I install it?
+
+The desktop app isn't signed with an Apple or Microsoft certificate yet, so
+both systems treat it as coming from an unknown developer.
+
+- **macOS** refuses to open it the first time. Click Done, then go to System
+  Settings → Privacy & Security, scroll down to the message about Status
+  Original and click Open Anyway. After an update, macOS may ask once more
+  whether the app can use its Keychain item. Choose Always Allow.
+- **Windows** shows "Windows protected your PC". Click More info, then Run
+  anyway.
 
 ## Where is Android?
 
@@ -100,7 +113,8 @@ It builds from the same codebase and is not released yet. Everything except
 Telegram works there; Telegram needs a piece the underlying library does not
 offer on Android.
 
-iOS and the Mac are what you can use today.
+The desktop app for macOS, Windows and Linux is what you can use today. The
+iPhone app is on its way to the App Store.
 
 ## Where do I report a bug?
 
