@@ -11,7 +11,7 @@ import type {
   Unsubscribe,
 } from '@/core/messaging/types';
 import { htmlToMarkdown } from '@/core/messaging/html-markdown';
-import { markdownHtml } from '@/core/messaging/markdown';
+import { markdownHtml, plainText } from '@/core/messaging/markdown';
 import { localFileUri, pathOfFileUri } from '@/storage/media';
 
 import type {
@@ -618,8 +618,12 @@ function withCaption(label: string, caption: string | undefined): string {
 
 function outgoing(content: MessageContent): MxOutgoing {
   switch (content.kind) {
-    case 'text':
-      return { kind: 'text', body: content.text, html: markdownHtml(content.text) ?? undefined };
+    case 'text': {
+      const html = markdownHtml(content.text);
+      return html
+        ? { kind: 'text', body: plainText(content.text), html }
+        : { kind: 'text', body: content.text };
+    }
     case 'image':
       return {
         kind: 'image',

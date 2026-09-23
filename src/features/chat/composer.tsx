@@ -1,12 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {
@@ -38,6 +31,7 @@ import { MediaPanel, type MediaAnchor } from './media-panel';
 import type { MediaTab } from './media-panel-content';
 import { pickFile, pickImage, takePhoto } from './attachments/pick';
 import { VoiceRecorder } from './attachments/voice-recorder';
+import { ComposerInput, type ComposerInputHandle } from './composer-input';
 
 export interface ComposerProps {
   conversationId: ConversationId;
@@ -73,7 +67,7 @@ export function Composer({
   onPendingCommandHandled,
 }: ComposerProps) {
   const colors = useThemeColors();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<ComposerInputHandle>(null);
   const { registry } = usePluginHost();
 
   const [value, setValue] = useState('');
@@ -217,14 +211,6 @@ export function Composer({
     return dispatch(value);
   };
 
-  useLayoutEffect(() => {
-    if (process.env.EXPO_OS !== 'web') return;
-    const element = inputRef.current as unknown as HTMLTextAreaElement | null;
-    if (!element?.style) return;
-    element.style.height = 'auto';
-    element.style.height = `${element.scrollHeight}px`;
-  }, [value]);
-
   useEffect(() => {
     if (process.env.EXPO_OS === 'web') inputRef.current?.focus();
   }, [conversationId]);
@@ -355,8 +341,7 @@ export function Composer({
         ) : null}
 
         <View className="min-h-[44px] flex-1 flex-row items-end rounded-pill border border-line bg-surface-raised pl-4 pr-1">
-          <TextInput
-            testID="composer-input"
+          <ComposerInput
             ref={inputRef}
             value={value}
             onChangeText={(t) => {
@@ -369,29 +354,9 @@ export function Composer({
               setValue(t);
               if (error) setError(null);
             }}
+            onSubmit={() => void submit()}
             placeholder="Message"
-            placeholderTextColor={colors['content-subtle']}
-            multiline
-            // A browser textarea starts two rows tall and never grows on its own;
-            // see the effect that sizes it to its content on desktop.
-            numberOfLines={1}
-            className="max-h-32 min-h-[42px] flex-1 py-2.5 pr-1 text-body text-content"
-            returnKeyType="send"
-            submitBehavior="submit"
-            onSubmitEditing={submit}
-            // Desktop: Enter sends and keeps the focus, Shift+Enter breaks the
-            // line. Left to react-native-web, Enter would also blur the field.
-            onKeyPress={
-              process.env.EXPO_OS === 'web'
-                ? (event) => {
-                    const key = event.nativeEvent as unknown as KeyboardEvent;
-                    if (key.key === 'Enter' && !key.shiftKey && !key.isComposing) {
-                      event.preventDefault();
-                      void submit();
-                    }
-                  }
-                : undefined
-            }
+            placeholderColor={colors['content-subtle']}
           />
 
           <View ref={emojiButton} collapsable={false}>
