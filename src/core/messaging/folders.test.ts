@@ -34,6 +34,12 @@ describe('matchesFolder', () => {
     expect(matchesFolder(conversation({ id: 'c1' }), 'bots', empty)).toBe(false);
   });
 
+  it('puts one-to-one chats in Direct, but not the app’s own bot rooms', () => {
+    expect(matchesFolder(conversation({ id: 'dm' }), 'direct', empty)).toBe(true);
+    expect(matchesFolder(conversation({ id: 'g', kind: 'group' }), 'direct', empty)).toBe(false);
+    expect(matchesFolder(conversation({ id: 'local-status' }), 'direct', empty)).toBe(false);
+  });
+
   it('matches a transport', () => {
     const c = conversation({ id: 'c1', protocol: 'nostr' });
     expect(matchesFolder(c, 'protocol:nostr', empty)).toBe(true);
@@ -82,6 +88,15 @@ describe('availableFolders', () => {
 
     expect(ids).toContain('groups');
     expect(ids).toContain('bots');
+    expect(ids).not.toContain('direct');
+  });
+
+  it('offers Direct next to Groups when there are one-to-one chats', () => {
+    const ids = availableFolders(
+      [conversation({ id: 'dm' }), conversation({ id: 'g', kind: 'group' })],
+      { prefs: {}, readAt: { dm: 5_000, g: 5_000 } }
+    ).map((f) => f.id);
+    expect(ids).toEqual(['all', 'direct', 'groups']);
   });
 
   it('offers transport folders only when more than one is in use', () => {

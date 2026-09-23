@@ -3,7 +3,7 @@ import type { ChatPrefsMap } from './chat-prefs';
 import { isUnread } from './unread';
 import type { Conversation, ConversationId } from './types';
 
-export type FolderId = 'all' | 'unread' | 'groups' | 'bots' | `protocol:${string}`;
+export type FolderId = 'all' | 'unread' | 'direct' | 'groups' | 'bots' | `protocol:${string}`;
 
 export interface Folder {
   id: FolderId;
@@ -25,6 +25,8 @@ export function matchesFolder(
       return true;
     case 'unread':
       return !context.prefs[conversation.id]?.muted && isUnread(conversation, context.readAt);
+    case 'direct':
+      return conversation.kind === 'dm' && !isLocalConversation(conversation.id);
     case 'groups':
       return conversation.kind === 'group';
     case 'bots':
@@ -42,6 +44,7 @@ export function availableFolders(conversations: Conversation[], context: FolderC
   const has = (id: FolderId) => conversations.some((c) => matchesFolder(c, id, context));
 
   if (has('unread')) folders.push({ id: 'unread', label: 'Unread' });
+  if (has('direct')) folders.push({ id: 'direct', label: 'Direct' });
   if (has('groups')) folders.push({ id: 'groups', label: 'Groups' });
   if (has('bots')) folders.push({ id: 'bots', label: 'Bots' });
 
