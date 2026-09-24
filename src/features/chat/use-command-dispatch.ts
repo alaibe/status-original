@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { parseCommand } from '@/core/commands/parser';
 import { toast } from '@/design';
@@ -121,22 +121,21 @@ export function useCommandDispatch({
     ]
   );
 
+  const dispatched = useRef<string | null>(null);
   useEffect(() => {
-    if (!pendingCommand) return;
+    if (!pendingCommand) {
+      dispatched.current = null;
+      return;
+    }
+    if (dispatched.current === pendingCommand) return;
+    dispatched.current = pendingCommand;
     if (busy) {
       onPendingCommandHandled();
       return;
     }
-    let cancelled = false;
-    Promise.resolve().then(() => {
-      if (cancelled) return;
-      return dispatch(pendingCommand, 'action').finally(() => {
-        if (!cancelled) onPendingCommandHandled();
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
+    void Promise.resolve()
+      .then(() => dispatch(pendingCommand, 'action'))
+      .finally(onPendingCommandHandled);
   }, [pendingCommand, busy, dispatch, onPendingCommandHandled]);
 
   return { commands, dispatch, busy, error, setError };

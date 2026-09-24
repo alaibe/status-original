@@ -161,7 +161,9 @@ export class XmtpSession implements ChatSession {
       limit: BigInt(opts?.limit ?? 100),
       direction: SortDirection.Descending,
     });
-    const converted = await Promise.all(messages.map((m) => this.toMessage(m, id)));
+    const converted = await Promise.all(
+      messages.filter((m) => !isReadReceipt(m)).map((m) => this.toMessage(m, id))
+    );
     return converted.reverse();
   }
 
@@ -375,6 +377,7 @@ export class XmtpSession implements ChatSession {
       onError: (error) => console.warn('[xmtp] message stream error', error),
     });
     return this.consume(stream, async (message) => {
+      if (isReadReceipt(message)) return;
       onMessage(await this.toMessage(message, message.conversationId));
     });
   }
@@ -411,7 +414,9 @@ export class XmtpSession implements ChatSession {
       try {
         for await (const value of stream) {
           if (this.closed) break;
-          await handle(value);
+          await Promise.resolve(handle(value)).catch((error) =>
+            console.warn('[xmtp] could not handle a streamed value', error)
+          );
         }
       } catch (error) {
         console.warn('[xmtp] stream ended with an error', error);
@@ -464,10 +469,11 @@ export class XmtpSession implements ChatSession {
       memberIds = [peer, this.self.participantId];
     }
 
-    const [consent, last] = await Promise.all([
+    const [consent, recent] = await Promise.all([
       raw.consentState(),
-      current() ? raw.lastMessage() : undefined,
+      current() ? raw.messages({ limit: 5n, direction: SortDirection.Descending }) : [],
     ]);
+    const last = recent.find((m) => !isReadReceipt(m));
     const lastMessage = current() && last ? await this.toMessage(last, raw.id) : undefined;
 
     return {

@@ -328,6 +328,7 @@ export default function ConversationScreen() {
           </View>
         ) : (
           <FlashList
+            key={id}
             ref={list}
             data={messages}
             onScrollBeginDrag={() => {
