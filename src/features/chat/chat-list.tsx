@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useEffect, useState } from 'react';
-import { FlashList } from '@shopify/flash-list';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { RefreshControl, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -134,6 +134,22 @@ export function ChatList({ query, selectedId }: ChatListProps) {
     directory || q
       ? scope.filter(include).map((conversation) => ({ kind: 'chat', conversation }))
       : inboxRows(ordered, include, folded, folderContext);
+  const list = useRef<FlashListRef<InboxRow>>(null);
+  const selectedIndex = rows.findIndex(
+    (row) => row.kind === 'chat' && row.conversation.id === selectedId
+  );
+  const selectedListed = selectedIndex >= 0;
+  const revealSelected = useEffectEvent(() => {
+    const view = list.current;
+    if (!view || selectedIndex < 0) return;
+    const { startIndex, endIndex } = view.computeVisibleIndices();
+    if (selectedIndex > startIndex && selectedIndex < endIndex) return;
+    void view.scrollToIndex({ index: selectedIndex, animated: true, viewPosition: 0.5 });
+  });
+  // Only when the selection changes: a selected chat that moves on a new message stays put.
+  useEffect(() => {
+    if (selectedListed) revealSelected();
+  }, [selectedId, selectedListed]);
   const unreadHere = scope.filter((c) => isUnreadHere(c, folderContext)).length;
   const mentionsHere = scope.filter((c) => hasUnreadMentions(c, readAt)).length;
 
@@ -184,6 +200,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
           entering={navigated ? (directory ? Enter.fromRight() : Enter.fromLeft()) : undefined}
           className="flex-1">
           <FlashList
+            ref={list}
             data={rows}
             keyExtractor={(row) => (row.kind === 'chat' ? row.conversation.id : row.directory)}
             getItemType={(row) => row.kind}

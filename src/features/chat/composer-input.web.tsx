@@ -1,4 +1,4 @@
-import { useImperativeHandle, useLayoutEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 
 import { htmlToMarkdown } from '@/core/messaging/html-markdown';
 import { markdownHtml } from '@/core/messaging/markdown';
@@ -122,11 +122,25 @@ export function ComposerInput({
     document.execCommand('insertText', false, event.clipboardData.getData('text/plain'));
   };
 
-  const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer.types.includes('Files')) return;
+  // A file dropped anywhere in the window goes to the open conversation.
+  const onDragOver = useEffectEvent((event: DragEvent) => {
+    if (onFile && event.dataTransfer?.types.includes('Files')) event.preventDefault();
+  });
+  const onDrop = useEffectEvent((event: DragEvent) => {
+    if (!onFile || !event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
-    if (onFile) [...event.dataTransfer.files].forEach(onFile);
-  };
+    [...event.dataTransfer.files].forEach(onFile);
+  });
+  useEffect(() => {
+    const over = (event: DragEvent) => onDragOver(event);
+    const drop = (event: DragEvent) => onDrop(event);
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('drop', drop);
+    };
+  }, []);
 
   return (
     <div style={{ position: 'relative', flex: 1, minWidth: 0, alignSelf: 'center' }}>
@@ -156,10 +170,6 @@ export function ComposerInput({
         onKeyDown={onKeyDown}
         onInput={onInput}
         onPaste={onPaste}
-        onDragOver={(event) => {
-          if (onFile && event.dataTransfer.types.includes('Files')) event.preventDefault();
-        }}
-        onDrop={onDrop}
         className="composer-rich text-body text-content"
         style={{ maxHeight: 128, minHeight: 22, overflowY: 'auto', padding: '10px 4px 10px 0' }}
       />

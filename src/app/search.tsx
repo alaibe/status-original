@@ -15,7 +15,8 @@ import {
 import { useChatStore } from '@/core/messaging/chat-store';
 import type { ChatMessage } from '@/core/messaging/types';
 import { contentPreview, formatTimestamp } from '@/core/messaging/preview';
-import { openChat } from '@/features/navigation/open';
+import { useJumpStore } from '@/features/chat/jump-store';
+import { openChatFromSheet } from '@/features/navigation/open';
 import { errorMessage } from '@/core/errors';
 
 export default function SearchScreen() {
@@ -24,6 +25,7 @@ export default function SearchScreen() {
   const colors = useThemeColors();
   const searchMessages = useChatStore((s) => s.searchMessages);
   const conversations = useChatStore((s) => s.conversations);
+  const jumpTo = useJumpStore((s) => s.jumpTo);
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<{ query: string; messages: ChatMessage[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +99,10 @@ export default function SearchScreen() {
             meta={formatTimestamp(item.sentAt)}
             subtitle={contentPreview(item.content)}
             numberOfLinesSubtitle={3}
-            onPress={() => openChat(item.conversationId)}
+            onPress={() => {
+              jumpTo(item);
+              openChatFromSheet(item.conversationId);
+            }}
           />
         )}
       />

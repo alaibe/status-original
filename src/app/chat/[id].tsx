@@ -47,6 +47,7 @@ import {
   messageActions,
 } from '@/features/chat/message-commands';
 import { HistoryStatus } from '@/features/chat/history-status';
+import { useJumpStore } from '@/features/chat/jump-store';
 import { PinnedMessages } from '@/features/chat/pinned-messages';
 
 const GROUP_WINDOW_MS = 60_000;
@@ -158,6 +159,40 @@ export default function ConversationScreen() {
     list.current?.scrollToEnd({ animated: true });
   };
 
+  const jump = useJumpStore((s) => (s.target?.conversationId === id ? s.target : null));
+  const highlighted = useJumpStore((s) => s.landed);
+  const land = useJumpStore((s) => s.land);
+  useEffect(() => {
+    if (!jump) return;
+    following.current = false;
+    const index = messages.findIndex((m) => m.id === jump.id);
+    if (index >= 0) {
+      land(jump.id);
+      requestAnimationFrame(
+        () => void list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+      );
+      return;
+    }
+    if (!messageHistory || messageHistory.loading) return;
+    const oldest = messages[0];
+    if (
+      oldest &&
+      oldest.sentAt >= jump.sentAt &&
+      messageHistory.hasOlder &&
+      !messageHistory.error
+    ) {
+      void loadOlderMessages(id);
+    } else {
+      land(null);
+      toast.error('Could not find that message in this chat');
+    }
+  }, [id, jump, messages, messageHistory, loadOlderMessages, land]);
+  useEffect(() => {
+    if (!highlighted) return;
+    const timer = setTimeout(() => land(null), 2000);
+    return () => clearTimeout(timer);
+  }, [highlighted, land]);
+
   const onSendContent = async (content: MessageContent) => {
     followNewest();
     await sendMessage(id, content);
@@ -208,6 +243,7 @@ export default function ConversationScreen() {
     <MessageRow
       message={item}
       previous={messages[index - 1]}
+      highlighted={item.id === highlighted}
       replyTarget={item.replyTo ? byId.get(item.replyTo) : undefined}
       senderName={isBot ? botName : nameFor(item.senderId)}
       isGroup={isGroup}
@@ -446,6 +482,7 @@ export default function ConversationScreen() {
 function MessageRow({
   message,
   previous,
+  highlighted,
   replyTarget,
   senderName,
   isGroup,
@@ -457,6 +494,7 @@ function MessageRow({
 }: {
   message: ChatMessage;
   previous: ChatMessage | undefined;
+  highlighted: boolean;
   replyTarget: ChatMessage | undefined;
   senderName: string;
   isGroup: boolean;
@@ -477,19 +515,21 @@ function MessageRow({
   return (
     <>
       {startsNewDay ? <DateSeparator at={message.sentAt} /> : null}
-      <MessageBubble
-        message={message}
-        grouped={grouped && !startsNewDay}
-        senderName={senderName}
-        showSender={isGroup && !grouped && !message.privateToMe}
-        onCommand={onCommand}
-        actions={actions}
-        replyPreview={
-          message.replyTo ? (replyTarget ? previewOf(replyTarget) : MISSING_REPLY) : undefined
-        }
-        onReact={onReact}
-        onVote={onVote}
-      />
+      <View className={highlighted ? 'bg-brand/15' : undefined}>
+        <MessageBubble
+          message={message}
+          grouped={grouped && !startsNewDay}
+          senderName={senderName}
+          showSender={isGroup && !grouped && !message.privateToMe}
+          onCommand={onCommand}
+          actions={actions}
+          replyPreview={
+            message.replyTo ? (replyTarget ? previewOf(replyTarget) : MISSING_REPLY) : undefined
+          }
+          onReact={onReact}
+          onVote={onVote}
+        />
+      </View>
     </>
   );
 }
