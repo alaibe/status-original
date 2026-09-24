@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { cn, Pressable, Text } from '@/design';
 import type { ChatFilter } from '@/core/messaging/folders';
@@ -23,7 +23,11 @@ export function FilterTabs({
   mentions: number;
 }) {
   return (
-    <View className="flex-row border-b border-line px-1.5">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      className="grow-0 border-b border-line"
+      contentContainerClassName="px-1.5">
       {FILTERS.map(({ id, label }) => {
         const selected = id === active;
         const count = id === 'unread' ? unread : id === 'mentions' ? mentions : 0;
@@ -52,7 +56,7 @@ export function FilterTabs({
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
