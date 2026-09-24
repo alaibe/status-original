@@ -41,6 +41,7 @@ export const XMTP_PROTOCOL = {
       },
     ],
   },
+  usesPluginContentTypes: true,
   async connect({ accountId, account, contentTypes, config }) {
     const [{ XmtpSession }, { createPluginCodec }, { loadOrCreateDbEncryptionKey }] =
       await Promise.all([

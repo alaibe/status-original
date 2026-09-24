@@ -53,6 +53,8 @@ export interface ProtocolDescriptor {
   recipient: RecipientCopy;
   publicChats?: PublicChatsCopy;
   configSchema: ProtocolConfigSchema;
+  /** Reads plugin content types when it connects, so a plugin change reconnects it. */
+  usesPluginContentTypes?: boolean;
   connect?(params: ProtocolConnectParams): Promise<ChatSession>;
   eraseLocalData?(params: ProtocolEraseParams): Promise<void>;
 }

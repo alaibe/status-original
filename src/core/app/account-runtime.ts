@@ -89,7 +89,7 @@ export class AccountRuntime {
   private currentGeneration = 0;
   private storage: AccountStorage | null = null;
   private leases = new Set<OwnedPluginLease>();
-  private subscriptions: Unsubscribe[] = [];
+  private subscriptions = new Map<ProtocolId, Unsubscribe[]>();
   private sessions = new Map<ProtocolId, ChatSession>();
   private bots = new Map<string, RunningBot>();
   private eraseSessions = new Map<
@@ -154,8 +154,11 @@ export class AccountRuntime {
       if (!this.isCurrent(generation)) return;
 
       await this.publishPlugins(current, storage, generation);
-      if (!this.isCurrent(generation)) return;
-      if (plugin.manifest.requiresSessionRestart) await this.reconnect(current, generation);
+      if (!this.isCurrent(generation) || !plugin.manifest.requiresSessionRestart) return;
+      const affected = this.descriptors
+        .filter((descriptor) => descriptor.usesPluginContentTypes)
+        .map((descriptor) => descriptor.id);
+      void this.serialize(() => this.reconnect(current, generation, affected)).catch(reportError);
     });
   }
 
@@ -302,18 +305,25 @@ export class AccountRuntime {
     if (this.isCurrent(generation)) this.syncBots(bots, input.accountId, generation);
   }
 
-  private async connectSessions(input: RuntimeAccount, generation: number): Promise<void> {
+  private async connectSessions(
+    input: RuntimeAccount,
+    generation: number,
+    only?: ProtocolId[]
+  ): Promise<void> {
     if (!this.isCurrent(generation)) return;
     useChatStore.setState({ status: 'connecting', error: null });
     const selected = input.only ?? (input.createSession ? ['xmtp' as const] : undefined);
     const descriptors = transportProtocols(this.descriptors).filter(
-      (descriptor) => !selected || selected.includes(descriptor.id)
+      (descriptor) =>
+        (!selected || selected.includes(descriptor.id)) && (!only || only.includes(descriptor.id))
     );
 
     await Promise.all(
       descriptors.map(async (descriptor) => {
         if (!this.isCurrent(generation)) return;
         const protocolId = descriptor.id;
+        const subscriptions: Unsubscribe[] = [];
+        this.subscriptions.set(protocolId, subscriptions);
         this.setProtocol(protocolId, { status: 'connecting', error: null });
         try {
           let session: ChatSession;
@@ -354,7 +364,7 @@ export class AccountRuntime {
           const live = () => this.isSession(generation, protocolId, session);
 
           if (session.subscribeHistory) {
-            this.subscriptions.push(
+            subscriptions.push(
               session.subscribeHistory((history) => {
                 if (!live()) return;
                 this.setProtocol(protocolId, {
@@ -365,7 +375,7 @@ export class AccountRuntime {
             );
           }
           if (session.subscribeLogin) {
-            this.subscriptions.push(
+            subscriptions.push(
               session.subscribeLogin((login) => {
                 if (!live()) return;
                 this.setProtocol(protocolId, {
@@ -384,7 +394,7 @@ export class AccountRuntime {
             await session.disconnect().catch(() => {});
             return;
           }
-          this.subscriptions.push(stopMessages);
+          subscriptions.push(stopMessages);
 
           if (session.streamDeletedMessages) {
             const stopDeleted = await session.streamDeletedMessages((id, messageIds) => {
@@ -396,7 +406,7 @@ export class AccountRuntime {
               await session.disconnect().catch(() => {});
               return;
             }
-            this.subscriptions.push(stopDeleted);
+            subscriptions.push(stopDeleted);
           }
 
           const stopConversations = await session.streamConversations((conversation) => {
@@ -411,7 +421,7 @@ export class AccountRuntime {
             await session.disconnect().catch(() => {});
             return;
           }
-          this.subscriptions.push(stopConversations);
+          subscriptions.push(stopConversations);
           const conversations = await session.listConversations();
           if (!live()) return;
           useChatStore
@@ -464,38 +474,51 @@ export class AccountRuntime {
     }
   }
 
-  private async reconnect(current: RuntimeAccount, generation: number): Promise<void> {
-    await this.stopSessions();
-    if (this.isCurrent(generation)) await this.connectSessions(current, generation);
+  private async reconnect(
+    current: RuntimeAccount,
+    generation: number,
+    only?: ProtocolId[]
+  ): Promise<void> {
+    await this.stopSessions(only);
+    if (this.isCurrent(generation)) await this.connectSessions(current, generation, only);
   }
 
-  /** Drops the network projection but keeps the account's local chats. */
-  private async stopSessions(): Promise<void> {
-    await this.disconnectSessions();
+  /** Drops the network projection of `only` (every network by default) but keeps local chats. */
+  private async stopSessions(only?: ProtocolId[]): Promise<void> {
+    await this.disconnectSessions(only);
     const state = useChatStore.getState();
-    const local = ([id]: [string, unknown]) => id.startsWith('local-');
+    const dropped = (protocol: string) => (only ? only.includes(protocol) : protocol !== 'local');
+    const keep = <T>(record: Record<string, T>, protocolOf = (key: string) => key) =>
+      Object.fromEntries(Object.entries(record).filter(([key]) => !dropped(protocolOf(key))));
+    const conversationProtocol = (id: string) => id.slice(0, id.indexOf('-'));
     useChatStore.setState({
-      status: 'idle',
-      error: null,
-      sessions: {},
-      protocols: {},
-      syncing: false,
+      status: only ? state.status : 'idle',
+      error: only ? state.error : null,
+      sessions: keep(state.sessions),
+      protocols: keep(state.protocols),
+      syncing: only ? state.syncing : false,
       conversations: state.conversations.filter(
-        (conversation) => conversation.protocol === 'local'
+        (conversation) => !dropped(conversation.protocol ?? '')
       ),
-      messages: Object.fromEntries(Object.entries(state.messages).filter(local)),
-      rawMessages: Object.fromEntries(Object.entries(state.rawMessages).filter(local)),
+      messages: keep(state.messages, conversationProtocol),
+      rawMessages: keep(state.rawMessages, conversationProtocol),
     });
   }
 
-  private async disconnectSessions(): Promise<void> {
-    for (const unsubscribe of this.subscriptions.splice(0)) {
-      try {
-        unsubscribe();
-      } catch {}
+  private async disconnectSessions(only?: ProtocolId[]): Promise<void> {
+    const ids = only ?? [...new Set([...this.subscriptions.keys(), ...this.sessions.keys()])];
+    const sessions: ChatSession[] = [];
+    for (const id of ids) {
+      for (const unsubscribe of this.subscriptions.get(id) ?? []) {
+        try {
+          unsubscribe();
+        } catch {}
+      }
+      this.subscriptions.delete(id);
+      const session = this.sessions.get(id);
+      if (session) sessions.push(session);
+      this.sessions.delete(id);
     }
-    const sessions = [...this.sessions.values()];
-    this.sessions.clear();
     await Promise.all(sessions.map((session) => session.disconnect().catch(() => {})));
   }
 

@@ -287,10 +287,11 @@ describe('AccountRuntime', () => {
     await runtime.synchronize(null);
   });
 
-  it('serializes a plugin-required session restart', async () => {
+  it('reconnects only the networks that read plugin content types', async () => {
     const runtime = new AccountRuntime(PROTOCOLS);
     const first = new InMemoryChatSession();
     const second = new InMemoryChatSession();
+    const nostr = new InMemoryChatSession();
     const sessions = [first, second];
     const plugin: Plugin = {
       manifest: {
@@ -305,13 +306,19 @@ describe('AccountRuntime', () => {
       setup: () => ({}),
     };
 
-    await runtime.synchronize(
-      input('account-a', new PluginRegistry([plugin]), async () => sessions.shift()!)
-    );
+    await runtime.synchronize({
+      ...input('account-a', new PluginRegistry([plugin]), async ({ protocolId }) =>
+        protocolId === 'nostr' ? nostr : sessions.shift()!
+      ),
+      only: ['xmtp', 'nostr'],
+    });
     await runtime.setPluginEnabled('codec', false);
+    await runtime['transition'];
 
     expect(first.disconnected).toBe(true);
     expect(useChatStore.getState().sessions.xmtp).toBe(second);
+    expect(nostr.disconnected).toBe(false);
+    expect(useChatStore.getState().sessions.nostr).toBe(nostr);
     await runtime.synchronize(null);
   });
 });
