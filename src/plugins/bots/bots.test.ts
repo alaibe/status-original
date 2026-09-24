@@ -142,6 +142,15 @@ describe('/addbot', () => {
   });
 });
 
+describe('names', () => {
+  it('names each added bot after what /addbot saved', async () => {
+    const { context } = makeContext();
+    await run('addbot', ['pricebot.eth', 'Prices'], context);
+
+    expect(await botsPlugin.setup(context).names!()).toEqual({ 'inbox-1': 'Prices' });
+  });
+});
+
 describe('/removebot', () => {
   it('forgets a bot but says the conversation stays', async () => {
     const bot: KnownBot = { address: 'pricebot.eth', name: 'Prices', addedAt: 0 };

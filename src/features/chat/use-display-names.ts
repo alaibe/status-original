@@ -4,6 +4,8 @@ import { shortAddress } from '@/core/identity/keyring';
 import { isLocalConversation } from '@/core/messaging/bots';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type { Conversation, ParticipantId } from '@/core/messaging/types';
+import { usePluginRegistry } from '@/core/plugins/host';
+import { useLiveViews } from '@/core/plugins/live';
 
 export interface DisplayParticipant {
   id: ParticipantId;
@@ -14,6 +16,23 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
   const sessions = useChatStore((s) => s.sessions);
   const [addresses, setAddresses] = useState<Record<ParticipantId, string>>({});
   const [names, setNames] = useState<Record<ParticipantId, string>>({});
+  const [ownNames, setOwnNames] = useState<Record<ParticipantId, string>>({});
+  const registry = usePluginRegistry();
+  const pluginVersions = useLiveViews((s) => s.versions);
+
+  useEffect(() => {
+    if (!registry) return;
+    let cancelled = false;
+    registry
+      .participantNames()
+      .then((resolved) => {
+        if (!cancelled) setOwnNames(resolved);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [registry, pluginVersions]);
 
   const key = [...new Set(participants.map((p) => `${p.protocol ?? ''}:${p.id}`))].sort().join(',');
 
@@ -55,7 +74,7 @@ export function useDisplayNames(participants: DisplayParticipant[]) {
 
   return {
     nameFor(id: ParticipantId): string {
-      const name = names[id];
+      const name = ownNames[id] ?? names[id];
       if (name) return name;
       const address = addresses[id];
       return address ? shortAddress(address) : shortAddress(id, 6, 4);

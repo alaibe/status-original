@@ -36,6 +36,10 @@ interface PluginHostValue {
 
 const PluginHostContext = createContext<PluginHostValue | null>(null);
 
+export function usePluginRegistry(): PluginRegistry | undefined {
+  return use(PluginHostContext)?.registry;
+}
+
 export function usePluginHost(): PluginHostValue {
   const value = use(PluginHostContext);
   if (!value) throw new Error('usePluginHost must be used inside <PluginProvider>');

@@ -441,4 +441,16 @@ describe('channel scoping', () => {
     await registry.deactivate('a');
     expect(registry.view('a', 'list')).toBeUndefined();
   });
+
+  it('merges the names active plugins give participants, skipping one that fails', async () => {
+    const registry = new PluginRegistry([
+      makePlugin('bots', { names: async () => ({ 'inbox-1': 'Weather' }) }),
+      makePlugin('broken', { names: async () => Promise.reject(new Error('storage')) }),
+      makePlugin('idle', { names: async () => ({ 'inbox-2': 'Never active' }) }),
+    ]);
+    await activate(registry, 'bots');
+    await activate(registry, 'broken');
+
+    expect(await registry.participantNames()).toEqual({ 'inbox-1': 'Weather' });
+  });
 });

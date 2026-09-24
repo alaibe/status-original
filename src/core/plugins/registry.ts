@@ -10,7 +10,7 @@ import { botConversationId, type Bot } from '../messaging/bots';
 import { inScope, type ConversationScope } from '../messaging/conversation-scope';
 import { supports } from '../messaging/capability';
 import type { ChatSession } from '../messaging/protocol';
-import type { ConversationId } from '../messaging/types';
+import type { ConversationId, ParticipantId } from '../messaging/types';
 import type {
   ActivePlugin,
   ComposerAction,
@@ -304,6 +304,13 @@ export class PluginRegistry {
 
   view(pluginId: PluginId, name: string): PluginView | undefined {
     return this.active.get(pluginId)?.contribution.views?.[name];
+  }
+
+  async participantNames(): Promise<Record<ParticipantId, string>> {
+    const all = await Promise.all(
+      [...this.active.values()].map((entry) => entry.contribution.names?.().catch(() => ({})))
+    );
+    return Object.assign({}, ...all);
   }
 
   bots(): Bot[] {

@@ -196,6 +196,11 @@ export const botsPlugin: Plugin = {
 
       bots: [makeBotsBot(context)],
 
+      async names() {
+        const bots = await readBots(context);
+        return Object.fromEntries(bots.flatMap((b) => (b.inboxId ? [[b.inboxId, b.name]] : [])));
+      },
+
       composerActions: [
         {
           id: 'addbot',

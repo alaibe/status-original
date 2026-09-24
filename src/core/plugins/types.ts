@@ -195,6 +195,8 @@ export interface PluginContribution {
   composerActions?: ComposerAction[];
   overlays?: PluginOverlay[];
   uriHandlers?: UriHandler[];
+  /** Names you gave participants, such as bots you added. They win over names from the network. */
+  names?(): Promise<Record<ParticipantId, string>>;
   start?(): Promise<(() => void) | void>;
 }
 
