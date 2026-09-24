@@ -77,6 +77,8 @@ export interface ChatMessage {
   fromMe: boolean;
   status: DeliveryStatus;
   replyTo?: MessageId;
+  /** Set on a reply inside a thread: the message that started it. */
+  threadRoot?: MessageId;
   reactions?: Record<string, ParticipantId[]>;
   readAt?: number;
   forwarded?: boolean;

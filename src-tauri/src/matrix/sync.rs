@@ -135,6 +135,7 @@ impl Session {
                     preview,
                     status: "sent",
                     reply_to: None,
+                    thread_root: None,
                     reactions: None,
                     edited: false,
                 },

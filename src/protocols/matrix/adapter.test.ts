@@ -780,6 +780,25 @@ describe('MatrixSession messages', () => {
     expect(await chat.resolveNames([BOB])).toEqual({ [BOB]: 'Bob' });
   });
 
+  it('keeps the thread a reply belongs to, and posts into it', async () => {
+    const { chat, api } = await connect(SESSION, (api) => {
+      api.roomsById.set(GROUP.id, GROUP);
+      api.timelines.set(GROUP.id, [
+        textEvent('$root', GROUP.id, BOB, 'plan?'),
+        textEvent('$in', GROUP.id, CAROL, 'yes', { replyTo: '$root', threadRoot: '$root' }),
+      ]);
+    });
+    const [root, reply] = await chat.getMessages(GROUP_ID);
+    expect(root.threadRoot).toBeUndefined();
+    expect(reply).toMatchObject({ threadRoot: '$root' });
+
+    await chat.send(GROUP_ID, { kind: 'text', text: 'me too' }, undefined, '$root');
+    expect(api.named('send')).toEqual([
+      [GROUP.id, { kind: 'text', body: 'me too' }, undefined, '$root'],
+    ]);
+    expect(chat.threads).toBe(true);
+  });
+
   it('drops the brackets around Markdown autolinks', async () => {
     const { chat } = await connect(SESSION, (api) => {
       api.roomsById.set(DM.id, DM);

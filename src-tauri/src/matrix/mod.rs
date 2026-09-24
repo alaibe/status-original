@@ -22,7 +22,7 @@ use matrix_sdk::ruma::events::poll::unstable_start::{
 };
 use matrix_sdk::ruma::events::room::encryption::RoomEncryptionEventContent;
 use matrix_sdk::ruma::events::room::message::{
-    AddMentions, FormattedBody, MessageFormat, MessageType, ReplacementMetadata,
+    AddMentions, FormattedBody, MessageFormat, MessageType, ReplacementMetadata, ReplyWithinThread,
     RoomMessageEventContentWithoutRelation, TextMessageEventContent,
 };
 use matrix_sdk::ruma::events::room::power_levels::UserPowerLevel;
@@ -201,6 +201,8 @@ pub struct MxEvent {
     status: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     reply_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_root: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reactions: Option<Vec<MxReaction>>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]

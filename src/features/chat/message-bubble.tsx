@@ -39,6 +39,12 @@ export interface MessageBubbleProps {
   onVote?: (optionIds: number[]) => Promise<void>;
   actions: MessageAction[];
   replyPreview?: ReplyPreview;
+  thread?: ThreadChip;
+}
+
+export interface ThreadChip {
+  replies: number;
+  onOpen(): void;
 }
 
 export function MessageBubble({
@@ -51,6 +57,7 @@ export function MessageBubble({
   onVote,
   actions,
   replyPreview,
+  thread,
 }: MessageBubbleProps) {
   const { registry } = usePluginHost();
 
@@ -196,6 +203,7 @@ export function MessageBubble({
       onReact={onReact}
       actions={actions}
       replyPreview={replyPreview}
+      thread={thread}
       bare={bare}>
       {children}
     </BubbleShell>
@@ -274,6 +282,7 @@ function BubbleShell({
   onReact,
   actions,
   replyPreview,
+  thread,
   children,
 }: {
   fromMe: boolean;
@@ -286,6 +295,7 @@ function BubbleShell({
   onReact?: (emoji: string) => void;
   actions: MessageAction[];
   replyPreview?: ReplyPreview;
+  thread?: ThreadChip;
   children: React.ReactNode;
 }) {
   const colors = useThemeColors();
@@ -394,6 +404,20 @@ function BubbleShell({
           ))}
         </View>
       ) : null}
+
+      {!held && thread ? (
+        <RNPressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open thread, ${repliesLabel(thread.replies)}`}
+          onPress={thread.onOpen}
+          className="mt-1 flex-row items-center gap-1 rounded-pill bg-surface-sunken px-2.5 py-1">
+          <Icon name="chatbubbles-outline" size={13} color={colors.brand} />
+          <Text variant="caption" className="font-semibold text-brand">
+            {repliesLabel(thread.replies)}
+          </Text>
+          <Icon name="chevron-forward" size={12} color={colors.brand} />
+        </RNPressable>
+      ) : null}
     </View>
   );
 
@@ -451,6 +475,10 @@ function Footer({ message, overlay = false }: { message: ChatMessage; overlay?: 
       ) : null}
     </View>
   );
+}
+
+function repliesLabel(count: number): string {
+  return count === 1 ? '1 reply' : `${count} replies`;
 }
 
 const openUrl = (url: string) => {

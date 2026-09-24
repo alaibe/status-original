@@ -321,6 +321,28 @@ describe('sending', () => {
     }
   );
 
+  it('sends into a thread and reconciles the echo there', async () => {
+    const session = new InMemoryChatSession();
+    session.seedConversation({ id: 'c1' });
+    await connect(session);
+    await useChatStore.getState().loadMessages(ns('c1'));
+    const send = jest.spyOn(session, 'send').mockReturnValue(new Promise(() => {}));
+
+    void useChatStore
+      .getState()
+      .sendMessage(ns('c1'), { kind: 'text', text: 'in thread' }, undefined, 'root');
+    expect(send).toHaveBeenCalledWith('c1', { kind: 'text', text: 'in thread' }, undefined, 'root');
+    session.deliver('c1', {
+      id: 'echo',
+      senderId: session.self.participantId,
+      fromMe: true,
+      content: { kind: 'text', text: 'in thread' },
+      threadRoot: 'root',
+    });
+
+    expect(useChatStore.getState().messages[ns('c1')].map((m) => m.id)).toEqual(['echo']);
+  });
+
   it('reconciles only one pending row when concurrent sends have identical content', async () => {
     const session = new InMemoryChatSession();
     session.seedConversation({ id: 'c1' });

@@ -8,5 +8,6 @@ export function useSupports(conversationId: ConversationId | undefined) {
     session,
     supports: (key: Capability) => supports(session, key),
     sendsVideo: Boolean(session?.sendsVideo),
+    threads: Boolean(session?.threads),
   };
 }

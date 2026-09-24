@@ -107,8 +107,8 @@ class TauriMatrixClient implements MatrixApi {
     return invoke('mx_ignore', { userId, ignored });
   }
 
-  send(roomId: string, content: MxOutgoing, replyTo?: string): Promise<void> {
-    return invoke('mx_send', { roomId, content, replyTo });
+  send(roomId: string, content: MxOutgoing, replyTo?: string, threadRoot?: string): Promise<void> {
+    return invoke('mx_send', { roomId, content, replyTo, threadRoot });
   }
 
   toggleReaction(roomId: string, eventId: string, key: string): Promise<void> {

@@ -7,19 +7,16 @@ impl Session {
         room_id: &RoomId,
         content: MxOutgoing,
         reply_to: Option<String>,
+        thread_root: Option<String>,
     ) -> Result<(), String> {
         let room = self.room(room_id.as_str())?;
-        let reply_to = reply_to
-            .map(|id| EventId::parse(id).map_err(err))
-            .transpose()?;
+        let parse = |id: Option<String>| id.map(|id| EventId::parse(id).map_err(err)).transpose();
+        let reply = relation(parse(reply_to)?, parse(thread_root)?);
         match content {
             MxOutgoing::Text(text) => {
                 let content = text_content(text)?;
-                let content = match reply_to {
-                    Some(event_id) => room
-                        .make_reply_event(content, reply(event_id))
-                        .await
-                        .map_err(err)?,
+                let content = match reply {
+                    Some(reply) => room.make_reply_event(content, reply).await.map_err(err)?,
                     None => content.with_relation(None),
                 };
                 room.send(content).await.map_err(err)?;
@@ -29,7 +26,7 @@ impl Session {
                 let config = AttachmentConfig::new()
                     .info(info)
                     .caption(caption.map(TextMessageEventContent::plain))
-                    .reply(reply_to.map(reply));
+                    .reply(reply);
                 room.send_attachment(name, &mime, data, config)
                     .await
                     .map_err(err)?;
@@ -45,6 +42,23 @@ pub(super) fn reply(event_id: OwnedEventId) -> Reply {
         enforce_thread: EnforceThread::MaybeThreaded,
         add_mentions: AddMentions::Yes,
     }
+}
+
+/// In a thread, a message that replies to nothing still points at the root, as the fallback for clients without threads.
+fn relation(reply_to: Option<OwnedEventId>, thread_root: Option<OwnedEventId>) -> Option<Reply> {
+    let Some(root) = thread_root else {
+        return reply_to.map(reply);
+    };
+    let within = if reply_to.is_some() {
+        ReplyWithinThread::Yes
+    } else {
+        ReplyWithinThread::No
+    };
+    Some(Reply {
+        event_id: reply_to.unwrap_or(root),
+        enforce_thread: EnforceThread::Threaded(within),
+        add_mentions: AddMentions::Yes,
+    })
 }
 
 /// The page names files itself; the SDK would otherwise use the path's basename.
@@ -148,10 +162,11 @@ pub async fn mx_send(
     room_id: String,
     content: MxOutgoing,
     reply_to: Option<String>,
+    thread_root: Option<String>,
 ) -> Result<(), String> {
     let session = current(&state)?;
     let room_id = RoomId::parse(&room_id).map_err(err)?;
-    session.send(&room_id, content, reply_to).await
+    session.send(&room_id, content, reply_to, thread_root).await
 }
 
 #[tauri::command]
@@ -253,6 +268,30 @@ mod tests {
             .map(|id| id.to_string())
             .collect();
         assert_eq!(ids, ["@bob:example.org"]);
+    }
+
+    #[test]
+    fn a_thread_message_replies_to_its_root_unless_it_replies_to_something_else() {
+        let root = OwnedEventId::try_from("$root").unwrap();
+        let other = OwnedEventId::try_from("$other").unwrap();
+
+        let plain = relation(None, Some(root.clone())).unwrap();
+        assert_eq!(plain.event_id, root);
+        assert_eq!(
+            plain.enforce_thread,
+            EnforceThread::Threaded(ReplyWithinThread::No)
+        );
+
+        let answer = relation(Some(other.clone()), Some(root)).unwrap();
+        assert_eq!(answer.event_id, other);
+        assert_eq!(
+            answer.enforce_thread,
+            EnforceThread::Threaded(ReplyWithinThread::Yes)
+        );
+
+        let outside = relation(Some(other), None).unwrap();
+        assert_eq!(outside.enforce_thread, EnforceThread::MaybeThreaded);
+        assert!(relation(None, None).is_none());
     }
 
     #[test]

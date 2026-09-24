@@ -36,7 +36,7 @@ import { HYDRATE_LIMIT, type MessageStore } from './message-store';
 import { persistLocalAttachment } from './attachments';
 import { MARKED_UNREAD } from './unread';
 import { searchMessages } from './search';
-import { draftSync, saveDraftsSoon, withDraft, type Drafts } from './drafts';
+import { draftKey, draftSync, saveDraftsSoon, withDraft, type Drafts } from './drafts';
 import { capability, type Capability, type CapabilityMethod } from './capability';
 import type { AccountStorage } from '@/storage/account';
 import type {
@@ -92,7 +92,8 @@ export interface ChatState {
   sendMessage(
     id: ConversationId,
     content: MessageContent,
-    replyTo?: MessageId
+    replyTo?: MessageId,
+    threadRoot?: MessageId
   ): Promise<SendOutcome>;
   resolvePeer(protocol: ProtocolId, addressOrId: string): Promise<ParticipantId | null>;
   startDm(protocol: ProtocolId, peer: ParticipantId): Promise<Conversation>;
@@ -124,7 +125,7 @@ export interface ChatState {
   markUnread(id: ConversationId): Promise<void>;
   setConsent(id: ConversationId, consent: 'allowed' | 'denied'): Promise<void>;
   setChatPref(id: ConversationId, change: Partial<ChatPrefs>): Promise<void>;
-  setDraft(id: ConversationId, text: string): void;
+  setDraft(id: ConversationId, text: string, thread?: MessageId): void;
 
   ingestMessage(message: ChatMessage): void;
   ingestConversation(conversation: Conversation): void;
@@ -259,7 +260,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return searchMessages(get(), query, id);
   },
 
-  async sendMessage(id, picked, replyTo) {
+  async sendMessage(id, picked, replyTo, threadRoot) {
     requireSendable(get(), id);
     if (isLocalConversation(id)) {
       await get().postLocalMessage(id, picked, 'me');
@@ -291,11 +292,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       fromMe: true,
       status: 'sending',
       replyTo,
+      threadRoot,
     };
     set((state) => withRaw(state, id, [...rawOf(state, id), pending]));
 
     try {
-      const sentId = await route.session.send(route.nativeId, content, replyTo);
+      const sentId = await route.session.send(route.nativeId, content, replyTo, threadRoot);
       get().replacePending(id, pending.id, 'sent', sentId);
       return { sent: true };
     } catch (error) {
@@ -314,7 +316,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().replacePending(id, messageId, 'sending');
 
     try {
-      const sentId = await route.session.send(route.nativeId, message.content, message.replyTo);
+      const sentId = await route.session.send(
+        route.nativeId,
+        message.content,
+        message.replyTo,
+        message.threadRoot
+      );
       get().replacePending(id, messageId, 'sent', sentId);
       return { sent: true };
     } catch (error) {
@@ -653,10 +660,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => withRaw(state, id, [...rawOf(state, id), message]));
   },
 
-  setDraft(id, text) {
-    const drafts = withDraft(get().drafts, id, text);
+  setDraft(id, text, thread) {
+    const drafts = withDraft(get().drafts, draftKey(id, thread), text);
     set({ drafts });
     saveDraftsSoon(requireAccountStorage(get()), drafts);
+    if (thread) return;
     const route = routeOrNull(get(), id);
     if (route?.session.saveDraft)
       draftSync.typed(id, text, (latest) =>
@@ -1070,6 +1078,7 @@ function removeMatchingPending(messages: ChatMessage[], incoming: ChatMessage): 
     (message) =>
       message.id.startsWith('pending:') &&
       message.status !== 'failed' &&
+      message.threadRoot === incoming.threadRoot &&
       message.replyTo === incoming.replyTo &&
       JSON.stringify(message.content) === content
   );

@@ -348,7 +348,8 @@ class RnMatrixClient implements MatrixApi {
       isOwn: event.isOwn,
       status: sendState(event.localSendState),
       content,
-      replyTo: msgLike?.inReplyTo?.eventId(),
+      replyTo: msgLike?.threadRoot && fallsBack(event) ? undefined : msgLike?.inReplyTo?.eventId(),
+      threadRoot: msgLike?.threadRoot,
       reactions: reactions && reactions.length > 0 ? reactions : undefined,
       edited:
         msgLike?.kind.tag === sdk.MsgLikeKind_Tags.Message && msgLike.kind.inner.content.isEdited,
@@ -486,10 +487,15 @@ class RnMatrixClient implements MatrixApi {
     }
   }
 
-  async send(roomId: string, content: MxOutgoing, replyTo?: string): Promise<void> {
+  async send(
+    roomId: string,
+    content: MxOutgoing,
+    replyTo?: string,
+    threadRoot?: string
+  ): Promise<void> {
     const room = this.requireRoom(roomId);
     if (content.kind === 'text') {
-      const relates = replyTo ? { 'm.relates_to': { 'm.in_reply_to': { event_id: replyTo } } } : {};
+      const relates = relation(replyTo, threadRoot);
       const repliedTo = replyTo ? await this.senderOf(room, replyTo) : undefined;
       const mentions = [
         ...new Set([...(content.mentions ?? []), ...(repliedTo ? [repliedTo] : [])]),
@@ -503,49 +509,24 @@ class RnMatrixClient implements MatrixApi {
             ? { format: 'org.matrix.custom.html', formatted_body: content.html }
             : {}),
           ...(mentions.length ? { 'm.mentions': { user_ids: mentions } } : {}),
-          ...relates,
+          ...(relates ? { 'm.relates_to': relates } : {}),
         })
       );
       return;
     }
-    const { timeline } = await this.liveTimeline(roomId);
-    const source = new sdk.UploadSource.File({ filename: content.path });
-    const size = content.size === undefined ? undefined : BigInt(content.size);
-    switch (content.kind) {
-      case 'image':
-        await timeline
-          .sendImage({ source, caption: content.caption, inReplyTo: replyTo }, undefined, {
-            width: content.width === undefined ? undefined : BigInt(content.width),
-            height: content.height === undefined ? undefined : BigInt(content.height),
-            mimetype: content.mimeType,
-            size,
-          })
-          .join();
-        return;
-      case 'file':
-        await timeline
-          .sendFile({ source, inReplyTo: replyTo }, { mimetype: content.mimeType, size })
-          .join();
-        return;
-      case 'video':
-        await timeline
-          .sendVideo({ source, caption: content.caption, inReplyTo: replyTo }, undefined, {
-            width: content.width === undefined ? undefined : BigInt(content.width),
-            height: content.height === undefined ? undefined : BigInt(content.height),
-            mimetype: content.mimeType,
-            size,
-          })
-          .join();
-        return;
-      case 'voice':
-        await timeline
-          .sendVoiceMessage(
-            { source, inReplyTo: replyTo },
-            { duration: content.durationMs, mimetype: content.mimeType, size },
-            []
-          )
-          .join();
-        return;
+    if (!threadRoot) {
+      await sendMedia((await this.liveTimeline(roomId)).timeline, content, replyTo);
+      return;
+    }
+    // A thread-focused timeline threads what it sends.
+    const thread = await room.timelineWithConfiguration({
+      ...timelineConfiguration(),
+      focus: new sdk.TimelineFocus.Thread({ rootEventId: threadRoot }),
+    });
+    try {
+      await sendMedia(thread, content, replyTo);
+    } finally {
+      if (thread instanceof sdk.Timeline) thread.uniffiDestroy();
     }
   }
 
@@ -661,6 +642,73 @@ class RnMatrixClient implements MatrixApi {
     await this.close();
     const dir = new Directory(`file://${this.params.dataDirectory}`);
     if (dir.exists) dir.delete();
+  }
+}
+
+/** In a thread, a message that replies to nothing still points at the root, for clients without threads. */
+function relation(replyTo?: string, threadRoot?: string) {
+  if (!threadRoot) return replyTo ? { 'm.in_reply_to': { event_id: replyTo } } : undefined;
+  return {
+    rel_type: 'm.thread',
+    event_id: threadRoot,
+    is_falling_back: !replyTo,
+    'm.in_reply_to': { event_id: replyTo ?? threadRoot },
+  };
+}
+
+/** A thread message quotes the one before it for clients without threads; that is not a reply. */
+function fallsBack(event: sdk.EventTimelineItem): boolean {
+  const json = event.lazyProvider.debugInfo().originalJson;
+  if (!json) return false;
+  try {
+    return JSON.parse(json).content?.['m.relates_to']?.is_falling_back === true;
+  } catch {
+    return false;
+  }
+}
+
+async function sendMedia(
+  timeline: sdk.TimelineLike,
+  content: Exclude<MxOutgoing, { kind: 'text' }>,
+  replyTo: string | undefined
+): Promise<void> {
+  const source = new sdk.UploadSource.File({ filename: content.path });
+  const size = content.size === undefined ? undefined : BigInt(content.size);
+  switch (content.kind) {
+    case 'image':
+      await timeline
+        .sendImage({ source, caption: content.caption, inReplyTo: replyTo }, undefined, {
+          width: content.width === undefined ? undefined : BigInt(content.width),
+          height: content.height === undefined ? undefined : BigInt(content.height),
+          mimetype: content.mimeType,
+          size,
+        })
+        .join();
+      return;
+    case 'file':
+      await timeline
+        .sendFile({ source, inReplyTo: replyTo }, { mimetype: content.mimeType, size })
+        .join();
+      return;
+    case 'video':
+      await timeline
+        .sendVideo({ source, caption: content.caption, inReplyTo: replyTo }, undefined, {
+          width: content.width === undefined ? undefined : BigInt(content.width),
+          height: content.height === undefined ? undefined : BigInt(content.height),
+          mimetype: content.mimeType,
+          size,
+        })
+        .join();
+      return;
+    case 'voice':
+      await timeline
+        .sendVoiceMessage(
+          { source, inReplyTo: replyTo },
+          { duration: content.durationMs, mimetype: content.mimeType, size },
+          []
+        )
+        .join();
+      return;
   }
 }
 

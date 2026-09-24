@@ -1,5 +1,5 @@
 import type { AccountStorage } from '@/storage/account';
-import type { ConversationId } from './types';
+import type { ConversationId, MessageId } from './types';
 
 export type Drafts = Record<ConversationId, string>;
 
@@ -28,6 +28,11 @@ export function flushDrafts(): void {
   pending = null;
   clearTimeout(timer);
   storage.set(KEY, drafts).catch((error) => console.warn('[chat] could not save drafts', error));
+}
+
+/** A thread keeps its own draft, on this device only. */
+export function draftKey(id: ConversationId, thread?: MessageId): string {
+  return thread ? `${id}#thread:${thread}` : id;
 }
 
 export function withDraft(drafts: Drafts, id: ConversationId, text: string): Drafts {

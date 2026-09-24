@@ -100,6 +100,7 @@ export interface MxEvent extends MxPreview {
   roomId: string;
   status: 'sending' | 'sent' | 'failed';
   replyTo?: string;
+  threadRoot?: string;
   reactions?: MxReaction[];
   edited?: boolean;
 }
@@ -214,7 +215,7 @@ export interface MatrixApi {
   ignore(userId: string, ignored: boolean): Promise<void>;
 
   /** Resolves once the homeserver has the message; it then arrives as an `event` update. */
-  send(roomId: string, content: MxOutgoing, replyTo?: string): Promise<void>;
+  send(roomId: string, content: MxOutgoing, replyTo?: string, threadRoot?: string): Promise<void>;
   edit(roomId: string, eventId: string, content: MxTextOutgoing): Promise<void>;
   redact(roomId: string, eventId: string): Promise<void>;
   pinnedMessages(roomId: string): Promise<MxEvent[]>;

@@ -4,14 +4,29 @@ import { messageActions } from './message-commands';
 
 const handlers = {
   reply: jest.fn(),
+  openThread: jest.fn(),
   forward: jest.fn(),
   edit: jest.fn(),
   remove: jest.fn(),
   retry: jest.fn(),
   togglePin: jest.fn(),
 };
-const all = { edit: true, delete: true, deleteForMe: true, deleteOthers: false, pin: true };
-const none = { edit: false, delete: false, deleteForMe: false, deleteOthers: false, pin: false };
+const all = {
+  edit: true,
+  delete: true,
+  deleteForMe: true,
+  deleteOthers: false,
+  pin: true,
+  thread: false,
+};
+const none = {
+  edit: false,
+  delete: false,
+  deleteForMe: false,
+  deleteOthers: false,
+  pin: false,
+  thread: false,
+};
 
 const message = (over: Partial<ChatMessage> = {}): ChatMessage => ({
   id: 'm1',
@@ -52,6 +67,20 @@ describe('messageActions', () => {
       'delete-for-me',
     ]);
     expect(ids(message({ fromMe: false }), { ...all, deleteOthers: true })).toContain('delete');
+  });
+
+  it('offers a thread where the network has them, once the message has arrived', () => {
+    expect(ids(message(), { ...all, thread: true })).toEqual([
+      'reply',
+      'thread',
+      'copy',
+      'forward',
+      'edit',
+      'pin',
+      'delete-for-me',
+      'delete',
+    ]);
+    expect(ids(message({ status: 'sending' }), { ...all, thread: true })).not.toContain('thread');
   });
 
   it('hides pinning where the chat does not allow it', () => {

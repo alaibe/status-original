@@ -62,12 +62,23 @@ pub(super) fn to_mx_event(room_id: &RoomId, item: &TimelineItem) -> Option<MxEve
             Some(EventSendState::SendingFailed { .. }) => "failed",
             Some(EventSendState::NotSentYet { .. }) => "sending",
         },
-        reply_to: msg_like.and_then(|m| m.in_reply_to.as_ref().map(|r| r.event_id.to_string())),
+        reply_to: msg_like
+            .filter(|m| m.thread_root.is_none() || !falls_back(event))
+            .and_then(|m| m.in_reply_to.as_ref().map(|r| r.event_id.to_string())),
+        thread_root: msg_like.and_then(|m| m.thread_root.as_ref().map(|id| id.to_string())),
         reactions: (!reactions.is_empty()).then_some(reactions),
         edited: msg_like.is_some_and(
             |m| matches!(&m.kind, MsgLikeKind::Message(message) if message.is_edited()),
         ),
     })
+}
+
+/// A thread message quotes the one before it for clients without threads; that is not a reply.
+fn falls_back(event: &matrix_sdk_ui::timeline::EventTimelineItem) -> bool {
+    event
+        .original_json()
+        .and_then(|raw| raw.get_field::<serde_json::Value>("content").ok().flatten())
+        .is_some_and(|content| content["m.relates_to"]["is_falling_back"] == true)
 }
 
 pub(super) fn name_of(

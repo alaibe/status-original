@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 import { useChatStore } from '@/core/messaging/chat-store';
-import type { ChatMessage, ConversationId } from '@/core/messaging/types';
+import { draftKey } from '@/core/messaging/drafts';
+import type { ChatMessage, ConversationId, MessageId } from '@/core/messaging/types';
 
 import type { ReplyPreview } from './message-bubble';
 
@@ -22,7 +23,8 @@ export class ComposerModeController {
     private readonly id: ConversationId,
     readonly mode: ComposerMode,
     private readonly enter: (mode: ComposerMode) => void,
-    private readonly onSend?: () => void
+    private readonly onSend?: () => void,
+    private readonly thread?: MessageId
   ) {}
 
   reply(target: ChatMessage) {
@@ -33,8 +35,11 @@ export class ComposerModeController {
   edit(target: ChatMessage) {
     if (target.content.kind !== 'text') return;
     const { drafts, setDraft } = useChatStore.getState();
-    const savedDraft = this.mode.kind === 'edit' ? this.mode.savedDraft : (drafts[this.id] ?? '');
-    setDraft(this.id, target.content.text);
+    const savedDraft =
+      this.mode.kind === 'edit'
+        ? this.mode.savedDraft
+        : (drafts[draftKey(this.id, this.thread)] ?? '');
+    setDraft(this.id, target.content.text, this.thread);
     this.enter({ kind: 'edit', target, savedDraft });
   }
 
@@ -56,7 +61,8 @@ export class ComposerModeController {
     await chat.sendMessage(
       this.id,
       { kind: 'text', text },
-      mode.kind === 'reply' ? mode.target.id : undefined
+      mode.kind === 'reply' ? mode.target.id : undefined,
+      this.thread
     );
     this.enter(COMPOSE);
     return '';
@@ -70,13 +76,21 @@ export class ComposerModeController {
   }
 
   private restoreDraft() {
-    if (this.mode.kind === 'edit') useChatStore.getState().setDraft(this.id, this.mode.savedDraft);
+    if (this.mode.kind === 'edit')
+      useChatStore.getState().setDraft(this.id, this.mode.savedDraft, this.thread);
   }
 }
 
-/** The composer's mode for one chat; opening another chat starts it fresh. */
-export function useComposerMode(id: ConversationId, onSend?: () => void) {
-  const [state, setState] = useState({ id, mode: COMPOSE });
-  const mode = state.id === id ? state.mode : COMPOSE;
-  return new ComposerModeController(id, mode, (next) => setState({ id, mode: next }), onSend);
+/** The composer's mode for one chat or thread; opening another starts it fresh. */
+export function useComposerMode(id: ConversationId, onSend?: () => void, thread?: MessageId) {
+  const key = draftKey(id, thread);
+  const [state, setState] = useState({ key, mode: COMPOSE });
+  const mode = state.key === key ? state.mode : COMPOSE;
+  return new ComposerModeController(
+    id,
+    mode,
+    (next) => setState({ key, mode: next }),
+    onSend,
+    thread
+  );
 }

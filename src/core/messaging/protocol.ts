@@ -58,6 +58,8 @@ export interface MentionCandidate {
 export interface ChatSession {
   readonly self: SelfIdentity;
   readonly sendsVideo?: boolean;
+  /** Messages carry `threadRoot`, and `send` posts into a thread. */
+  readonly threads?: boolean;
 
   listConversations(): Promise<Conversation[]>;
   getMessages(
@@ -91,7 +93,12 @@ export interface ChatSession {
   renameGroup(id: ConversationId, title: string): Promise<void>;
   leaveGroup(id: ConversationId): Promise<void>;
 
-  send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId>;
+  send(
+    id: ConversationId,
+    content: MessageContent,
+    replyTo?: MessageId,
+    threadRoot?: MessageId
+  ): Promise<MessageId>;
   /** Emits the edited message through streamMessages when the server confirms it. */
   editMessage?(id: ConversationId, messageId: MessageId, text: string): Promise<void>;
   deleteMessage?(id: ConversationId, messageId: MessageId): Promise<void>;

@@ -21,7 +21,8 @@ import {
 import { isLocalConversation, SAVED_LOCAL_ID, STATUS_LOCAL_ID } from '@/core/messaging/bots';
 import { conversationScope } from '@/core/messaging/conversation-scope';
 import { useChatStore } from '@/core/messaging/chat-store';
-import type { ConversationId, MessageContent } from '@/core/messaging/types';
+import { draftKey } from '@/core/messaging/drafts';
+import type { ConversationId, MessageContent, MessageId } from '@/core/messaging/types';
 import { usePluginHost } from '@/core/plugins/host';
 import { errorMessage } from '@/core/errors';
 
@@ -45,6 +46,8 @@ import { useTypingAnnouncer } from './use-typing-announcer';
 
 export interface ComposerProps {
   conversationId: ConversationId;
+  /** Writes into this thread, with a draft of its own. */
+  thread?: MessageId;
   onSendText(text: string): Promise<string>;
   onSendContent(content: MessageContent): Promise<void>;
   /** Editing hides attachments and mentions: only the text of a message can change. */
@@ -58,6 +61,7 @@ export interface ComposerProps {
 
 export function Composer({
   conversationId,
+  thread,
   onSendText,
   onSendContent,
   editing = false,
@@ -72,11 +76,11 @@ export function Composer({
   const { registry } = usePluginHost();
   const { supports, sendsVideo } = useSupports(conversationId);
 
-  const value = useChatStore((s) => s.drafts[conversationId] ?? '');
+  const value = useChatStore((s) => s.drafts[draftKey(conversationId, thread)] ?? '');
   const setDraftFor = useChatStore((s) => s.setDraft);
   const setValue = useCallback(
-    (text: string) => setDraftFor(conversationId, text),
-    [conversationId, setDraftFor]
+    (text: string) => setDraftFor(conversationId, text, thread),
+    [conversationId, thread, setDraftFor]
   );
 
   const kind = useChatStore((s) => s.conversations.find((c) => c.id === conversationId)?.kind);
@@ -154,7 +158,7 @@ export function Composer({
 
   useEffect(() => {
     if (process.env.EXPO_OS === 'web') inputRef.current?.focus();
-  }, [conversationId]);
+  }, [conversationId, thread]);
 
   const canSend = value.trim().length > 0 && !busy;
 
@@ -280,7 +284,7 @@ export function Composer({
                 ? (file) => void attach(() => contentFromBrowserFile(file, sendsVideo))
                 : undefined
             }
-            placeholder="Message"
+            placeholder={thread ? 'Reply in thread' : 'Message'}
             placeholderColor={colors['content-subtle']}
           />
 

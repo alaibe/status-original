@@ -64,6 +64,7 @@ export interface MatrixConnectOptions {
  */
 export class MatrixSession implements ChatSession, MatrixCapabilities {
   readonly sendsVideo = true;
+  readonly threads = true;
   private api!: MatrixApi;
   private unsubscribe: Unsubscribe | null = null;
   private userId: string | null = null;
@@ -455,13 +456,18 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   }
 
   /** The real id arrives with the echo; until then the store keeps its own pending entry. */
-  async send(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<MessageId> {
+  async send(
+    id: ConversationId,
+    content: MessageContent,
+    replyTo?: MessageId,
+    threadRoot?: MessageId
+  ): Promise<MessageId> {
     const roomId = roomIdOf(id);
     if (content.kind === 'reaction') {
       await this.api.toggleReaction(roomId, content.targetId, content.emoji);
       return `${content.targetId}_reaction`;
     }
-    await this.api.send(roomId, outgoing(content), replyTo);
+    await this.api.send(roomId, outgoing(content), replyTo, threadRoot);
     return `local:${Date.now()}`;
   }
 
@@ -691,6 +697,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
       fromMe: raw.isOwn,
       status: raw.status,
       replyTo: raw.replyTo,
+      threadRoot: raw.threadRoot,
       ...(raw.edited ? { edited: true } : {}),
       reactions:
         reactions.length > 0

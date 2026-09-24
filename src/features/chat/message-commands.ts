@@ -6,6 +6,7 @@ import type { MessageAction } from './message-actions';
 
 export interface ConversationActions {
   reply(message: ChatMessage): void;
+  openThread(message: ChatMessage): void;
   forward(message: ChatMessage): void;
   edit(message: ChatMessage): void;
   remove(message: ChatMessage, forEveryone: boolean): void;
@@ -19,6 +20,8 @@ export interface ActionSupport {
   deleteForMe: boolean;
   deleteOthers: boolean;
   pin: boolean;
+  /** False inside a thread, where replies already stay in it. */
+  thread: boolean;
 }
 
 export function messageActions(
@@ -42,6 +45,14 @@ export function messageActions(
       icon: 'arrow-undo-outline',
       onPress: () => actions.reply(message),
     },
+    can.thread &&
+      sent &&
+      !message.privateToMe && {
+        id: 'thread',
+        label: 'Reply in thread',
+        icon: 'chatbubbles-outline',
+        onPress: () => actions.openThread(message),
+      },
     !!copy && {
       id: 'copy',
       label: 'Copy',
