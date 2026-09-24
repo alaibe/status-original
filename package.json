@@ -1,7 +1,7 @@
 {
   "name": "status-original",
   "main": "index.js",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "dependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.22.1",
     "@ledgerhq/hw-app-eth": "^7.8.16",
