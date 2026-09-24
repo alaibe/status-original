@@ -3,12 +3,25 @@ import type { PluginContext, SlashCommand } from '@/core/plugins/types';
 import { botsPlugin } from './index';
 import type { KnownBot } from './types';
 
+const PRICES = '0x1111111111111111111111111111111111111111';
+const NOBODY = '0x2222222222222222222222222222222222222222';
+const WEATHER = '0x3333333333333333333333333333333333333333';
+
+jest.mock('@/lib/evm/ens', () => ({
+  looksLikeEnsName: (v: string) => v.endsWith('.eth'),
+  resolveName: async (v: string) =>
+    ({ 'pricebot.eth': PRICES, 'nobody.eth': NOBODY })[v.toLowerCase()] ?? null,
+}));
+
 jest.mock('@/core/messaging/chat-store', () => ({
   xmtpSessionFor: (state: { sessions: Record<string, unknown> }) => state.sessions.xmtp,
   useChatStore: {
     getState: () => ({
       sessions: {
-        xmtp: { resolvePeer: async (v: string) => (v.includes('nobody') ? null : 'inbox-1') },
+        xmtp: {
+          resolvePeer: async (v: string) =>
+            v === '0x2222222222222222222222222222222222222222' ? null : 'inbox-1',
+        },
       },
     }),
   },
@@ -28,7 +41,7 @@ function makeContext(store: Record<string, unknown> = {}) {
       },
     },
     chat: {
-      startDm: async (a: string) => (a.includes('nobody') ? null : 'conv-1'),
+      startDm: async (a: string) => (a === NOBODY ? null : 'conv-1'),
       sendText: async (conversationId: string, text: string) => {
         sent.push({ conversationId, text });
       },
@@ -72,8 +85,41 @@ describe('/addbot', () => {
       message: expect.stringContaining('Prices added'),
     });
     expect(store['known-bots']).toEqual([
-      expect.objectContaining({ address: 'pricebot.eth', name: 'Prices', inboxId: 'inbox-1' }),
+      expect.objectContaining({ address: PRICES, name: 'Prices', inboxId: 'inbox-1' }),
     ]);
+  });
+
+  it('reads a name@domain handle from the domain', async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ address: WEATHER, name: 'Weather', description: 'Forecasts' })
+        )
+      );
+    const { context, store } = makeContext();
+
+    await run('addbot', ['weather@bots.example.org'], context);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bots.example.org/.well-known/status-bot/weather.json'
+    );
+    expect(store['known-bots']).toEqual([
+      expect.objectContaining({ address: WEATHER, name: 'Weather', description: 'Forecasts' }),
+    ]);
+    fetchMock.mockRestore();
+  });
+
+  it('refuses a handle the domain does not know', async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('', { status: 404 }));
+    const { context } = makeContext();
+
+    const { result } = await run('addbot', ['ghost@bots.example.org'], context);
+
+    expect(result).toEqual({ type: 'error', message: 'Could not find ghost@bots.example.org.' });
+    fetchMock.mockRestore();
   });
 
   it('refuses an address with nothing listening', async () => {

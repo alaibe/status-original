@@ -19,6 +19,7 @@ export const navigation: Array<NavGroup> = [
       { title: 'Networks', href: '/guide/networks' },
       { title: 'WhatsApp, Signal & friends', href: '/guide/bridges' },
       { title: 'Your own homeserver', href: '/guide/homeserver' },
+      { title: 'Your own bots', href: '/guide/bots' },
       { title: 'Wallet', href: '/guide/wallet' },
       { title: 'Plugins & commands', href: '/guide/plugins' },
       { title: 'Settings', href: '/guide/settings' },

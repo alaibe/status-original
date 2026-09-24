@@ -1,8 +1,8 @@
 {
-  "name": "status-echo-bot",
+  "name": "status-weather-bot",
   "private": true,
   "type": "module",
-  "description": "Sends back what you send it.",
+  "description": "Weather now and for the week, from Open-Meteo.",
   "scripts": {
     "start": "node bot.js"
   },

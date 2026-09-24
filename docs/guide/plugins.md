@@ -66,6 +66,10 @@ revoke and no server in the middle: `/addbot <address> <name>` remembers one,
 `/startbot <address>` says hello, and from then on it is a conversation like any
 other.
 
+Instead of an address, both take an ENS name such as `pricebot.eth`, or a bot's
+name at its owner's domain, such as `weather@bots.example.org`.
+[Your own bots](./bots) runs two of them at home.
+
 Bots reply with the same cards plugins use, buttons included. A button carries
 a command string and dispatches through exactly the same path as typing it, so
 a button labelled "send 10 ETH" still opens the normal confirmation. A bot

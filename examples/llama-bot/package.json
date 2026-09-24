@@ -1,8 +1,8 @@
 {
-  "name": "status-echo-bot",
+  "name": "status-llama-bot",
   "private": true,
   "type": "module",
-  "description": "Sends back what you send it.",
+  "description": "Chat with the models on your llama-swap.",
   "scripts": {
     "start": "node bot.js"
   },

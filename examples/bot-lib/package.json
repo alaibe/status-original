@@ -1,0 +1,11 @@
+{
+  "name": "status-bot-lib",
+  "private": true,
+  "type": "module",
+  "description": "What every example bot shares: its key, the owner check, catching up and its name file.",
+  "exports": "./lib.js",
+  "dependencies": {
+    "@xmtp/node-sdk": "^6.1.0",
+    "viem": "^2.56.3"
+  }
+}

@@ -10,6 +10,7 @@ import { BoltIcon } from '@/docs/icons/BoltIcon';
 import { ChatBubbleIcon } from '@/docs/icons/ChatBubbleIcon';
 import { CogIcon } from '@/docs/icons/CogIcon';
 import { EnvelopeIcon } from '@/docs/icons/EnvelopeIcon';
+import { FaceSmileIcon } from '@/docs/icons/FaceSmileIcon';
 import { LinkIcon } from '@/docs/icons/LinkIcon';
 import { PackageIcon } from '@/docs/icons/PackageIcon';
 import { ShapesIcon } from '@/docs/icons/ShapesIcon';
@@ -30,6 +31,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   networks: ShapesIcon,
   bridges: LinkIcon,
   homeserver: PackageIcon,
+  bots: FaceSmileIcon,
   wallet: BoltIcon,
   plugins: SquaresPlusIcon,
   settings: CogIcon,

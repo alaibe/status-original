@@ -127,7 +127,7 @@ refresh them.
 | Why each dependency is patched | [`patches/README.md`](patches/README.md) |
 | End-to-end tests | [`e2e/README.md`](e2e/README.md) |
 | Running Nostr and Waku locally | [`local-net/README.md`](local-net/README.md) |
-| Writing a bot | [`examples/echo-bot/`](examples/echo-bot/README.md) |
+| Running your own bots | [Your own bots](https://alaibe.github.io/status-original/guide/bots) |
 
 ## License
 

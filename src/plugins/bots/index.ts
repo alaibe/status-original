@@ -6,6 +6,7 @@ import { W } from '@/design/widgets';
 
 import { makeBotsBot } from './bot';
 import { BotWidgetMessage } from './renderer';
+import { resolveBot } from './resolve';
 import { CONTENT_TYPE_UI, readBots, writeBots, type KnownBot, type UiMessage } from './types';
 
 async function botsCard(context: PluginContext) {
@@ -85,24 +86,28 @@ export const botsPlugin: Plugin = {
       {
         name: 'addbot',
         showIn: ['channel'],
-        description: 'Add a bot by address or ENS name',
-        usage: '/addbot <address | name.eth> [name]',
+        description: 'Add a bot by address, ENS name or name@domain',
+        usage: '/addbot <address | name.eth | name@domain> [name]',
         async run({ args }) {
           if (args.length === 0) return { type: 'setComposer', text: '/addbot ' };
-          const [address, ...nameParts] = args;
-          if (!address) {
+          const [input, ...nameParts] = args;
+          if (!input) {
             return { type: 'error', message: 'Which bot? /addbot pricebot.eth Prices' };
           }
 
           const session = xmtpSessionFor(useChatStore.getState());
           if (!session) return { type: 'error', message: 'Not connected to the network yet.' };
 
+          const resolved = await resolveBot(input);
+          if (!resolved) return { type: 'error', message: `Could not find ${input}.` };
+          const { address } = resolved;
+
           const inboxId = await session.resolvePeer(address);
           if (!inboxId) {
             return {
               type: 'error',
               message:
-                `${address} has no XMTP inbox, so nothing is listening there. ` +
+                `${input} has no XMTP inbox, so nothing is listening there. ` +
                 'A bot has to have opened an XMTP client at least once.',
             };
           }
@@ -114,7 +119,8 @@ export const botsPlugin: Plugin = {
 
           const bot: KnownBot = {
             address,
-            name: nameParts.join(' ') || address.split('.')[0],
+            name: nameParts.join(' ') || resolved.name || input.split(/[.@]/)[0],
+            description: resolved.description,
             inboxId,
             addedAt: Date.now(),
           };
@@ -131,13 +137,15 @@ export const botsPlugin: Plugin = {
         name: 'removebot',
         showIn: ['channel'],
         description: 'Forget a bot',
-        usage: '/removebot <address>',
+        usage: '/removebot <address | name.eth | name@domain>',
         async run({ args }) {
-          const [address] = args;
-          if (!address) return { type: 'error', message: 'Which one? /removebot pricebot.eth' };
+          const [input] = args;
+          if (!input) return { type: 'error', message: 'Which one? /removebot pricebot.eth' };
 
+          const resolved = await resolveBot(input);
+          const names = [input, resolved?.address].flatMap((n) => (n ? [n.toLowerCase()] : []));
           const bots = await readBots(context);
-          const next = bots.filter((b) => b.address.toLowerCase() !== address.toLowerCase());
+          const next = bots.filter((b) => !names.includes(b.address.toLowerCase()));
           if (next.length === bots.length) {
             return { type: 'error', message: 'That bot is not on your list.' };
           }
@@ -156,26 +164,27 @@ export const botsPlugin: Plugin = {
         showIn: ['channel'],
         aliases: ['start'],
         description: 'Send /start to a bot, the usual way to begin',
-        usage: '/startbot <address | name.eth>',
+        usage: '/startbot <address | name.eth | name@domain>',
         async run({ args, conversationId }) {
-          const [address] = args;
+          const [input] = args;
 
-          if (!address && !isLocalConversation(conversationId)) {
+          if (!input && !isLocalConversation(conversationId)) {
             await context.chat.sendText(conversationId, '/start');
             return { type: 'handled' };
           }
-          if (!address) return { type: 'error', message: 'Which bot? /startbot pricebot.eth' };
+          if (!input) return { type: 'error', message: 'Which bot? /startbot pricebot.eth' };
 
-          const target = await context.chat.startDm(address);
+          const resolved = await resolveBot(input);
+          const target = resolved && (await context.chat.startDm(resolved.address));
           if (!target) {
-            return { type: 'error', message: `${address} has no XMTP inbox.` };
+            return { type: 'error', message: `${input} has no XMTP inbox.` };
           }
 
           await context.chat.sendText(target, '/start');
           return {
             type: 'notice',
             tone: 'success',
-            message: `Sent /start to ${address}. Its reply lands in that chat.`,
+            message: `Sent /start to ${input}. Its reply lands in that chat.`,
           };
         },
       },
