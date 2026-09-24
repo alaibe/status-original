@@ -408,6 +408,19 @@ describe('channel scoping', () => {
     expect(worksOn({ ...command, requires: undefined }, undefined)).toBe(true);
   });
 
+  it('offers a command that posts a content type only where the network carries one', () => {
+    const command = {
+      name: 'request',
+      description: '',
+      usage: '',
+      sendsCustom: true,
+      run: async () => ({ type: 'handled' as const }),
+    };
+    expect(worksOn(command, { sendsCustom: true } as never)).toBe(true);
+    expect(worksOn(command, {} as never)).toBe(false);
+    expect(worksOn(command, undefined)).toBe(false);
+  });
+
   it('needs both gates, not either', () => {
     // Ownership and `showIn` answer different questions, so passing one is not
     // enough: a config command scoped to `channel` must still be refused in

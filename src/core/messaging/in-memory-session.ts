@@ -15,6 +15,7 @@ import type {
 
 export class InMemoryChatSession implements ChatSession {
   readonly self: SelfIdentity;
+  readonly sendsCustom = true;
 
   private conversations = new Map<ConversationId, Conversation>();
   private messages = new Map<ConversationId, ChatMessage[]>();

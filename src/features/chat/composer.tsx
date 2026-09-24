@@ -6,6 +6,7 @@ import {
   commandNamePrefix,
   completeCommandName,
   isTypingCommandName,
+  parseCommand,
 } from '@/core/commands/parser';
 import {
   ActionSheet,
@@ -24,6 +25,7 @@ import { useChatStore } from '@/core/messaging/chat-store';
 import { draftKey } from '@/core/messaging/drafts';
 import type { ConversationId, MessageContent, MessageId } from '@/core/messaging/types';
 import { usePluginHost } from '@/core/plugins/host';
+import { worksOn } from '@/core/plugins/registry';
 import { errorMessage } from '@/core/errors';
 
 import { MediaPanel, type MediaAnchor } from './media-panel';
@@ -74,7 +76,7 @@ export function Composer({
   const colors = useThemeColors();
   const inputRef = useRef<ComposerInputHandle>(null);
   const { registry } = usePluginHost();
-  const { supports, sendsVideo } = useSupports(conversationId);
+  const { session, supports, sendsVideo } = useSupports(conversationId);
 
   const value = useChatStore((s) => s.drafts[draftKey(conversationId, thread)] ?? '');
   const setDraftFor = useChatStore((s) => s.setDraft);
@@ -100,11 +102,16 @@ export function Composer({
     value,
     !editing && kind === 'group' && supports('mentionCandidates')
   );
-  const quickActions = useSyncExternalStore(
+  const offeredActions = useSyncExternalStore(
     registry.subscribe,
     () => registry.composerActionsFor(conversationId, scope),
     () => registry.composerActionsFor(conversationId, scope)
   );
+  const commandsHere = registry.commandsFor(conversationId, scope);
+  const quickActions = offeredActions.filter(({ action }) => {
+    const entry = commandsHere.get(parseCommand(action.command)?.name ?? '');
+    return !entry || worksOn(entry.command, session);
+  });
 
   const [attaching, setAttaching] = useState(false);
   const [media, setMedia] = useState<{ tab: MediaTab; anchor: MediaAnchor | null } | null>(null);

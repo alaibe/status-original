@@ -143,6 +143,8 @@ export interface SlashCommand {
   name: string;
   /** Offered only in chats whose network can do this. */
   requires?: Capability;
+  /** Posts a plugin content type, which only some networks carry. */
+  sendsCustom?: boolean;
   aliases?: string[];
   description: string;
   usage: string;

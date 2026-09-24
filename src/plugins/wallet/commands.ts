@@ -351,6 +351,7 @@ export const walletCommands: SlashCommand[] = [
     name: 'request',
     aliases: ['req'],
     description: 'Ask for a payment: a card with a Pay button',
+    sendsCustom: true,
     showIn: ['dm', 'group'],
     usage: '/request <amount> [--chain bitcoin] [--token BTC] [note…]',
     async run({ args, conversationId, context, respond }) {
@@ -441,6 +442,7 @@ export const walletCommands: SlashCommand[] = [
   {
     name: 'split',
     description: 'Ask everyone here for their share of a bill',
+    sendsCustom: true,
     usage: '/split <total> [--chain base] [note…]',
     showIn: ['group'],
     async run({ args, conversationId, context, respond }) {

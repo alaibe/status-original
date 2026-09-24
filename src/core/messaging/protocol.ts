@@ -60,6 +60,7 @@ export interface ChatSession {
   readonly sendsVideo?: boolean;
   /** Messages carry `threadRoot`, and `send` posts into a thread. */
   readonly threads?: boolean;
+  readonly sendsCustom?: boolean;
 
   listConversations(): Promise<Conversation[]>;
   getMessages(

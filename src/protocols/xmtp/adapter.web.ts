@@ -97,6 +97,7 @@ export async function eraseXmtpLocalDatabase(options: XmtpEraseOptions): Promise
 
 export class XmtpSession implements ChatSession {
   readonly self: SelfIdentity;
+  readonly sendsCustom = true;
 
   private readonly addressCache = new Map<ParticipantId, string>();
   private readonly streams = new Set<{ end(): Promise<unknown> }>();

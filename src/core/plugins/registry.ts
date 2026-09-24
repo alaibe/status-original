@@ -30,6 +30,7 @@ interface CommandEntry {
 }
 
 export function worksOn(command: SlashCommand, session: ChatSession | undefined): boolean {
+  if (command.sendsCustom && !session?.sendsCustom) return false;
   return !command.requires || supports(session, command.requires);
 }
 
