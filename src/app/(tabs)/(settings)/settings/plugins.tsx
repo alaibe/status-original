@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { useState } from 'react';
-import { ScrollView, Switch, View } from 'react-native';
+import { Platform, ScrollView, Switch, View } from 'react-native';
 
 import {
   Badge,
@@ -87,12 +87,14 @@ export default function PluginsScreen() {
                   <RowIcon name={plugin.manifest.icon} tone={TONE[plugin.manifest.id] ?? 'grey'} />
                 }
                 trailing={
-                  <Switch
-                    value={enabled}
-                    onValueChange={(next) => onToggle(plugin, next)}
-                    trackColor={{ true: colors.brand, false: colors.line }}
-                    accessibilityLabel={`${enabled ? 'Disable' : 'Enable'} ${plugin.manifest.name}`}
-                  />
+                  <View {...keepClickOffRow}>
+                    <Switch
+                      value={enabled}
+                      onValueChange={(next) => onToggle(plugin, next)}
+                      trackColor={{ true: colors.brand, false: colors.line }}
+                      accessibilityLabel={`${enabled ? 'Disable' : 'Enable'} ${plugin.manifest.name}`}
+                    />
+                  </View>
                 }
                 onPress={() => setDetail(plugin)}
               />
@@ -170,6 +172,10 @@ export default function PluginsScreen() {
     </Screen>
   );
 }
+
+// react-native-web delivers the switch's click to the row's onPress as well.
+const keepClickOffRow =
+  Platform.OS === 'web' ? { onClick: (e: { stopPropagation(): void }) => e.stopPropagation() } : {};
 
 const TONE: Record<string, RowIconTone> = {
   assistant: 'purple',
