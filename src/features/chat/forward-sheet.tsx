@@ -7,7 +7,7 @@ import { contentPreview } from '@/core/messaging/preview';
 import type { ChatMessage, ConversationId, ParticipantId } from '@/core/messaging/types';
 import { errorMessage } from '@/core/errors';
 import { ConversationAvatar } from './conversation-avatar';
-import { conversationTitle } from './use-display-names';
+import { conversationTitle } from '@/core/messaging/display-names';
 
 export function ForwardSheet({
   message,

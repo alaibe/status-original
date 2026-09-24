@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 
+pub mod cli;
 mod contacts;
 mod db;
 mod ledger;
@@ -12,7 +13,8 @@ mod tdlib;
 mod vault;
 mod web_login;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
+use tauri_plugin_window_state::StateFlags;
 
 /// The unread count on the Dock icon; zero clears it.
 #[tauri::command]
@@ -49,6 +51,13 @@ pub fn run() {
 
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
+    // Release only: a debug build must be able to run beside the installed app.
+    #[cfg(not(debug_assertions))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            cli::show_main(app)
+        }));
+    }
     #[cfg(feature = "updater")]
     {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
@@ -59,12 +68,17 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
+                .build(),
+        )
         .manage(db::Databases::default())
         .manage(vault::Vault::default())
         .manage(ledger::Ledger::default())
         .manage(tdlib::Telegram::default())
         .manage(matrix::Matrix::default())
+        .manage(cli::Cli::default())
         .invoke_handler(tauri::generate_handler![
             db::db_open,
             db::db_exec,
@@ -128,8 +142,22 @@ pub fn run() {
             matrix::mx_media,
             matrix::mx_close,
             matrix::mx_erase,
+            cli::cli_install,
+            cli::cli_ready,
+            cli::cli_send,
+            cli::cli_show,
             set_badge,
         ])
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let webview = window.app_handle().get_webview_window(window.label());
+                if let Some(webview) = webview.filter(|_| window.state::<cli::Cli>().has_clients())
+                {
+                    api.prevent_close();
+                    cli::hide_main(&webview);
+                }
+            }
+        })
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -147,8 +175,20 @@ pub fn run() {
             }
             #[cfg(debug_assertions)]
             probe::watch(app.handle().clone());
+            cli::serve(app.handle());
+            if cli::launched_in_background() {
+                #[cfg(target_os = "macos")]
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            } else {
+                cli::show_main(app.handle());
+            }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let RunEvent::Reopen { .. } = event {
+                cli::show_main(app);
+            }
+        });
 }

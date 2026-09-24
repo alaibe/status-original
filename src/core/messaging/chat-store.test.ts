@@ -209,7 +209,7 @@ describe('sending', () => {
 
     await expect(
       useChatStore.getState().sendMessage(ns('c1'), { kind: 'text', text: 'nope' })
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ sent: false, error: new Error('rejected') });
 
     // The bubble stays, flagged: losing the user's text would be worse.
     const messages = useChatStore.getState().messages[ns('c1')];

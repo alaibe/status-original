@@ -2,7 +2,17 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "resources": {
-      "frameworks/tdjson.dll": "tdjson.dll"
+      "frameworks/tdjson.dll": "tdjson.dll",
+      "windows/status-original.cmd": "bin/status-original.cmd"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/cli-path.nsh"
+      },
+      "wix": {
+        "fragmentPaths": ["./windows/cli-path.wxs"],
+        "componentRefs": ["CommandLinePath"]
+      }
     }
   }
 }

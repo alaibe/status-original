@@ -13,7 +13,7 @@ const shown = [
   'can-i-message-someone-on-whatsapp-or-signal',
   'does-the-app-collect-anything',
   'is-there-a-fee-on-sends-or-swaps',
-  'why-does-telegram-ask-me-for-an-api-id',
+  'can-an-ai-assistant-use-it',
   'can-i-swap-tokens-or-move-them-to-another-chain',
   'where-is-android',
 ];

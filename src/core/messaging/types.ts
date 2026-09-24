@@ -80,6 +80,8 @@ export interface ChatMessage {
   forwarded?: boolean;
   isPinned?: boolean;
   privateToMe?: boolean;
+  /** A chat list's summary of its latest message, under an id no message has. */
+  preview?: boolean;
   edited?: boolean;
 }
 

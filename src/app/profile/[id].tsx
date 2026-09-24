@@ -28,11 +28,8 @@ import {
 } from '@/core/messaging/media-index';
 import { formatDayLabel } from '@/core/messaging/preview';
 import { errorMessage } from '@/core/errors';
-import {
-  conversationPeers,
-  conversationTitle,
-  useDisplayNames,
-} from '@/features/chat/use-display-names';
+import { conversationPeers, conversationTitle } from '@/core/messaging/display-names';
+import { useDisplayNames } from '@/features/chat/use-display-names';
 import { useSupports } from '@/features/chat/use-supports';
 import { useBack } from '@/features/navigation/use-back';
 import { openChatFromProfile } from '@/features/navigation/open';

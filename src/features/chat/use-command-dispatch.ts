@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
+import { buttonCommand } from '@/core/commands/button';
 import { parseCommand } from '@/core/commands/parser';
 import { toast } from '@/design';
 import { isLocalConversation, toContent } from '@/core/messaging/bots';
@@ -56,13 +57,10 @@ export function useCommandDispatch({
       const respond = (content: MessageContent | string) => respondIn(conversationId, content);
       setError(null);
 
-      // `/draft` and `/reply` are button contracts rather than commands: nobody
-      // types them, and `/reply <text>` is the published shape third-party bots
-      // build inline keyboards from.
       if (from === 'action') {
-        if (text.startsWith('/draft ')) return setDraft(raw.replace(/^\s*\/draft /, ''));
-        if (text.startsWith('/reply '))
-          return void (await onSendText(text.slice('/reply '.length)));
+        const button = buttonCommand(raw);
+        if (button.kind === 'draft') return setDraft(button.text);
+        if (button.kind === 'reply') return void (await onSendText(button.text));
       }
 
       const parsed = commands.length > 0 ? parseCommand(text) : null;

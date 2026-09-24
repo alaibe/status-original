@@ -17,6 +17,7 @@ import { isAddress, type LocalAccount } from 'viem';
 
 import {
   classifyAttachment,
+  fallbackMimeType,
   readInlineAttachment,
   writeInlineAttachment,
 } from '@/core/messaging/attachments';
@@ -35,7 +36,7 @@ import type {
 } from '@/core/messaging/types';
 import { isParticipantId } from '@/core/messaging/bots';
 import { PLUGIN_AUTHORITY } from './codec';
-import { fallbackFilename, fallbackMimeType, xmtpEnvironment } from './shared';
+import { fallbackFilename, xmtpEnvironment } from './shared';
 
 function signerForAccount(account: LocalAccount): Signer {
   return {

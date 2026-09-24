@@ -18,6 +18,7 @@ export interface Release {
 
 const kinds: Array<[RegExp, Platform, string, string]> = [
   [/\.dmg$/, 'mac', 'macOS', 'Apple silicon and Intel · .dmg'],
+  [/\.pkg$/, 'mac', 'macOS', 'Installer, adds the command line · .pkg'],
   [/-setup\.exe$/, 'windows', 'Windows', 'Installer · .exe'],
   [/\.msi$/, 'windows', 'Windows', 'MSI package · .msi'],
   [/\.AppImage$/, 'linux', 'Linux', 'AppImage'],

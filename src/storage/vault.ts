@@ -8,6 +8,7 @@ export const VaultKey = {
   accountIndex: 'accounts.index',
   activeAccountId: 'accounts.active',
   biometricLock: 'security.biometricLock',
+  commandLine: 'security.commandLine',
   keyProtection: 'security.keyProtection',
 } as const;
 

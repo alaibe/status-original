@@ -45,6 +45,10 @@ sha2 = "0.10"
 # Routes matrix-sdk's tracing into the app log.
 tracing = { version = "0.1", features = ["log"] }
 mime = "0.3"
+dirs = "6"
+rpassword = "7"
+interprocess = "2"
+tauri-plugin-single-instance = "2"
 
 # SQLCipher from source. macOS gets CommonCrypto; everything else compiles its
 # own OpenSSL so the build has no system dependency.
@@ -60,3 +64,6 @@ rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Console"] }

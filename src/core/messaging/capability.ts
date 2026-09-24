@@ -1,3 +1,4 @@
+import { UnsupportedError } from '../errors';
 import type { ChatSession } from './protocol';
 
 export type Capability = {
@@ -19,6 +20,6 @@ export function capability<K extends Capability>(
   key: K
 ): CapabilityMethod<K> {
   const method = session[key];
-  if (typeof method !== 'function') throw new Error('This network does not support that.');
+  if (typeof method !== 'function') throw new UnsupportedError();
   return (method as (...args: unknown[]) => unknown).bind(session) as CapabilityMethod<K>;
 }

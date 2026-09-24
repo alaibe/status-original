@@ -2,21 +2,9 @@ import { router } from 'expo-router';
 
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type { Conversation, GroupRole } from '@/core/messaging/types';
+import { nameFrom, resolveParticipants } from '@/core/messaging/display-names';
 import type { ComposerAction, SlashCommand } from '@/core/plugins/types';
 import { W } from '@/design/widgets';
-
-async function resolveNames(
-  protocol: string | undefined,
-  ids: string[]
-): Promise<Record<string, string>> {
-  const session = protocol ? useChatStore.getState().sessions[protocol] : undefined;
-  if (!session) return {};
-  try {
-    return await session.resolveAddresses(ids);
-  } catch {
-    return {};
-  }
-}
 
 // The registry only offers these in a group, so the guard is just "is it still here".
 function groupGuard(
@@ -43,7 +31,7 @@ async function membersCard(conversationId: string, note?: string) {
   const protocol = conversation?.protocol;
   const members = await useChatStore.getState().getMembers(conversationId);
   const selfId = selfIdFor(useChatStore.getState(), protocol);
-  const names = await resolveNames(
+  const resolved = await resolveParticipants(
     protocol,
     members.map((m) => m.id)
   );
@@ -59,7 +47,7 @@ async function membersCard(conversationId: string, note?: string) {
           members.map((m) => {
             const isSelf = m.id === selfId;
             return {
-              label: isSelf ? 'You' : (names[m.id] ?? `${m.id.slice(0, 8)}…`),
+              label: isSelf ? 'You' : nameFrom(m.id, resolved),
               value: m.role,
               tone: m.role === 'member' ? undefined : ('brand' as const),
               actions: isSelf

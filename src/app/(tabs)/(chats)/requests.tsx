@@ -7,7 +7,8 @@ import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import { formatTimestamp, messagePreview } from '@/core/messaging/preview';
 import { decideConsent } from '@/features/chat/consent';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
-import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
+import { conversationTitle } from '@/core/messaging/display-names';
+import { useDisplayNames, usePeers } from '@/features/chat/use-display-names';
 import { openChat } from '@/features/navigation/open';
 
 export default function RequestsScreen() {

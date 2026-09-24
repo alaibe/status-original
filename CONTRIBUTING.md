@@ -150,12 +150,17 @@ Commit what the build wrote, never a hand edit of it.
 | `ios/`, `android/` | `app.json` | `npx expo prebuild` |
 | `src/lib/evm/token-list.json` | tokenlists.org | `npm run tokens:build` |
 | `src/plugins/wallet/solana/token-list.json` | Jupiter | `npm run tokens:build:solana` |
+| `skills/status-original/SKILL.md`, `src-tauri/cli/help.txt` | `src/features/cli/commands.ts` | `npm run cli:docs` |
 
 `npm run brand:build` needs `brew install librsvg`. Both of its steps are
 deterministic, so a second run is byte-identical. A test fails if `mark.svg`
 drifts from the source image, and another if the `brand` token in
 `src/design/tokens.ts` no longer matches the logo's plate colour. A new logo
 therefore means `brand:build`, then the token, then `theme:build`.
+
+The command line's help and agent skill are compiled into the desktop binary,
+which prints them without starting the app. A test fails when they drift from
+the commands.
 
 ## Patches
 

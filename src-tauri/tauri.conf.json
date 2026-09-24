@@ -13,6 +13,8 @@
     "windows": [
       {
         "title": "Status Original",
+        "visible": false,
+        "backgroundThrottling": "disabled",
         "width": 1200,
         "height": 800,
         "minWidth": 720,

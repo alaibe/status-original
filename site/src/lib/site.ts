@@ -24,6 +24,7 @@ export const navigation: Array<NavGroup> = [
       { title: 'Plugins & commands', href: '/guide/plugins' },
       { title: 'Settings', href: '/guide/settings' },
       { title: 'On the Mac', href: '/guide/mac' },
+      { title: 'Command line', href: '/guide/command-line' },
     ],
   },
   {

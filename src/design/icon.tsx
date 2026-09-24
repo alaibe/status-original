@@ -108,6 +108,7 @@ const ICONS = {
   'star-outline': glyph('star', 'star'),
   'sunny-outline': glyph('sun.max', 'light_mode'),
   'swap-horizontal-outline': glyph('arrow.left.arrow.right', 'swap_horiz'),
+  'terminal-outline': glyph('terminal', 'terminal'),
   'time-outline': glyph('clock', 'schedule'),
   'trash-outline': glyph('trash', 'delete'),
   'trending-up-outline': glyph('chart.line.uptrend.xyaxis', 'trending_up'),

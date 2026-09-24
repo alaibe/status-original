@@ -658,7 +658,9 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
       avatarUri: this.avatarOf(room),
       memberIds,
       createdAt: room.latest?.timestamp ?? 0,
-      lastMessage: room.latest ? this.toMessage(previewEvent(room), false) : undefined,
+      lastMessage: room.latest
+        ? { ...this.toMessage(previewEvent(room), false), preview: true }
+        : undefined,
       unreadCount: room.unreadCount,
       mentionCount: room.mentionCount,
       ...(room.markedUnread ? { markedUnread: true } : {}),

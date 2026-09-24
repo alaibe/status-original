@@ -61,6 +61,15 @@ Not directly. Those networks do not allow it. You can through a Matrix
 homeserver running a bridge; [WhatsApp, Signal &
 friends](./guide/bridges) explains what that involves.
 
+## Can an AI assistant use it?
+
+Yes, on a computer. The `status-original` command does whatever the app does,
+and `status-original skills install` teaches Claude Code or Codex how to use
+it. Turn it on first under **Settings › Command line**; it is off until you do.
+The assistant runs as you, on your machine. Anything that signs, erases an
+account or turns on a plugin still waits for you to approve it in the app. See
+[Command line](./guide/command-line).
+
 ## Who can see my messages?
 
 It depends on the network, and the app says so on every conversation. Briefly:

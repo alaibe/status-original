@@ -36,7 +36,8 @@ import {
 } from '@/core/messaging/folders';
 import { hasUnreadMentions, isUnread, unreadBadge } from '@/core/messaging/unread';
 import { ConversationAvatar } from '@/features/chat/conversation-avatar';
-import { conversationTitle, useDisplayNames, usePeers } from '@/features/chat/use-display-names';
+import { conversationTitle } from '@/core/messaging/display-names';
+import { useDisplayNames, usePeers } from '@/features/chat/use-display-names';
 import { protocolLabel, protocolSubtitle } from '@/features/protocols/presentation';
 import { HistoryStatus } from '@/features/chat/history-status';
 import { CountBadge, FilterTabs } from '@/features/chat/folder-tabs';

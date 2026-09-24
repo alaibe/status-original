@@ -24,6 +24,7 @@ export const SETTINGS_PAGES = [
   'devices',
   'plugins',
   'protocols',
+  'command-line',
 ] as const;
 
 export type SettingsPage = (typeof SETTINGS_PAGES)[number];
@@ -187,6 +188,17 @@ export function SettingsSections({
           selected={selected === 'plugins'}
           onPress={() => openTab('/settings/plugins')}
         />
+        {process.env.EXPO_OS === 'web' ? (
+          <ListItem
+            testID="settings-command-line"
+            title="Command line"
+            subtitle={hint('Use this app from a terminal, or let an AI agent use it')}
+            leading={<RowIcon name="terminal-outline" tone="grey" />}
+            trailing={chevron}
+            selected={selected === 'command-line'}
+            onPress={() => openTab('/settings/command-line')}
+          />
+        ) : null}
       </Section>
 
       <Section title="Network" surface="card" className="mb-6">

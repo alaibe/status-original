@@ -30,6 +30,7 @@ import { hexToBytes, isAddress, type LocalAccount } from 'viem';
 
 import {
   classifyAttachment,
+  fallbackMimeType,
   readInlineAttachment,
   writeInlineAttachment,
 } from '@/core/messaging/attachments';
@@ -49,12 +50,7 @@ import type {
 import { isParticipantId } from '@/core/messaging/bots';
 import { base64ToBytes, bytesToBase64 } from '@/lib/bytes';
 import { PLUGIN_AUTHORITY } from './codec';
-import {
-  fallbackFilename,
-  fallbackMimeType,
-  xmtpEnvironment,
-  type XmtpEnvironment,
-} from './shared';
+import { fallbackFilename, xmtpEnvironment, type XmtpEnvironment } from './shared';
 
 const VISIBLE = [ConsentState.Allowed, ConsentState.Unknown];
 

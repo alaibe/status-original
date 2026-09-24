@@ -8,6 +8,23 @@ export class HttpError extends Error {
   }
 }
 
+export class UnsupportedError extends Error {
+  constructor(message = 'This network does not support that.') {
+    super(message);
+    this.name = 'UnsupportedError';
+  }
+}
+
+export class NotConnectedError extends Error {
+  constructor(
+    readonly protocol: string,
+    message = `${protocol} is not connected.`
+  ) {
+    super(message);
+    this.name = 'NotConnectedError';
+  }
+}
+
 export function errorMessage(error: unknown, fallback = 'Something went wrong'): string {
   if (error instanceof Error && error.message) return humanize(error.message, error);
   if (typeof error === 'string' && error) return humanize(error);

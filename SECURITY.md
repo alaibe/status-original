@@ -23,7 +23,8 @@ Anything in this repository, and the way it uses its dependencies:
   `src/core/plugins`, `src/core/commands`
 - transaction and signature review, and what gets signed:
   `src/plugins/wallet`, `src/plugins/browser`
-- the Rust side of the desktop app: `src-tauri/src`
+- the Rust side of the desktop app, including the command line socket:
+  `src-tauri/src`, `src/features/cli`
 
 ## What is not
 
@@ -78,6 +79,16 @@ for any of them.
 the OS credential store. Debug builds keep that key in a user-only file instead,
 so unsigned rebuilds do not prompt on every launch. That also makes a debug
 build the wrong place to keep a real account.
+
+The desktop command line (`status-original`) talks to the running app over a
+socket in the app's data directory, readable and writable by your user only
+(a named pipe per user on Windows). It refuses every command until the person
+turns it on under Settings › Command line, off by default. While it is on,
+whatever runs as that user can read and send messages through it without a
+prompt. Signing,
+erasing an account, turning on a plugin, signing out of a network and revoking
+installations bring the app forward and wait for approval there, and the
+recovery phrase is not reachable from it at all.
 
 Mobile applies JavaScript updates without a store review. A build looks for a
 new bundle at each launch and runs it from the next one. Native code cannot

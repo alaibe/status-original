@@ -7,7 +7,7 @@ export type ThemeChoice = 'system' | 'light' | 'dark';
 
 const KEY = 'appearance';
 
-interface AppearanceState {
+export interface AppearanceState {
   accountId: string | null;
   theme: ThemeChoice;
   wallpaper: ChatPatternName;

@@ -18,7 +18,7 @@ import { openChat } from '@/features/navigation/open';
 
 const PLUGIN_PROTOCOL = 'xmtp';
 
-interface PluginHostValue {
+export interface PluginHostValue {
   registry: PluginRegistry;
   enabledIds: PluginId[];
   defaultEnabled: PluginId[];

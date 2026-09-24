@@ -49,7 +49,7 @@ import type {
   ParticipantId,
   Unsubscribe,
 } from './types';
-import { errorMessage } from '../errors';
+import { errorMessage, NotConnectedError } from '../errors';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'ready' | 'error' | 'erasing';
 
@@ -89,7 +89,11 @@ export interface ChatState {
   loadMessages(id: ConversationId): Promise<void>;
   loadOlderMessages(id: ConversationId): Promise<void>;
   searchMessages(query: string, id?: ConversationId): Promise<ChatMessage[]>;
-  sendMessage(id: ConversationId, content: MessageContent, replyTo?: MessageId): Promise<void>;
+  sendMessage(
+    id: ConversationId,
+    content: MessageContent,
+    replyTo?: MessageId
+  ): Promise<SendOutcome>;
   resolvePeer(protocol: ProtocolId, addressOrId: string): Promise<ParticipantId | null>;
   startDm(protocol: ProtocolId, peer: ParticipantId): Promise<Conversation>;
   startGroup(protocol: ProtocolId, peers: ParticipantId[], title: string): Promise<Conversation>;
@@ -130,7 +134,7 @@ export interface ChatState {
     pendingId: string,
     status: ChatMessage['status']
   ): void;
-  retryMessage(conversationId: ConversationId, messageId: string): Promise<void>;
+  retryMessage(conversationId: ConversationId, messageId: string): Promise<SendOutcome | null>;
   editMessage(id: ConversationId, messageId: MessageId, text: string): Promise<void>;
   deleteMessage(id: ConversationId, messageId: MessageId, forEveryone: boolean): Promise<void>;
   votePoll(id: ConversationId, messageId: MessageId, optionIds: number[]): Promise<void>;
@@ -139,6 +143,9 @@ export interface ChatState {
   setMessagePinned(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void>;
   removeMessages(id: ConversationId, messageIds: MessageId[]): void;
 }
+
+/** A failed send stays in the chat, marked, for the person to retry; the error is only reported. */
+export type SendOutcome = { sent: true } | { sent: false; messageId: MessageId; error: unknown };
 
 export interface MessageHistoryState {
   loading: boolean;
@@ -263,7 +270,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           say: (reply) => get().postLocalMessage(id, toContent(reply), 'bot'),
         });
       }
-      return;
+      return { sent: true };
     }
 
     const route = requireRoute(get(), id);
@@ -289,16 +296,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await route.session.send(route.nativeId, content, replyTo);
       get().replacePending(id, pending.id, 'sent');
+      return { sent: true };
     } catch (error) {
       get().replacePending(id, pending.id, 'failed');
       console.warn('[chat] send failed', error);
       reportError(error);
+      return { sent: false, messageId: pending.id, error };
     }
   },
 
   async retryMessage(id, messageId) {
     const message = (get().messages[id] ?? []).find((m) => m.id === messageId);
-    if (!message || message.status !== 'failed') return;
+    if (!message || message.status !== 'failed') return null;
 
     const route = requireRoute(get(), id);
     get().replacePending(id, messageId, 'sending');
@@ -306,10 +315,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await route.session.send(route.nativeId, message.content, message.replyTo);
       get().replacePending(id, messageId, 'sent');
+      return { sent: true };
     } catch (error) {
       get().replacePending(id, messageId, 'failed');
       console.warn('[chat] retry failed', error);
       reportError(error);
+      return { sent: false, messageId, error };
     }
   },
 
@@ -377,7 +388,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   async resolvePeer(protocol, addressOrId) {
     const session = get().sessions[protocol];
-    if (!session) throw new Error(`${protocol} is not connected.`);
+    if (!session) throw new NotConnectedError(protocol);
     return session.resolvePeer(addressOrId);
   },
 
@@ -863,10 +874,9 @@ function requireRoute(state: ChatState, id: ConversationId): Route {
   const split = splitConversationId(id);
   if (split) {
     const connection = state.protocols[split.protocol];
-    throw new Error(
-      connection?.error
-        ? `${split.protocol} is not connected: ${connection.error}`
-        : `${split.protocol} is not connected.`
+    throw new NotConnectedError(
+      split.protocol,
+      connection?.error ? `${split.protocol} is not connected: ${connection.error}` : undefined
     );
   }
   throw new Error('Not connected to the network yet.');
@@ -897,7 +907,7 @@ function requireSendable(state: ChatState, id: ConversationId): void {
 
 function requireSession(state: ChatState, protocol: ProtocolId): ChatSession {
   const session = state.sessions[protocol];
-  if (!session) throw new Error(`${protocol} is not connected.`);
+  if (!session) throw new NotConnectedError(protocol);
   return session;
 }
 

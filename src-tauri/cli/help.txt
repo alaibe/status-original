@@ -1,0 +1,100 @@
+Usage: status-original <command> [arguments] [--json]
+
+Controls the Status Original app on this computer, and starts it in the background when it is not running.
+
+App
+  status             Show whether the app is unlocked, the active account and each network
+  open               Bring the app window forward, optionally on a chat
+  quit               Quit the app
+
+Accounts
+  accounts           List accounts on this device
+  accounts use       Switch the active account
+  accounts rename    Rename an account
+  accounts create    Create a new account; back up its recovery phrase in the app
+  accounts import    Import an account from a recovery phrase read from stdin or a hidden prompt
+  accounts erase     Erase an account and everything stored for it on this device
+  whoami             Show the active account and your id on each network
+
+Networks
+  networks           List networks with their connection state
+  networks config    Show or change a network’s settings; secret fields are prompted for
+  networks login     Sign in to a network that asks for a phone number, code or password. At a terminal it prompts; otherwise give one answer at a time and it prints the next step
+  networks logout    Sign out of a network
+  networks sync      Fetch what is new from every network, or one
+  devices            List the XMTP installations of this account
+  devices revoke     Revoke XMTP installations other than this one
+
+Chats
+  chats              List chats, newest first
+  chat               Show one chat: kind, network, members, unread, description and link
+  read               Print a chat’s messages, oldest first
+  search             Search messages across chats, or in one
+  mark-read          Mark a chat as read
+  mark-unread        Mark a chat as unread
+  accept             Accept a message request
+  block              Decline a message request, or block a chat
+  pin                Pin a chat to the top of the list
+  unpin              Unpin a chat
+  mute               Mute a chat
+  unmute             Unmute a chat
+  archive            Archive a chat
+  unarchive          Move a chat out of the archive
+  draft              Show a chat’s draft, or replace it
+
+Messages
+  send               Send a message; `-` or no text reads it from stdin
+  edit               Edit one of your messages
+  delete             Delete a message for everyone, or only for you
+  react              Add or remove a reaction
+  forward            Forward a message to another chat
+  retry              Resend a message that failed
+  pins               List a chat’s pinned messages
+  pin-message        Pin a message in a chat
+  unpin-message      Unpin a message
+  poll create        Post a poll
+  poll vote          Vote in a poll by option number, starting at 1
+  download           Save a message’s photo, file, voice note or video
+
+People
+  new                Start a direct message; the peer can be an address, ENS name, username or link
+  resolve            Find the id a network uses for an address, name or link
+  contacts           List the people you have direct messages with
+
+Groups
+  group create       Create a group
+  group members      List a group’s members and their roles
+  group add          Add members
+  group remove       Remove members
+  group ban          Ban a member
+  group mute         Stop a member from sending
+  group unmute       Let a muted member send again
+  group rename       Rename a group
+  group leave        Leave a group
+  group slowmode     Set the minimum seconds between one member’s messages (0 turns it off)
+  group invite-link  Create an invite link
+  group requests     List pending join requests
+  group approve      Approve a join request
+  group decline      Decline a join request
+  join               Preview and join a public group or channel by username or link
+
+Settings
+  settings           Show appearance and privacy settings
+  settings set       Change a setting
+  apikey             Save an API key (gifs or trades), read from stdin or a hidden prompt; empty removes it
+
+Plugins
+  plugins            List plugins and whether they are on
+  plugins enable     Turn a plugin on, granting its permissions
+  plugins disable    Turn a plugin off
+  commands           List the slash commands plugins offer, everywhere or in one chat
+  run                Run a plugin slash command; with no chat it runs in the chat of the plugin that owns it. Anything that signs asks you in the app first
+  link               Open a link a plugin handles, such as a WalletConnect wc: pairing link
+
+Live
+  watch              Print new messages as they arrive, one JSON object per line with --json
+
+status-original help <command>     arguments and examples for one command
+status-original --skills           instructions for AI agents (SKILL.md)
+status-original skills install     install them for Claude Code (--claude), Codex (--codex) or --dir <path>
+status-original --version

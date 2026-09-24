@@ -20,6 +20,8 @@ import { useAppearanceStore } from '@/core/app/appearance';
 import { useAppBoot, useAppLock, useDeepLinkRouter } from '@/core/app/boot';
 import { useMessageNotifications } from '@/core/app/use-notifications';
 import { PluginProvider, usePluginHost } from '@/core/plugins/host';
+import { CliApprovals } from '@/features/cli/approvals';
+import { useCliServer } from '@/features/cli/server';
 import { LockGate } from '@/features/identity/lock-gate';
 import { AppFrame } from '@/features/navigation/app-frame';
 import { Dialog } from '@/features/navigation/dialog';
@@ -115,6 +117,7 @@ function AppShell() {
   useAppBoot();
   useDeepLinkRouter();
   useMessageNotifications();
+  useCliServer();
 
   const lockStatus = useAppLock();
   const colors = useThemeColors();
@@ -164,6 +167,7 @@ function AppShell() {
         </Stack>
       </AppFrame>
       <PluginOverlays />
+      <CliApprovals />
       <ToastHost />
 
       {lockStatus === 'open' ? null : lockStatus === 'locked' ? (

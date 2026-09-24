@@ -85,6 +85,20 @@ function BookIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   );
 }
 
+function TerminalIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+      <path
+        d="M3.5 4h13v12h-13V4Zm3 4 2 2-2 2m4 0h3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const networks = ['XMTP', 'Nostr', 'Waku', 'Telegram', 'Matrix'];
 
 export function Hero({ release }: { release: Release }) {
@@ -102,17 +116,23 @@ export function Hero({ release }: { release: Release }) {
               </a>
             )}
             <h1 className="text-4xl font-medium tracking-tight text-gray-900 sm:text-5xl">
-              A messenger with no company in the middle.
+              A messenger with no company in the middle, ready for your AI.
             </h1>
             <p className="mt-6 text-lg text-gray-600">
               Your account is twelve words on your device. No sign-up, no phone number, no email,
-              and no account on a server that could be seized, sold or breached.
+              and no account on a server that could be seized, sold or breached. On a computer,
+              Claude Code or Codex can read and answer your chats through the command line, and you
+              still approve anything that signs.
             </p>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-4">
               <DownloadButton release={release} />
               <Button href="/guide" variant="outline" className="items-center">
                 <BookIcon className="h-5 w-5 flex-none text-gray-500" />
                 <span className="ml-2.5">Read the guide</span>
+              </Button>
+              <Button href="/guide/command-line" variant="outline" className="items-center">
+                <TerminalIcon className="h-5 w-5 flex-none text-gray-500" />
+                <span className="ml-2.5">Use it with AI</span>
               </Button>
             </div>
           </div>

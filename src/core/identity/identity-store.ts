@@ -23,7 +23,7 @@ import { errorMessage } from '../errors';
 
 export type IdentityStatus = 'loading' | 'absent' | 'ready' | 'blocked' | 'invalidated' | 'error';
 
-interface IdentityState {
+export interface IdentityState {
   status: IdentityStatus;
   accounts: AccountRecord[];
   activeAccountId: string | null;
@@ -62,8 +62,8 @@ export const useIdentityStore = create<IdentityState>((set, get) => ({
       const active = accounts.find((a) => a.id === storedId) ?? accounts[0];
       if (active.id !== storedId) await setActiveAccountId(active.id);
 
-      await activate(active.id, set);
       set({ accounts, error: null });
+      await activate(active.id, set);
     } catch (error) {
       set({ status: 'error', error: errorMessage(error) });
     } finally {
@@ -98,8 +98,8 @@ export const useIdentityStore = create<IdentityState>((set, get) => ({
       await deleteMnemonic(duplicate.id);
       await persistAccountMnemonic(duplicate.id, normalized);
       await setActiveAccountId(duplicate.id);
-      await activate(duplicate.id, set);
       set({ accounts: existing });
+      await activate(duplicate.id, set);
       return;
     }
 
@@ -117,8 +117,8 @@ export const useIdentityStore = create<IdentityState>((set, get) => ({
     await saveAccounts(accounts);
     await setActiveAccountId(id);
 
-    await activate(id, set);
     set({ accounts });
+    await activate(id, set);
   },
 
   async addHardwareAccount({
@@ -180,10 +180,10 @@ export const useIdentityStore = create<IdentityState>((set, get) => ({
       return;
     }
 
+    set({ accounts: remaining });
     if (get().activeAccountId === id) {
       await activate(remaining[0].id, set);
     }
-    set({ accounts: remaining });
   },
 }));
 

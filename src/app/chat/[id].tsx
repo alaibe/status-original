@@ -34,11 +34,8 @@ import { CommandPending } from '@/features/chat/command-pending';
 import { ForwardSheet } from '@/features/chat/forward-sheet';
 import { headerSubtitle } from '@/features/chat/header-subtitle';
 import { MessageBubble, type ReplyPreview } from '@/features/chat/message-bubble';
-import {
-  conversationPeers,
-  conversationTitle,
-  useDisplayNames,
-} from '@/features/chat/use-display-names';
+import { conversationPeers, conversationTitle } from '@/core/messaging/display-names';
+import { useDisplayNames } from '@/features/chat/use-display-names';
 import { useSupports } from '@/features/chat/use-supports';
 import { useComposerMode } from '@/features/chat/composer-mode';
 import { useAction } from '@/features/chat/use-action';

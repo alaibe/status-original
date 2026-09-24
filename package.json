@@ -113,6 +113,7 @@
     "pattern:build": "node ./scripts/generate-chat-pattern.js",
     "brand:build": "node ./scripts/trace-brand-mark.js && node ./scripts/generate-brand-assets.js && tauri icon assets/images/icon-desktop.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
     "typecheck": "tsc --noEmit",
+    "cli:docs": "CLI_DOCS_WRITE=1 jest src/features/cli/docs.test.ts",
     "test": "jest",
     "postinstall": "patch-package && node ./scripts/copy-xmtp-wasm.js",
     "test:e2e": "./e2e/run.sh",

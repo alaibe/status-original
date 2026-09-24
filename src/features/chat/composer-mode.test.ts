@@ -21,7 +21,7 @@ function harness(start: ComposerMode = { kind: 'compose' }) {
 }
 
 const setDraft = jest.fn();
-const sendMessage = jest.fn(async () => {});
+const sendMessage = jest.fn(async () => ({ sent: true as const }));
 const editMessage = jest.fn(async () => {});
 
 beforeEach(() => {

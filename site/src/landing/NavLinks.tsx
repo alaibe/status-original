@@ -10,6 +10,7 @@ export function NavLinks() {
 
   return [
     ['Features', '/#features'],
+    ['AI', '/#ai'],
     ['Tour', '/#tour'],
     ['Download', '/#download'],
     ['FAQ', '/#faqs'],

@@ -44,15 +44,41 @@ export async function readInlineAttachment(
   return { filename, mimeType, data };
 }
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  heic: 'image/heic',
+  webp: 'image/webp',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  m4a: 'audio/m4a',
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  json: 'application/json',
+  zip: 'application/zip',
+};
+
+export function fallbackMimeType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream';
+}
+
 export const ATTACHMENT_AREA = 'attachments';
+
+const fileSafe = (value: string) => value.replace(/[^A-Za-z0-9._-]/g, '_');
 
 export async function writeInlineAttachment(
   messageId: string,
   attachment: InlineAttachment,
   accountId: string
 ): Promise<string> {
-  const safeName = attachment.filename.replace(/[^A-Za-z0-9._-]/g, '_');
-  return storeMedia(ATTACHMENT_AREA, `${messageId}-${safeName}`, accountId, attachment.data);
+  const name = fileSafe(`${messageId}-${attachment.filename}`);
+  return storeMedia(ATTACHMENT_AREA, name, accountId, attachment.data);
 }
 
 export async function persistLocalAttachment(
@@ -70,10 +96,7 @@ export async function persistLocalAttachment(
   if (!isTransientUri(content.uri)) return content;
 
   const fallback = content.kind === 'voice' ? 'recording.m4a' : 'attachment';
-  const name = (content.name ?? basenameOf(content.uri) ?? fallback).replace(
-    /[^A-Za-z0-9._-]/g,
-    '_'
-  );
-  const uri = await adoptMedia(ATTACHMENT_AREA, `${messageId}-${name}`, accountId, content.uri);
+  const name = fileSafe(`${messageId}-${content.name ?? basenameOf(content.uri) ?? fallback}`);
+  const uri = await adoptMedia(ATTACHMENT_AREA, name, accountId, content.uri);
   return { ...content, uri };
 }
