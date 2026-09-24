@@ -322,6 +322,20 @@ describe('MatrixSession conversations', () => {
     });
   });
 
+  it('shows a room’s picture once it is downloaded', async () => {
+    const { chat, api } = await connect(SESSION, (api) =>
+      api.roomsById.set(GROUP.id, { ...GROUP, avatarUrl: 'mxc://example.org/pic' })
+    );
+    const conversations: Conversation[] = [];
+    await chat.streamConversations((conversation) => conversations.push(conversation));
+    expect((await chat.listConversations())[0].avatarUri).toBeUndefined();
+    await flush();
+    expect(api.named('media')).toHaveLength(1);
+    expect(conversations.at(-1)?.avatarUri).toBe('file:///matrix/media/avatar');
+    await chat.listConversations();
+    expect(api.named('media')).toHaveLength(1);
+  });
+
   it('marks rooms unread through the SDK and shows the flag', async () => {
     const { chat, api } = await connect(SESSION, (api) =>
       api.roomsById.set(GROUP.id, { ...GROUP, markedUnread: true })

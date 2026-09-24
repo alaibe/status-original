@@ -81,6 +81,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private readonly networks = new Map<string, string>();
   private readonly mediaPaths = new Map<string, string>();
   private readonly awaitedMedia = new Map<string, MxEvent>();
+  private readonly avatars = new Map<string, string | null>();
   private readonly presence = new PresenceWatcher(
     () => this.homeserver(),
     (userId) => this.announceDmsWith(userId)
@@ -121,6 +122,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     this.members.clear();
     this.pendingMembers.clear();
     this.awaitedMedia.clear();
+    this.avatars.clear();
     this.presence.clear();
     this.unsubscribe?.();
     await this.api.close();
@@ -390,6 +392,21 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     };
   }
 
+  private avatarOf(room: MxRoom): string | undefined {
+    const url = room.avatarUrl;
+    if (!url) return undefined;
+    const known = this.avatars.get(url);
+    if (known !== undefined) return known ?? undefined;
+    this.avatars.set(url, null);
+    void this.roomAvatar(url).then((uri) => {
+      if (!uri) return;
+      this.avatars.set(url, uri);
+      const current = this.rooms.get(room.id);
+      if (current?.avatarUrl === url && included(current)) this.announce(current);
+    });
+    return undefined;
+  }
+
   private async roomAvatar(url?: string): Promise<string | undefined> {
     if (!url) return undefined;
     return this.api
@@ -638,6 +655,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
       ...(presence?.lastSeenAt ? { lastSeenAt: presence.lastSeenAt } : {}),
       network,
       title: room.name || (room.isDm ? (peer ?? room.id) : 'Untitled room'),
+      avatarUri: this.avatarOf(room),
       memberIds,
       createdAt: room.latest?.timestamp ?? 0,
       lastMessage: room.latest ? this.toMessage(previewEvent(room), false) : undefined,

@@ -25,7 +25,7 @@ export function ConversationAvatar({
       seed={isBot ? conversation.id : peer}
       size={size}
       label={conversation.kind !== 'dm' || isBot ? conversation.title.replace(/^#/, '') : undefined}
-      image={bot.avatar}
+      image={bot.avatar ?? conversation.avatarUri}
       emoji={bot.emoji}
     />
   );

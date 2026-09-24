@@ -102,7 +102,7 @@ export class TelegramSession implements ChatSession {
   private readonly groups = new TelegramGroups(this.host);
   private readonly joining = new TelegramJoining(this.host, this.groups);
   private readonly messages = new TelegramMessages(this.host, this.outbox);
-  private readonly awaitedFiles = new Map<number, { chatId: number; messageId: number }>();
+  private readonly awaitedFiles = new Map<number, { chatId: number; messageId?: number }>();
   private readonly refetching = new Map<string, Promise<void>>();
   private readonly typing = new TypingTracker((chatId) => {
     const chat = this.td.chats.get(chatId);
@@ -372,7 +372,7 @@ export class TelegramSession implements ChatSession {
         const awaited = this.awaitedFiles.get(file.id);
         if (!awaited) return;
         this.awaitedFiles.delete(file.id);
-        return this.refetch(awaited.chatId, awaited.messageId);
+        return this.afterDownload(awaited);
       }
       default:
         return;
@@ -769,6 +769,7 @@ export class TelegramSession implements ChatSession {
       id: String(chat.id),
       kind: isDm ? 'dm' : isChannel ? 'channel' : 'group',
       title: chat.title,
+      avatarUri: this.photoUri(chat),
       memberIds,
       createdAt: chat.last_message ? chat.last_message.date * 1000 : 0,
       lastMessage: chat.last_message ? this.toMessage(chat.last_message, false) : undefined,
@@ -811,26 +812,46 @@ export class TelegramSession implements ChatSession {
   private localUri(raw: TdMessage, file: TdFile, fetchMedia: boolean): string | null {
     if (file.local.is_downloading_completed && file.local.path)
       return localFileUri(file.local.path);
-    if (!fetchMedia) return null;
-    if (!this.awaitedFiles.has(file.id)) {
-      this.awaitedFiles.set(file.id, { chatId: raw.chat_id, messageId: raw.id });
-      this.api
-        .send<TdFile>({
-          '@type': 'downloadFile',
-          file_id: file.id,
-          priority: 16,
-          offset: 0,
-          limit: 0,
-          synchronous: false,
-        })
-        .then((started) => {
-          if (started.local.is_downloading_completed) {
-            this.awaitedFiles.delete(file.id);
-            return this.refetch(raw.chat_id, raw.id);
-          }
-        })
-        .catch(() => this.awaitedFiles.delete(file.id));
-    }
+    if (fetchMedia) this.download(file, { chatId: raw.chat_id, messageId: raw.id }, 16);
     return null;
+  }
+
+  private photoUri(chat: TdChat): string | undefined {
+    const photo = chat.photo?.small;
+    if (!photo) return undefined;
+    if (photo.local.is_downloading_completed && photo.local.path)
+      return localFileUri(photo.local.path);
+    this.download(photo, { chatId: chat.id }, 1);
+    return undefined;
+  }
+
+  private download(
+    file: TdFile,
+    awaited: { chatId: number; messageId?: number },
+    priority: number
+  ) {
+    if (this.awaitedFiles.has(file.id)) return;
+    this.awaitedFiles.set(file.id, awaited);
+    this.api
+      .send<TdFile>({
+        '@type': 'downloadFile',
+        file_id: file.id,
+        priority,
+        offset: 0,
+        limit: 0,
+        synchronous: false,
+      })
+      .then((started) => {
+        if (!started.local.is_downloading_completed) return;
+        this.awaitedFiles.delete(file.id);
+        return this.afterDownload(awaited);
+      })
+      .catch(() => this.awaitedFiles.delete(file.id));
+  }
+
+  private async afterDownload({ chatId, messageId }: { chatId: number; messageId?: number }) {
+    if (messageId !== undefined) return this.refetch(chatId, messageId);
+    const chat = this.td.chats.get(chatId);
+    if (chat) await this.announce(chat);
   }
 }

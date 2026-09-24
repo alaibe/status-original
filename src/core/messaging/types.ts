@@ -97,6 +97,7 @@ export interface Conversation {
   id: ConversationId;
   kind: ConversationKind;
   title: string;
+  avatarUri?: string;
   memberIds: ParticipantId[];
   createdAt: number;
   lastMessage?: ChatMessage;

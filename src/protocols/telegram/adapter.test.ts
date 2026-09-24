@@ -1084,6 +1084,32 @@ describe('TelegramSession messages', () => {
     expect(earlier.map((m) => m.id)).toEqual(['200_26', '200_27']);
   });
 
+  it('shows a chat’s photo once TDLib has downloaded it', async () => {
+    const { session, td } = await inChatWithBob();
+    const conversations: Conversation[] = [];
+    await session.streamConversations((conversation) => conversations.push(conversation));
+    const small = {
+      '@type': 'file',
+      id: 88,
+      size: 1,
+      local: { path: '', is_downloading_completed: false, is_downloading_active: false },
+    };
+    td().answer('downloadFile', small);
+    const chat = privateChat(300, 'Carol');
+    chat.photo = { small, big: small } as never;
+    td().emit({ '@type': 'updateNewChat', chat });
+    await flush();
+    expect(conversations.at(-1)?.avatarUri).toBeUndefined();
+    expect(td().requests('downloadFile')[0]).toMatchObject({ file_id: 88, priority: 1 });
+
+    const done = { ...small, local: { path: '/files/carol.jpg', is_downloading_completed: true } };
+    chat.photo = { small: done, big: done } as never;
+    td().emit({ '@type': 'updateFile', file: done });
+    await flush();
+    expect(conversations.at(-1)).toMatchObject({ id: '300' });
+    expect(conversations.at(-1)?.avatarUri).toContain('/files/carol.jpg');
+  });
+
   it('shows a placeholder for a photo until TDLib has it, then the image', async () => {
     const { td, received } = await inChatWithBob();
     td().answer('downloadFile', {
