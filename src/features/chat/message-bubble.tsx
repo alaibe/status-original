@@ -104,8 +104,9 @@ export function MessageBubble({
     }
 
     case 'image':
-      children = (
-        <>
+    case 'video': {
+      const media =
+        content.kind === 'image' ? (
           <ImageBubble
             uri={content.uri}
             width={content.width}
@@ -113,10 +114,30 @@ export function MessageBubble({
             caption={content.caption}
             fromMe={fromMe}
           />
+        ) : (
+          <VideoBubble
+            uri={content.uri}
+            width={content.width}
+            height={content.height}
+            caption={content.caption}
+            gif={content.gif}
+            fromMe={fromMe}
+          />
+        );
+      bare = !content.caption && !replyPreview;
+      children = bare ? (
+        <View>
+          {media}
+          <Footer message={message} overlay />
+        </View>
+      ) : (
+        <>
+          {media}
           <Footer message={message} />
         </>
       );
       break;
+    }
 
     case 'file':
       children = (
@@ -141,21 +162,6 @@ export function MessageBubble({
             durationMs={content.durationMs}
             fromMe={fromMe}
             seed={message.id}
-          />
-          <Footer message={message} />
-        </>
-      );
-      break;
-
-    case 'video':
-      children = (
-        <>
-          <VideoBubble
-            uri={content.uri}
-            width={content.width}
-            height={content.height}
-            caption={content.caption}
-            fromMe={fromMe}
           />
           <Footer message={message} />
         </>
@@ -408,15 +414,26 @@ function BubbleShell({
   );
 }
 
-function Footer({ message }: { message: ChatMessage }) {
+/** `overlay` sits the time on a photo that has no bubble around it. */
+function Footer({ message, overlay = false }: { message: ChatMessage; overlay?: boolean }) {
   const colors = useThemeColors();
-  const tint = message.fromMe ? colors['bubble-out-on'] : colors['content-subtle'];
+  const tint = overlay
+    ? '#fff'
+    : message.fromMe
+      ? colors['bubble-out-on']
+      : colors['content-subtle'];
 
   return (
-    <View className="-mt-0.5 flex-row items-center justify-end gap-1">
+    <View
+      className={cn(
+        'flex-row items-center justify-end gap-1',
+        overlay ? 'absolute bottom-1.5 right-1.5 rounded-pill bg-black/45 px-1.5 py-0.5' : '-mt-0.5'
+      )}>
       <Text
         variant="micro"
-        className={message.fromMe ? 'text-bubble-out-on/70' : 'text-content-subtle'}>
+        className={
+          overlay ? 'text-white' : message.fromMe ? 'text-bubble-out-on/70' : 'text-content-subtle'
+        }>
         {`${message.edited ? 'edited ' : ''}${formatTimestamp(message.sentAt)}`}
       </Text>
       {message.fromMe ? (

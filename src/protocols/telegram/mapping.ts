@@ -170,7 +170,21 @@ const MAPPERS: Record<string, (input: Input) => MessageContent> = {
     const emoji = (content.sticker as { emoji?: string }).emoji;
     return unsupported('sticker', emoji ? `${emoji} Sticker` : 'Sticker');
   },
-  messageAnimation: ({ caption }) => unsupported('animation', labelled('GIF', caption)),
+  messageAnimation: ({ content, context, caption }) => {
+    const animation = content.animation as {
+      animation: TdFile;
+      mime_type: string;
+      width: number;
+      height: number;
+    };
+    const uri = context.media(animation.animation);
+    if (!uri) return unsupported('animation', labelled('GIF', caption));
+    const shape = { uri, width: animation.width, height: animation.height };
+    const captioned = caption ? { caption } : {};
+    return animation.mime_type === 'image/gif'
+      ? { kind: 'image', ...shape, mimeType: 'image/gif', ...captioned }
+      : { kind: 'video', ...shape, gif: true, ...captioned };
+  },
   messageVideoNote: () => unsupported('videoNote', '📹 Video message'),
   messageAudio: ({ content, caption }) => {
     const audio = content.audio as { title?: string; file_name?: string };

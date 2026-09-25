@@ -24,12 +24,14 @@ export function contentPreview(content: MessageContent): string {
       return content.fallback;
 
     case 'image':
+      if (content.mimeType === 'image/gif') return content.caption?.trim() || 'GIF';
       return content.caption?.trim() ? `\u{1F4F7} ${content.caption.trim()}` : '\u{1F4F7} Photo';
     case 'file':
       return `\u{1F4CE} ${content.name}`;
     case 'voice':
       return `\u{1F3A4} Voice message (${formatDuration(content.durationMs)})`;
     case 'video':
+      if (content.gif) return content.caption?.trim() || 'GIF';
       return content.caption?.trim() ? `\u{1F3AC} ${content.caption.trim()}` : '\u{1F3AC} Video';
     case 'poll':
       return `\u{1F4CA} ${content.question}`;

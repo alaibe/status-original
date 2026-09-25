@@ -51,6 +51,8 @@ export type MessageContent =
       name?: string;
       mimeType?: string;
       size?: number;
+      /** Silent and looping, the way a messenger plays a GIF. */
+      gif?: boolean;
     }
   | {
       kind: 'poll';
