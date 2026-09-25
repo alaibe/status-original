@@ -1,10 +1,6 @@
-import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
-import { useObserve } from 'expo-observe';
-
-import { FlashList, type FlashListRef, type ListRenderItemInfo } from '@shopify/flash-list';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, View, StyleSheet } from 'react-native';
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
+import { useState } from 'react';
+import { KeyboardAvoidingView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -15,12 +11,11 @@ import {
   Pressable,
   Text,
   toast,
-  IconButton,
   useEscapeKey,
   useLayoutInsets,
   useThemeColors,
 } from '@/design';
-import { botIdFromConversation, isLocalConversation } from '@/core/messaging/bots';
+import { isLocalConversation } from '@/core/messaging/bots';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type {
   ChatMessage,
@@ -30,15 +25,12 @@ import type {
 } from '@/core/messaging/types';
 import { useAppearanceStore } from '@/core/app/appearance';
 import { contentPreview, isNewDay } from '@/core/messaging/preview';
-import { MARKED_UNREAD } from '@/core/messaging/unread';
 import { errorMessage } from '@/core/errors';
 import { Composer } from './composer';
 import { ConsentBar } from './consent-bar';
-import { ConversationAvatar } from './conversation-avatar';
 import { DateSeparator } from './date-separator';
 import { CommandPending } from './command-pending';
 import { ForwardSheet } from './forward-sheet';
-import { headerSubtitle } from './header-subtitle';
 import { MessageBubble, type ReplyPreview, type ThreadChip } from './message-bubble';
 import { conversationPeers, conversationTitle } from '@/core/messaging/display-names';
 import { useDisplayNames } from './use-display-names';
@@ -49,12 +41,11 @@ import { usePinnedMessages } from './use-pinned-messages';
 import type { MessageAction } from './message-actions';
 import { type ActionSupport, type ConversationActions, messageActions } from './message-commands';
 import { HistoryStatus } from './history-status';
-import { useJumpStore } from './jump-store';
+import { useConversationTimeline } from './use-conversation-timeline';
 import { PinnedMessages } from './pinned-messages';
+import { ConversationHeader } from './conversation-header';
 
 const GROUP_WINDOW_MS = 60_000;
-
-const NO_MESSAGES: ChatMessage[] = [];
 
 const MISSING_REPLY = { author: '', preview: 'Original message' };
 
@@ -80,7 +71,6 @@ export interface ConversationViewProps {
 }
 
 export function ConversationView({ id, thread, onOpenThread, onBack }: ConversationViewProps) {
-  const router = useRouter();
   const wallpaper = useAppearanceStore((s) => s.wallpaper);
   // On desktop the frame draws the wallpaper and the sidebar does the navigating.
   const desktop = process.env.EXPO_OS === 'web';
@@ -95,10 +85,6 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
     (s) =>
       !!conversation?.protocol && s.protocols[conversation.protocol]?.history?.status === 'fetching'
   );
-  const allMessages = useChatStore((s) => s.messages[id]) ?? NO_MESSAGES;
-  const loadMessages = useChatStore((s) => s.loadMessages);
-  const loadOlderMessages = useChatStore((s) => s.loadOlderMessages);
-  const messageHistory = useChatStore((s) => s.messageHistory[id]);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const retryMessage = useChatStore((s) => s.retryMessage);
   const deleteMessage = useChatStore((s) => s.deleteMessage);
@@ -106,8 +92,6 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
   const votePoll = useChatStore((s) => s.votePoll);
   const setMessagePinned = useChatStore((s) => s.setMessagePinned);
   const ingestMessage = useChatStore((s) => s.ingestMessage);
-  const markRead = useChatStore((s) => s.markRead);
-  const watchPresence = useChatStore((s) => s.watchPresence);
   const muted = useChatStore((s) => Boolean(s.chatPrefs[id]?.muted));
   const setChatPref = useChatStore((s) => s.setChatPref);
 
@@ -117,34 +101,27 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
   );
   const [showPinned, setShowPinned] = useState(false);
 
-  const byId = new Map(allMessages.map((m) => [m.id, m]));
-  const replyCounts = new Map<MessageId, number>();
-  if (onOpenThread)
-    for (const m of allMessages)
-      if (m.threadRoot) replyCounts.set(m.threadRoot, (replyCounts.get(m.threadRoot) ?? 0) + 1);
-  const messages = useMemo(() => {
-    if (!thread) return allMessages.filter((m) => !m.threadRoot);
-    const root = allMessages.find((m) => m.id === thread);
-    return [...(root ? [root] : []), ...allMessages.filter((m) => m.threadRoot === thread)];
-  }, [allMessages, thread]);
-
   const selfId = selfIdFor({ sessions }, conversation?.protocol);
 
   const isBot = isLocalConversation(id);
 
-  const { markInteractive } = useObserve();
-  useEffect(() => {
-    if (messages.length > 0 || conversation !== undefined) markInteractive();
-  }, [messages.length, conversation, markInteractive]);
-  const botTagline = useChatStore((s) =>
-    isBot ? s.bots[botIdFromConversation(id)]?.tagline : undefined
-  );
-
   const peers = conversation ? conversationPeers(conversation, selfId) : [];
   const { nameFor } = useDisplayNames(peers);
 
-  const accountId = useChatStore((s) => s.accountId);
   const { session, supports, threads } = useSupports(id);
+  const {
+    allMessages,
+    messages,
+    byId,
+    replyCounts,
+    messageHistory,
+    loadOlderMessages,
+    list,
+    followNewest,
+    pauseFollowing,
+    followIfNeeded,
+    highlighted,
+  } = useConversationTimeline(id, thread, conversation, session, Boolean(onOpenThread));
   const pinnedMessages = usePinnedMessages(
     id,
     allMessages,
@@ -158,68 +135,10 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
       failure: 'Could not delete message',
     }
   );
-  useEffect(() => {
-    // A thread shows what its chat has loaded.
-    if (id && accountId && !thread) loadMessages(id);
-  }, [id, thread, accountId, loadMessages]);
-
-  useEffect(
-    () => (session && !thread ? watchPresence(id) : undefined),
-    [id, thread, session, watchPresence]
-  );
-
-  const newest = allMessages[allMessages.length - 1];
-  const newestFromPeer = newest && !newest.fromMe ? newest.id : null;
-  const marked = useChatStore((s) => s.readAt[id] === MARKED_UNREAD);
-  useEffect(() => {
-    if (id && !thread && (newestFromPeer || marked)) markRead(id);
-  }, [id, thread, markRead, newestFromPeer, marked]);
-
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const runCommand = (command: string) => setPendingCommand(command);
   const clearPendingCommand = () => setPendingCommand(null);
-
-  const list = useRef<FlashListRef<ChatMessage>>(null);
-  const following = useRef(true);
-  const followNewest = () => {
-    following.current = true;
-    list.current?.scrollToEnd({ animated: true });
-  };
-
-  const jump = useJumpStore((s) => (!thread && s.target?.conversationId === id ? s.target : null));
-  const highlighted = useJumpStore((s) => s.landed);
-  const land = useJumpStore((s) => s.land);
-  useEffect(() => {
-    if (!jump) return;
-    following.current = false;
-    const index = messages.findIndex((m) => m.id === jump.id);
-    if (index >= 0) {
-      land(jump.id);
-      requestAnimationFrame(
-        () => void list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
-      );
-      return;
-    }
-    if (!messageHistory || messageHistory.loading) return;
-    const oldest = messages[0];
-    if (
-      oldest &&
-      oldest.sentAt >= jump.sentAt &&
-      messageHistory.hasOlder &&
-      !messageHistory.error
-    ) {
-      void loadOlderMessages(id);
-    } else {
-      land(null);
-      toast.error('Could not find that message in this chat');
-    }
-  }, [id, jump, messages, messageHistory, loadOlderMessages, land]);
-  useEffect(() => {
-    if (!highlighted) return;
-    const timer = setTimeout(() => land(null), 2000);
-    return () => clearTimeout(timer);
-  }, [highlighted, land]);
 
   const onSendContent = async (content: MessageContent) => {
     followNewest();
@@ -293,88 +212,19 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
   const chatTitle = conversation
     ? conversationTitle(conversation, selfId, nameFor)
     : 'Conversation';
-  const title = thread ? 'Thread' : chatTitle;
 
   return (
     <View className={desktop ? 'flex-1' : 'flex-1 bg-canvas'}>
       {desktop ? null : <ChatBackground pattern={wallpaper} />}
 
-      <View
-        className="absolute left-0 right-0 top-0 z-10 flex-row items-center gap-2 px-3"
-        style={{ paddingTop: insets.top + frame.top + 6, paddingBottom: 8 }}>
-        {desktop ? null : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={onBack}
-            className="h-10 w-10 items-center justify-center overflow-hidden rounded-pill">
-            <BlurView
-              intensity={40}
-              tint={colors.scheme === 'dark' ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-            <View className="absolute inset-0 bg-canvas/55" />
-            <Icon name="chevron-back" size={22} color={colors.brand} />
-          </Pressable>
-        )}
-
-        <Pressable
-          // The pressable collapses its children into one accessibility element, so the
-          // label has to name the room itself.
-          testID={`chat-header-${id}`}
-          accessibilityRole="button"
-          accessibilityLabel={thread ? `Thread in ${chatTitle}` : `${title}. Conversation details`}
-          disabled={isBot || !!thread}
-          onPress={() => router.push(`/profile/${id}`)}
-          className="flex-1 items-center">
-          <View className="max-w-full overflow-hidden rounded-pill px-4 py-1.5">
-            <BlurView
-              intensity={40}
-              tint={colors.scheme === 'dark' ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-            <View className="absolute inset-0 bg-canvas/55" />
-            <Text className="text-center font-semibold" numberOfLines={1}>
-              {title}
-            </Text>
-            <Text variant="micro" numberOfLines={1} className="text-center">
-              {thread
-                ? chatTitle
-                : isBot
-                  ? (botTagline ?? 'On this device only')
-                  : headerSubtitle(conversation)}
-            </Text>
-          </View>
-        </Pressable>
-
-        {thread ? (
-          desktop ? (
-            <IconButton icon="close" label="Close thread" tone="brand" size={20} onPress={onBack} />
-          ) : (
-            <View className="h-10 w-10" />
-          )
-        ) : conversation ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search in chat"
-            onPress={() => router.push(`/search?chatId=${encodeURIComponent(id)}`)}
-            className="h-10 w-10 items-center justify-center">
-            <Icon name="search-outline" size={20} color={colors.brand} />
-          </Pressable>
-        ) : null}
-
-        {thread ? null : conversation ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Conversation details"
-            disabled={isBot}
-            onPress={() => router.push(`/profile/${id}`)}>
-            <ConversationAvatar conversation={conversation} selfId={selfId} size="md" />
-          </Pressable>
-        ) : (
-          <View className="h-10 w-10" />
-        )}
-      </View>
+      <ConversationHeader
+        id={id}
+        thread={thread}
+        conversation={conversation}
+        selfId={selfId}
+        chatTitle={chatTitle}
+        onBack={onBack}
+      />
 
       <PinnedMessages
         messages={pinnedMessages}
@@ -412,12 +262,8 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
             key={id}
             ref={list}
             data={messages}
-            onScrollBeginDrag={() => {
-              following.current = false;
-            }}
-            onContentSizeChange={() => {
-              if (following.current) list.current?.scrollToEnd({ animated: false });
-            }}
+            onScrollBeginDrag={pauseFollowing}
+            onContentSizeChange={followIfNeeded}
             keyExtractor={(m) => m.id}
             getItemType={(m) => m.content.kind}
             maintainVisibleContentPosition={{

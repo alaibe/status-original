@@ -50,4 +50,4 @@ Biome formats TypeScript and JSON, rustfmt formats `src-tauri`. Neither lints;
   `patches/README.md` with its symptom, cause and removal condition. Add one
   only with that entry.
 
-`CONTRIBUTING.md` has the longer version.
+`CONTRIBUTING.md` covers setup and the contribution workflow.
