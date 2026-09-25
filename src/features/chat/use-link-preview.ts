@@ -23,5 +23,6 @@ export function useLinkPreview(url: string | null): LinkPreview | null {
     };
   }, [url]);
 
-  return loaded && loaded.url === url ? loaded.preview : null;
+  if (loaded?.url === url) return loaded.preview;
+  return (url ? cachedLinkPreview(url) : undefined) ?? null;
 }

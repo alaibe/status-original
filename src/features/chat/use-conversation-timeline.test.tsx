@@ -47,3 +47,32 @@ it('shows root messages in the chat and only that root with its replies in a thr
   expect(tree.root.findByType('probe' as never).props.ids).toEqual(['root', 'reply']);
   act(() => tree.unmount());
 });
+
+it('marks the chat read only when something arrived since it was last read', () => {
+  const markRead = jest.fn(async () => {});
+  const fromPeer = (id: string, sentAt: number): ChatMessage => ({
+    ...message(id),
+    senderId: 'peer',
+    fromMe: false,
+    sentAt,
+  });
+  useChatStore.setState({
+    accountId: null,
+    messages: { chat: [fromPeer('seen', 5)] },
+    messageHistory: {},
+    readAt: { chat: 10 },
+    markRead,
+  });
+
+  let tree!: ReactTestRenderer;
+  act(() => {
+    tree = create(createElement(Probe));
+  });
+  expect(markRead).not.toHaveBeenCalled();
+
+  act(() =>
+    useChatStore.setState({ messages: { chat: [fromPeer('seen', 5), fromPeer('new', 20)] } })
+  );
+  expect(markRead).toHaveBeenCalledTimes(1);
+  act(() => tree.unmount());
+});

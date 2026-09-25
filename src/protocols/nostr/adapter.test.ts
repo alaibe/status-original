@@ -6,7 +6,9 @@ import { encodeNpub } from '@/lib/bech32';
 import { verifyEvent, type NostrEvent } from './events';
 import type { HistoryState } from '@/core/messaging/history';
 import { identityFromSecretKey, NOSTR_DERIVATION_PATH } from './keys';
+import * as nip17 from './nip17';
 import { conversationIdFor, wrapForRecipients } from './nip17';
+import { createAccountStorage } from '@/storage/account';
 import { fakeRelayFactory, type FakeRelay } from './testing/fake-relay';
 
 /**
@@ -589,3 +591,37 @@ function storedMessage(conversationId: string, id: string, sentAt: number): Chat
     content: { kind: 'text', text: id },
   };
 }
+
+describe('gift wraps from an earlier run', () => {
+  it('are not opened again when the relays send them on the next start', async () => {
+    const storage = createAccountStorage('nostr-handled');
+    const store = new InMemoryMessageStore();
+    const { wraps } = wrapForRecipients(bob, { recipients: [alice.publicKey], content: 'hi' });
+    const toAlice = wraps.filter((wrap) => wrap.tags[0][1] === alice.publicKey);
+    const unwrap = jest.spyOn(nip17, 'unwrapGiftWrap');
+
+    const run = async () => {
+      const factory = fakeRelayFactory();
+      const session = await NostrSession.connect({
+        derive: deriveFor(ALICE_SECRET),
+        relays: ['wss://a.example'],
+        createSocket: factory.create,
+        store,
+        storage,
+      });
+      for (const relay of factory.relays) relay.open();
+      for (const wrap of toAlice) factory.relays[0].broadcast(wrap);
+      await settleDeliveries();
+      await session.disconnect();
+      await settleDeliveries();
+    };
+
+    await run();
+    const opened = unwrap.mock.calls.length;
+    await run();
+
+    expect(opened).toBe(toAlice.length);
+    expect(unwrap).toHaveBeenCalledTimes(opened);
+    unwrap.mockRestore();
+  });
+});

@@ -78,6 +78,8 @@ const ROOM_PAGE: usize = 500;
 
 const HISTORY_PAGE: u16 = 40;
 
+const ANCHOR_SEARCH_PAGES: usize = 25;
+
 const LIVE_TIMELINES: usize = 16;
 
 const ANNOUNCE_CONCURRENCY: usize = 8;

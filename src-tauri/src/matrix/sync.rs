@@ -59,12 +59,18 @@ impl Session {
                     }
                     diff.apply(&mut entries);
                 }
-                // The SDK only computes a room's latest event once it is subscribed to, as a list in view would be.
                 let fresh: Vec<OwnedRoomId> = touched
                     .keys()
                     .filter(|id| subscribed.insert((*id).clone()))
                     .cloned()
                     .collect();
+                stream::iter(touched.into_values())
+                    .for_each_concurrent(ANNOUNCE_CONCURRENCY, |room| {
+                        let session = session.clone();
+                        async move { session.announce(&room).await }
+                    })
+                    .await;
+                // The SDK computes a room's latest event only once it is subscribed to.
                 if !fresh.is_empty() {
                     service
                         .set_room_subscriptions(
@@ -72,12 +78,6 @@ impl Session {
                         )
                         .await;
                 }
-                stream::iter(touched.into_values())
-                    .for_each_concurrent(ANNOUNCE_CONCURRENCY, |room| {
-                        let session = session.clone();
-                        async move { session.announce(&room).await }
-                    })
-                    .await;
                 if grew && !entries.is_empty() && entries.len() % ROOM_PAGE == 0 {
                     controller.add_one_page();
                 }

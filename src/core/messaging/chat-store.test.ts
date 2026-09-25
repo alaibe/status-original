@@ -4,9 +4,11 @@ import { useChatStore } from './chat-store';
 import { InMemoryChatSession } from './in-memory-session';
 import { InMemoryMessageStore } from './message-store';
 import { MARKED_UNREAD } from './unread';
+import { accountRuntime } from '@/runtime';
 import {
   connectFake,
   disconnectFake,
+  flushWrites,
   ns,
   projectTestAccount,
   resetChatStore,
@@ -408,8 +410,67 @@ describe('receiving', () => {
       createdAt: 5_000,
       consent: 'unknown',
     });
+    await flushWrites();
 
     expect(useChatStore.getState().conversations.map((c) => c.id)).toContain(ns('c2'));
+  });
+
+  it('takes a burst of announced chats in one update', async () => {
+    const session = new InMemoryChatSession();
+    await connect(session);
+    const listener = jest.fn();
+    const unsubscribe = useChatStore.subscribe(listener);
+
+    for (const id of ['c2', 'c3', 'c4']) {
+      session.announce({
+        id,
+        kind: 'dm',
+        title: id,
+        memberIds: [],
+        createdAt: 5_000,
+        consent: 'unknown',
+      });
+    }
+    await flushWrites();
+    unsubscribe();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(useChatStore.getState().conversations.map((c) => c.id)).toEqual(
+      expect.arrayContaining([ns('c2'), ns('c3'), ns('c4')])
+    );
+  });
+
+  it('changes nothing when a network announces a chat exactly as it was', async () => {
+    const session = new InMemoryChatSession();
+    const chat = session.seedConversation({ id: 'c1' });
+    session.seedConversation({ id: 'c2', createdAt: 2_000 });
+    await connect(session);
+    const before = useChatStore.getState().conversations;
+    const listener = jest.fn();
+    const unsubscribe = useChatStore.subscribe(listener);
+
+    session.announce({ ...chat });
+    await flushWrites();
+    unsubscribe();
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(useChatStore.getState().conversations).toBe(before);
+  });
+
+  it('updates a chat in place when only its presence changes', async () => {
+    const session = new InMemoryChatSession();
+    const chat = session.seedConversation({ id: 'c1' });
+    session.seedConversation({ id: 'c2', createdAt: 2_000 });
+    await connect(session);
+    const before = useChatStore.getState().conversations;
+
+    session.announce({ ...chat, online: true });
+    await flushWrites();
+
+    const after = useChatStore.getState().conversations;
+    expect(after.map((c) => c.id)).toEqual(before.map((c) => c.id));
+    expect(after.find((c) => c.id === ns('c1'))?.online).toBe(true);
+    expect(after.find((c) => c.id === ns('c2'))).toBe(before.find((c) => c.id === ns('c2')));
   });
 
   it('orders conversations by most recent activity', async () => {
@@ -423,6 +484,100 @@ describe('receiving', () => {
     expect(useChatStore.getState().conversations.find((c) => c.protocol !== 'local')?.id).toBe(
       ns('old')
     );
+  });
+});
+
+describe('opening a chat', () => {
+  function seedLong(session: InMemoryChatSession, count: number) {
+    session.seedConversation({ id: 'long' });
+    for (let index = 1; index <= count; index++) {
+      session.deliver('long', {
+        id: `m${String(index).padStart(3, '0')}`,
+        sentAt: index,
+        content: { kind: 'text', text: String(index) },
+      });
+    }
+  }
+
+  it('shows the newest page before the rest of the window arrives', async () => {
+    const session = new InMemoryChatSession();
+    seedLong(session, 120);
+    await connect(session);
+    const shown: [number, boolean][] = [];
+    const unsubscribe = useChatStore.subscribe((state) => {
+      const loaded = state.messages[ns('long')];
+      if (loaded && shown.at(-1)?.[0] !== loaded.length)
+        shown.push([loaded.length, state.messageHistory[ns('long')].loading]);
+    });
+
+    await useChatStore.getState().loadMessages(ns('long'));
+    unsubscribe();
+
+    expect(shown).toEqual([
+      [50, true],
+      [120, false],
+    ]);
+    expect(useChatStore.getState().messageHistory[ns('long')].hasOlder).toBe(false);
+  });
+
+  it('loads the whole window again after its network reconnects', async () => {
+    const session = new InMemoryChatSession();
+    seedLong(session, 120);
+    await connect(session);
+    await useChatStore.getState().loadMessages(ns('long'));
+
+    await accountRuntime.updateProtocolConfig('test-account', 'xmtp', {});
+    await accountRuntime['transition'];
+    expect(useChatStore.getState().messageHistory[ns('long')]).toBeUndefined();
+    await useChatStore.getState().loadMessages(ns('long'));
+
+    expect(useChatStore.getState().messages[ns('long')]).toHaveLength(120);
+    expect(useChatStore.getState().messageHistory[ns('long')].hasOlder).toBe(false);
+  });
+
+  it('waits for its network before recording that a chat was opened', async () => {
+    projectTestAccount('offline-open');
+    await useChatStore.getState().loadMessages(ns('somewhere'));
+    expect(useChatStore.getState().messageHistory[ns('somewhere')]).toBeUndefined();
+  });
+
+  it('pages the network from its own oldest message, not a private note older than it', async () => {
+    const session = new InMemoryChatSession();
+    seedLong(session, 49);
+    await connect(session);
+    await useChatStore.getState().accountStorage!.messages.insertMessage({
+      id: 'note',
+      conversationId: ns('long'),
+      senderId: 'me',
+      sentAt: 0,
+      content: { kind: 'text', text: 'to self' },
+      fromMe: true,
+      status: 'sent',
+      privateToMe: true,
+    });
+    const getMessages = jest.spyOn(session, 'getMessages');
+
+    await useChatStore.getState().loadMessages(ns('long'));
+
+    expect(getMessages).toHaveBeenCalledTimes(2);
+    expect(getMessages.mock.calls[1][1]?.before).toMatchObject({ id: 'm001' });
+  });
+
+  it('opening it again refreshes the newest page and keeps what did not change', async () => {
+    const session = new InMemoryChatSession();
+    seedLong(session, 120);
+    await connect(session);
+    await useChatStore.getState().loadMessages(ns('long'));
+    const before = useChatStore.getState().messages[ns('long')];
+    const getMessages = jest.spyOn(session, 'getMessages');
+
+    await useChatStore.getState().loadMessages(ns('long'));
+
+    const after = useChatStore.getState().messages[ns('long')];
+    expect(getMessages).toHaveBeenCalledTimes(1);
+    expect(getMessages.mock.calls[0][1]).toMatchObject({ limit: 50 });
+    expect(after).toHaveLength(120);
+    expect(after.every((message, index) => message === before[index])).toBe(true);
   });
 });
 

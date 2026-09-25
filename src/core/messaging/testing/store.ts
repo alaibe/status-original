@@ -99,6 +99,15 @@ export async function storeBackedSession(store = new InMemoryMessageStore()) {
   return { session, transport };
 }
 
+export const TEST_KEYRING = {
+  kind: 'phrase',
+  mnemonic: null,
+  account: {} as LocalAccount,
+  address: '0x0000000000000000000000000000000000000000',
+  derive: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
+  deriveEd25519: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
+} as Keyring;
+
 export const flushWrites = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 export function ns(nativeId: string, protocol: ProtocolId = TEST_PROTOCOL): string {
@@ -120,17 +129,9 @@ export async function connectFake(
   options: ConnectFakeOptions = {}
 ): Promise<void> {
   const accountId = options.accountId ?? 'test-account';
-  const keyring = {
-    kind: 'phrase',
-    mnemonic: null,
-    account: {} as LocalAccount,
-    address: '0x0000000000000000000000000000000000000000',
-    derive: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
-    deriveEd25519: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
-  } as Keyring;
   await accountRuntime.synchronize({
     accountId,
-    keyring,
+    keyring: TEST_KEYRING,
     registry: new PluginRegistry(),
     defaultEnabled: [],
     makeContext: () => {

@@ -48,17 +48,26 @@ export async function loadProtocolConfig(
   accountId: string,
   protocolId: ProtocolId
 ): Promise<ProtocolConfig> {
+  return (await loadProtocolConfigs(accountId))[protocolId] ?? {};
+}
+
+export async function loadProtocolConfigs(
+  accountId: string
+): Promise<Record<ProtocolId, ProtocolConfig>> {
   try {
     const raw = await vaultGet(accountProtocolConfigsKey(accountId));
     if (!raw) return {};
     const all: unknown = JSON.parse(raw);
     if (!all || typeof all !== 'object' || Array.isArray(all)) return {};
-    const parsed = (all as Record<string, unknown>)[protocolId];
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 
-    const out: ProtocolConfig = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof value === 'string') out[key] = value;
+    const out: Record<ProtocolId, ProtocolConfig> = {};
+    for (const [protocolId, parsed] of Object.entries(all as Record<string, unknown>)) {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      const config: ProtocolConfig = {};
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof value === 'string') config[key] = value;
+      }
+      out[protocolId] = config;
     }
     return out;
   } catch {

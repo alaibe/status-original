@@ -19,7 +19,7 @@ import {
   type ProtocolId,
 } from './namespace';
 import { saveChatPrefs, withPref, type ChatPrefs, type ChatPrefsMap } from './chat-prefs';
-import { indexMessages, saveMediaIndex, type MediaIndex } from './media-index';
+import { indexMessages, saveMediaIndexSoon, type MediaIndex } from './media-index';
 import { useAppearanceStore } from '../app/appearance';
 import { writeReadState } from './read-state';
 import { foldReactions, hasReacted } from './reactions';
@@ -50,6 +50,7 @@ import type {
   Unsubscribe,
 } from './types';
 import { errorMessage, NotConnectedError } from '../errors';
+import { sameValue } from '@/lib/same-value';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'ready' | 'error' | 'erasing';
 
@@ -143,6 +144,7 @@ export interface ChatState {
   createPoll(id: ConversationId, question: string, options: string[]): Promise<void>;
   listPinnedMessages(id: ConversationId): Promise<ChatMessage[]>;
   setMessagePinned(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void>;
+  fetchMedia(id: ConversationId, messageId: MessageId): Promise<void>;
   removeMessages(id: ConversationId, messageIds: MessageId[]): void;
 }
 
@@ -156,6 +158,8 @@ export interface MessageHistoryState {
 }
 
 const PRIMARY_PROTOCOL: ProtocolId = 'xmtp';
+
+const FIRST_PAGE = 50;
 
 export const EMPTY_PROJECTION = {
   status: 'idle',
@@ -198,21 +202,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   async loadMessages(id) {
+    if (!isLocalConversation(id) && !routeOrNull(get(), id)) return;
     const accountId = get().accountId;
-    const messages = await loadMessagePage(get(), id, HYDRATE_LIMIT);
-    if (get().accountId !== accountId) return;
-    set((state) => ({
-      ...withRaw(state, id, messages),
-      messageHistory: {
-        ...state.messageHistory,
-        [id]: { loading: false, hasOlder: messages.length === HYDRATE_LIMIT },
-      },
-    }));
+    const opened = get().messageHistory[id];
+    const project = (
+      page: ChatMessage[],
+      hasOlder: boolean,
+      loading = false,
+      merge = mergePage
+    ) => {
+      set((state) => ({
+        ...withRaw(state, id, merge(rawOf(state, id), page)),
+        messageHistory: { ...state.messageHistory, [id]: { loading, hasOlder } },
+      }));
+      const indexed = indexMessages(get().mediaIndex, id, page);
+      if (indexed !== get().mediaIndex) {
+        set({ mediaIndex: indexed });
+        saveMediaIndexSoon(requireAccountStorage(get()), indexed);
+      }
+    };
 
-    const indexed = indexMessages(get().mediaIndex, id, messages);
-    if (indexed !== get().mediaIndex) {
-      set({ mediaIndex: indexed });
-      saveMediaIndex(requireAccountStorage(get()), indexed).catch(() => {});
+    try {
+      const newest = await loadMessagePage(get(), id, FIRST_PAGE);
+      if (get().accountId !== accountId) return;
+      const more = newest.length === FIRST_PAGE;
+      if (opened) {
+        project(newest, opened.error ? more : opened.hasOlder);
+        return;
+      }
+      project(newest, more, more);
+      if (!more) return;
+
+      const rest = HYDRATE_LIMIT - FIRST_PAGE;
+      const older = await loadMessagePage(get(), id, rest, newest);
+      if (get().accountId !== accountId) return;
+      project(older, older.length === rest, false, (loaded, page) => dedupe([...page, ...loaded]));
+    } catch (error) {
+      if (get().accountId !== accountId) return;
+      set((state) => ({
+        messageHistory: {
+          ...state.messageHistory,
+          [id]: {
+            loading: false,
+            hasOlder: state.messageHistory[id]?.hasOlder ?? false,
+            error: errorMessage(error, 'Could not load messages'),
+          },
+        },
+      }));
     }
   },
 
@@ -220,8 +256,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const current = get().messageHistory[id];
     if (current?.loading || current?.hasOlder === false) return;
     const existing = get().messages[id] ?? [];
-    const oldest = existing[0];
-    if (!oldest) return;
+    if (existing.length === 0) return;
     const accountId = get().accountId;
 
     set((state) => ({
@@ -232,7 +267,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      const page = await loadMessagePage(get(), id, 100, oldest);
+      const page = await loadMessagePage(get(), id, 100, existing);
       if (get().accountId !== accountId) return;
       set((state) => ({
         ...withRaw(state, id, dedupe([...page, ...rawOf(state, id)])),
@@ -365,6 +400,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return onChat(get(), id, 'setMessagePinned', messageId, pinned);
   },
 
+  fetchMedia(id, messageId) {
+    return onChat(get(), id, 'fetchMedia', messageId);
+  },
+
   removeMessages(id, messageIds) {
     const removed = new Set(messageIds);
     set((state) => {
@@ -377,7 +416,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? { ...state.mediaIndex, [id]: indexed }
           : state.mediaIndex;
       if (mediaIndex !== state.mediaIndex && state.accountStorage)
-        saveMediaIndex(state.accountStorage, mediaIndex).catch(() => {});
+        saveMediaIndexSoon(state.accountStorage, mediaIndex);
       return {
         ...(kept ? withRaw(state, id, kept) : {}),
         mediaIndex,
@@ -730,32 +769,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const id = message.conversationId;
       const raw = state.rawMessages[id] ?? state.messages[id];
-      const loaded =
-        raw === undefined
-          ? {}
-          : withRaw(state, id, dedupe([...removeMatchingPending(raw, message), message]));
+      const loaded = raw === undefined ? {} : withRaw(state, id, withMessage(raw, message));
 
       const touchesPreview = message.content.kind !== 'reaction';
 
       const indexed = indexMessages(state.mediaIndex, id, [message]);
       if (indexed !== state.mediaIndex && state.accountStorage) {
-        saveMediaIndex(state.accountStorage, indexed).catch(() => {});
+        saveMediaIndexSoon(state.accountStorage, indexed);
       }
 
       return {
         mediaIndex: indexed,
         ...loaded,
         conversations: touchesPreview
-          ? sortConversations(
-              state.conversations.map((c) =>
-                c.id === id &&
-                (!c.lastMessage ||
-                  c.lastMessage.id === message.id ||
-                  message.sentAt >= c.lastMessage.sentAt)
-                  ? { ...c, lastMessage: message }
-                  : c
-              )
-            )
+          ? withPreview(state.conversations, id, message)
           : state.conversations,
       };
     });
@@ -790,14 +817,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const action = hasReacted(target ?? ({} as ChatMessage), emoji, self) ? 'removed' : 'added';
 
     const reaction = localReaction(conversationId, messageId, emoji, self, action);
-    await route.session.send(route.nativeId, {
-      kind: 'reaction',
-      targetId: messageId,
-      emoji,
-      action,
-    });
-    if (!sameSession(get(), accountId, route.protocol, route.session)) return;
     applyLocally(reaction);
+    try {
+      await route.session.send(route.nativeId, {
+        kind: 'reaction',
+        targetId: messageId,
+        emoji,
+        action,
+      });
+    } catch (error) {
+      if (sameSession(get(), accountId, route.protocol, route.session)) {
+        get().removeMessages(conversationId, [reaction.id]);
+      }
+      throw error;
+    }
   },
 
   ingestConversation(conversation: Conversation) {
@@ -807,21 +840,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
   ingestConversations(conversations: Conversation[]) {
     if (conversations.length === 0) return;
     const before = get();
-    const known = new Map(before.conversations.map((c) => [c.id, c]));
+    const latest = new Map(before.conversations.map((c) => [c.id, c]));
+    const added = new Set<ConversationId>();
     let { drafts, readAt } = before;
+    let changed = false;
+    let reorder = false;
     for (const conversation of conversations) {
       const { id, draft } = conversation;
+      const known = latest.get(id);
       if (draft !== undefined) {
         const adopted = draftSync.received(id, draft, drafts[id] ?? '');
         if (adopted !== undefined) drafts = withDraft(drafts, id, adopted);
       }
-      const marked = networkMark(conversation, known.get(id), readAt[id]);
+      const marked = networkMark(conversation, known, readAt[id]);
       if (marked !== undefined) readAt = { ...readAt, [id]: marked };
+      if (known && sameValue(known, conversation)) continue;
+      if (!known) added.add(id);
+      latest.set(id, conversation);
+      changed = true;
+      reorder ||= !known || recency(known) !== recency(conversation);
     }
-    const incoming = new Map(conversations.map((c) => [c.id, c]));
-    const added = [...incoming.values()].filter((c) => !known.has(c.id));
-    const merged = before.conversations.map((c) => incoming.get(c.id) ?? c);
-    set({ conversations: sortConversations([...added, ...merged]), drafts, readAt });
+    if (!changed && drafts === before.drafts && readAt === before.readAt) return;
+    const kept = before.conversations.map((c) => latest.get(c.id)!);
+    const list = changed
+      ? reorder
+        ? sortConversations([...[...added].map((id) => latest.get(id)!), ...kept])
+        : kept
+      : before.conversations;
+    set({ conversations: list, drafts, readAt });
 
     const storage = before.accountStorage;
     if (!storage) return;
@@ -1016,13 +1062,14 @@ async function loadMessagePage(
   state: ChatState,
   id: ConversationId,
   limit: number,
-  before?: { sentAt: number; id: MessageId }
+  loaded: ChatMessage[] = []
 ): Promise<ChatMessage[]> {
-  const local = requireMessageStore(state).loadMessages(id, limit, before);
+  const local = requireMessageStore(state).loadMessages(id, limit, loaded[0]);
   if (isLocalConversation(id)) return local;
 
   const route = routeOrNull(state, id);
   if (!route) return [];
+  const before = loaded.find((message) => !message.privateToMe) ?? loaded[0];
   const [network, privateMessages] = await Promise.all([
     route.session.getMessages(route.nativeId, { limit, before }),
     local,
@@ -1057,6 +1104,30 @@ function setProtocol(set: Setter, protocol: ProtocolId, connection: ProtocolConn
   set((state) => ({ protocols: { ...state.protocols, [protocol]: connection } }));
 }
 
+function mergePage(loaded: ChatMessage[], page: ChatMessage[]): ChatMessage[] {
+  const oldest = page[0];
+  if (!oldest) return loaded;
+  const known = new Map(loaded.map((message) => [message.id, message]));
+  return dedupe([
+    ...loaded.filter(
+      (message) => message.sentAt < oldest.sentAt || message.id.startsWith('pending:')
+    ),
+    ...page.map((message) => {
+      const same = known.get(message.id);
+      return same && sameValue(same, message) ? same : message;
+    }),
+  ]);
+}
+
+function withMessage(raw: ChatMessage[], message: ChatMessage): ChatMessage[] {
+  const rest = removeMatchingPending(raw, message);
+  const newest = rest.at(-1);
+  if (!newest || (message.sentAt >= newest.sentAt && !rest.some((m) => m.id === message.id))) {
+    return [...rest, message];
+  }
+  return dedupe([...rest, message]);
+}
+
 function dedupe(messages: ChatMessage[]): ChatMessage[] {
   const byId = new Map<string, ChatMessage>();
   for (const message of messages) byId.set(message.id, message);
@@ -1086,12 +1157,28 @@ function removeMatchingPending(messages: ChatMessage[], incoming: ChatMessage): 
   return [...messages.slice(0, index), ...messages.slice(index + 1)];
 }
 
+function withPreview(
+  conversations: Conversation[],
+  id: ConversationId,
+  message: ChatMessage
+): Conversation[] {
+  const index = conversations.findIndex((c) => c.id === id);
+  const current = conversations[index];
+  const last = current?.lastMessage;
+  if (!current || (last && last.id !== message.id && message.sentAt < last.sentAt)) {
+    return conversations;
+  }
+  const next = [...conversations];
+  next[index] = { ...current, lastMessage: message };
+  return recency(current) === message.sentAt ? next : sortConversations(next);
+}
+
+function recency(conversation: Conversation): number {
+  return conversation.lastMessage?.sentAt ?? conversation.createdAt;
+}
+
 function sortConversations(conversations: Conversation[]): Conversation[] {
-  return [...conversations].sort((a, b) => {
-    const at = a.lastMessage?.sentAt ?? a.createdAt;
-    const bt = b.lastMessage?.sentAt ?? b.createdAt;
-    return bt - at;
-  });
+  return [...conversations].sort((a, b) => recency(b) - recency(a));
 }
 
 export function selfIdFor(
@@ -1123,6 +1210,23 @@ export function projectAccount(storage: AccountStorage): void {
     accountStorage: storage,
     messageStore: storage.messages,
   });
+}
+
+export function showCachedConversations(cached: Conversation[]): void {
+  if (cached.length === 0) return;
+  useChatStore.setState((state) => {
+    const shown = new Set(state.conversations.map((conversation) => conversation.id));
+    const added = cached.filter((conversation) => !shown.has(conversation.id));
+    return { conversations: sortConversations([...state.conversations, ...added]) };
+  });
+}
+
+export function dropConversations(ids: ConversationId[]): void {
+  if (ids.length === 0) return;
+  const gone = new Set(ids);
+  useChatStore.setState((state) => ({
+    conversations: state.conversations.filter((conversation) => !gone.has(conversation.id)),
+  }));
 }
 
 export function clearChatProjection(status: ConnectionStatus = 'idle'): void {

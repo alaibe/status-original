@@ -37,8 +37,11 @@ export async function notifyMessage(notification: MessageNotification): Promise<
   }
 }
 
+let shownBadge: number | undefined;
+
 export async function setBadgeCount(count: number): Promise<void> {
-  if (process.env.EXPO_OS === 'web') return;
+  if (process.env.EXPO_OS === 'web' || count === shownBadge) return;
+  shownBadge = count;
   try {
     await Notifications.setBadgeCountAsync(count);
   } catch {}

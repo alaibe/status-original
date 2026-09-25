@@ -42,7 +42,7 @@ export const XMTP_PROTOCOL = {
     ],
   },
   usesPluginContentTypes: true,
-  async connect({ accountId, account, contentTypes, config }) {
+  async connect({ accountId, account, contentTypes, config, storage }) {
     const [{ XmtpSession }, { createPluginCodec }, { loadOrCreateDbEncryptionKey }] =
       await Promise.all([
         import('./adapter'),
@@ -56,6 +56,7 @@ export const XMTP_PROTOCOL = {
       dbEncryptionKey: await loadOrCreateDbEncryptionKey(accountId),
       codecs: contentTypes.map(createPluginCodec),
       env,
+      storage,
     });
   },
   async eraseLocalData({ accountId, address, config }) {

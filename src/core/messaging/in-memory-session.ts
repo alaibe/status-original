@@ -90,6 +90,10 @@ export class InMemoryChatSession implements ChatSession {
     for (const listener of this.conversationListeners) listener(conversation);
   }
 
+  async whenListed(first: Conversation[]): Promise<Conversation[]> {
+    return first;
+  }
+
   async listConversations(): Promise<Conversation[]> {
     return [...this.conversations.values()];
   }

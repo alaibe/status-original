@@ -8,7 +8,7 @@
 export interface MxStartParams {
   dataDirectory: string;
   /** Encrypts the SDK's SQLite stores, including the E2EE keys. */
-  storePassphrase: string;
+  storeKey: string;
   homeserverUrl: string;
   userId: string;
   deviceName: string;

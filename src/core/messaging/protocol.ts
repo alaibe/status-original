@@ -108,6 +108,8 @@ export interface ChatSession {
   createPoll?(id: ConversationId, question: string, options: string[]): Promise<void>;
   listPinnedMessages?(id: ConversationId): Promise<ChatMessage[]>;
   setMessagePinned?(id: ConversationId, messageId: MessageId, pinned: boolean): Promise<void>;
+  /** Fetches a message's files that are not on this device yet; the message streams again once they are. */
+  fetchMedia?(id: ConversationId, messageId: MessageId): Promise<void>;
   streamDeletedMessages?(
     listener: (id: ConversationId, messageIds: MessageId[]) => void
   ): Promise<Unsubscribe>;
@@ -130,6 +132,8 @@ export interface ChatSession {
 
   streamMessages(onMessage: (m: ChatMessage) => void): Promise<Unsubscribe>;
   streamConversations(onConversation: (c: Conversation) => void): Promise<Unsubscribe>;
+  /** Every chat, once the session can list them all; `first` is its first listing. */
+  whenListed?(first: Conversation[]): Promise<Conversation[]>;
 
   disconnect(): Promise<void>;
 }

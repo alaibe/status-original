@@ -1,19 +1,26 @@
-import { Pressable as RNPressable, type PressableProps } from 'react-native';
+import {
+  Pressable as RNPressable,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Spring } from '../motion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(RNPressable);
 
-export interface PressScaleProps extends PressableProps {
+export interface PressScaleProps extends Omit<PressableProps, 'style'> {
   pressScale?: number;
   className?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Pressable({
   pressScale = 0.985,
   onPressIn,
   onPressOut,
+  style: extra,
   ...props
 }: PressScaleProps) {
   const scale = useSharedValue(1);
@@ -30,5 +37,12 @@ export function Pressable({
     onPressOut?.(e);
   };
 
-  return <AnimatedPressable style={style} onPressIn={handleIn} onPressOut={handleOut} {...props} />;
+  return (
+    <AnimatedPressable
+      {...props}
+      style={[style, extra]}
+      onPressIn={handleIn}
+      onPressOut={handleOut}
+    />
+  );
 }

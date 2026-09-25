@@ -3,7 +3,8 @@ import type { LocalAccount } from 'viem';
 import { errorMessage } from '../errors';
 import type { DerivedKey, Keyring } from '../identity/keyring';
 import { useChatStore, type ProtocolConnection } from '../messaging/chat-store';
-import { loadProtocolConfig } from '../messaging/config';
+import type { ConversationCache } from '../messaging/conversation-cache';
+import { loadProtocolConfigs } from '../messaging/config';
 import {
   namespacedId,
   namespaceConversation,
@@ -17,7 +18,7 @@ import {
   transportProtocols,
   type ProtocolDescriptor,
 } from '../messaging/registry';
-import type { Unsubscribe } from '../messaging/types';
+import type { Conversation, Unsubscribe } from '../messaging/types';
 import type { AccountStorage } from '@/storage/account';
 
 export type SessionFactory = (params: {
@@ -33,11 +34,15 @@ export interface ProtocolAccount {
   contentTypes(): CustomContentType[];
   createSession?: SessionFactory;
   only?: ProtocolId[];
+  /** Settles once plugins are active. */
+  plugins?: Promise<void>;
+  cache?: ConversationCache;
 }
 
 export class ProtocolRuntime {
   private subscriptions = new Map<ProtocolId, Unsubscribe[]>();
   private sessions = new Map<ProtocolId, ChatSession>();
+  private cache: ConversationCache | undefined;
 
   constructor(private readonly descriptors: readonly ProtocolDescriptor[]) {}
 
@@ -48,6 +53,7 @@ export class ProtocolRuntime {
     only?: ProtocolId[]
   ): Promise<void> {
     if (!active()) return;
+    this.cache = input.cache;
     useChatStore.setState({ status: 'connecting', error: null });
     const selected = input.only ?? (input.createSession ? ['xmtp' as const] : undefined);
     const descriptors = transportProtocols(this.descriptors).filter(
@@ -55,6 +61,7 @@ export class ProtocolRuntime {
         (!selected || selected.includes(descriptor.id)) && (!only || only.includes(descriptor.id))
     );
 
+    const configs = input.createSession ? undefined : loadProtocolConfigs(input.accountId);
     await Promise.all(
       descriptors.map(async (descriptor) => {
         if (!active()) return;
@@ -63,6 +70,8 @@ export class ProtocolRuntime {
         this.subscriptions.set(protocolId, subscriptions);
         this.setProtocol(protocolId, { status: 'connecting', error: null });
         try {
+          if (descriptor.usesPluginContentTypes) await input.plugins;
+          if (!active()) return;
           let session: ChatSession;
           if (input.createSession) {
             session = await input.createSession({
@@ -72,10 +81,11 @@ export class ProtocolRuntime {
               contentTypes: input.contentTypes(),
             });
           } else {
-            const stored = await loadProtocolConfig(input.accountId, protocolId);
+            const stored = (await configs)?.[protocolId] ?? {};
             if (!active()) return;
             const config = effectiveConfig(descriptor, stored);
             if (!isConfigured(descriptor, config)) {
+              this.cache?.forget(protocolId);
               this.setProtocol(protocolId, { status: 'idle', error: null });
               return;
             }
@@ -115,6 +125,7 @@ export class ProtocolRuntime {
             subscriptions.push(
               session.subscribeLogin((login) => {
                 if (!live()) return;
+                if (login) this.cache?.forget(protocolId);
                 this.setProtocol(protocolId, {
                   ...useChatStore.getState().protocols[protocolId],
                   login,
@@ -122,50 +133,49 @@ export class ProtocolRuntime {
               })
             );
           }
-          const stopMessages = await session.streamMessages((message) => {
-            if (live())
-              useChatStore.getState().ingestMessage(namespaceMessage(protocolId, message));
-          });
-          if (!live()) {
-            stopMessages();
-            await session.disconnect().catch(() => {});
-            return;
-          }
-          subscriptions.push(stopMessages);
-
-          if (session.streamDeletedMessages) {
-            const stopDeleted = await session.streamDeletedMessages((id, messageIds) => {
+          const streamed: Conversation[] = [];
+          const streams = await Promise.all([
+            session.streamMessages((message) => {
+              if (live())
+                useChatStore.getState().ingestMessage(namespaceMessage(protocolId, message));
+            }),
+            session.streamDeletedMessages?.((id, messageIds) => {
               if (live())
                 useChatStore.getState().removeMessages(namespacedId(protocolId, id), messageIds);
-            });
-            if (!live()) {
-              stopDeleted();
-              await session.disconnect().catch(() => {});
-              return;
-            }
-            subscriptions.push(stopDeleted);
-          }
-
-          const stopConversations = await session.streamConversations((conversation) => {
-            if (live()) {
-              useChatStore
-                .getState()
-                .ingestConversation(namespaceConversation(protocolId, conversation));
-            }
-          });
+            }),
+            session.streamConversations((conversation) => {
+              if (streamed.length === 0) {
+                queueMicrotask(() => {
+                  const batch = streamed.splice(0);
+                  if (live()) useChatStore.getState().ingestConversations(batch);
+                });
+              }
+              streamed.push(namespaceConversation(protocolId, conversation));
+            }),
+          ]);
           if (!live()) {
-            stopConversations();
+            for (const stop of streams) stop?.();
             await session.disconnect().catch(() => {});
             return;
           }
-          subscriptions.push(stopConversations);
-          const conversations = await session.listConversations();
+          for (const stop of streams) if (stop) subscriptions.push(stop);
+          const first = await session.listConversations();
           if (!live()) return;
-          useChatStore
-            .getState()
-            .ingestConversations(
-              conversations.map((conversation) => namespaceConversation(protocolId, conversation))
-            );
+          const namespaced = (list: Conversation[]) =>
+            list.map((conversation) => namespaceConversation(protocolId, conversation));
+          const conversations = namespaced(first);
+          useChatStore.getState().ingestConversations(conversations);
+          if (session.whenListed && this.cache) {
+            void session
+              .whenListed(first)
+              .then((everything) => {
+                if (!live()) return;
+                const listed = everything === first ? conversations : namespaced(everything);
+                if (listed !== conversations) useChatStore.getState().ingestConversations(listed);
+                this.cache?.listed(protocolId, listed);
+              })
+              .catch(() => {});
+          }
           await useChatStore.getState().syncProtocol(protocolId);
         } catch (error) {
           if (active()) {
@@ -180,6 +190,7 @@ export class ProtocolRuntime {
 
   /** Drops the network projection of `only` (every network by default) but keeps local chats. */
   async stop(only?: ProtocolId[]): Promise<void> {
+    for (const protocol of only ?? this.sessions.keys()) this.cache?.pause(protocol);
     await this.disconnect(only);
     const state = useChatStore.getState();
     const dropped = (protocol: string) => (only ? only.includes(protocol) : protocol !== 'local');
@@ -197,6 +208,7 @@ export class ProtocolRuntime {
       ),
       messages: keep(state.messages, conversationProtocol),
       rawMessages: keep(state.rawMessages, conversationProtocol),
+      messageHistory: keep(state.messageHistory, conversationProtocol),
     });
   }
 

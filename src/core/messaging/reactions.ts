@@ -1,4 +1,8 @@
+import { sameValue } from '@/lib/same-value';
+
 import type { ChatMessage, ParticipantId } from './types';
+
+const folded = new WeakMap<ChatMessage, ChatMessage>();
 
 export function foldReactions(messages: ChatMessage[]): ChatMessage[] {
   const byTarget = new Map<string, Map<string, Set<ParticipantId>>>();
@@ -35,7 +39,13 @@ export function foldReactions(messages: ChatMessage[]): ChatMessage[] {
         if (people.size > 0) reactions[emoji] = [...people];
       }
 
-      if (Object.keys(reactions).length > 0) return { ...message, reactions };
+      if (Object.keys(reactions).length > 0) {
+        const previous = folded.get(message);
+        if (previous && sameValue(previous.reactions, reactions)) return previous;
+        const next = { ...message, reactions };
+        folded.set(message, next);
+        return next;
+      }
       if (!message.reactions) return message;
       const { reactions: _removed, ...rest } = message;
       return rest;

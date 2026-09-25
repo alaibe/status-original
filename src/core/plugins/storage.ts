@@ -5,12 +5,11 @@ const PREFS_KEY = 'plugins.prefs';
 
 export interface PluginPrefs {
   enabled: PluginId[];
-  known: PluginId[];
 }
 
 export async function loadPluginPrefs(storage: AccountStorage): Promise<PluginPrefs | null> {
   const parsed = await storage.get<PluginPrefs>(PREFS_KEY);
-  return Array.isArray(parsed?.enabled) && Array.isArray(parsed.known) ? parsed : null;
+  return Array.isArray(parsed?.enabled) ? parsed : null;
 }
 
 export async function savePluginPrefs(storage: AccountStorage, prefs: PluginPrefs): Promise<void> {
@@ -23,10 +22,5 @@ export function resolveEnabledIds(params: {
   prefs: PluginPrefs | null;
 }): PluginId[] {
   const { all, defaults, prefs } = params;
-  if (!prefs) return defaults.filter((id) => all.includes(id));
-
-  const known = new Set(prefs.known);
-  const introduced = defaults.filter((id) => all.includes(id) && !known.has(id));
-
-  return [...new Set([...prefs.enabled.filter((id) => all.includes(id)), ...introduced])];
+  return (prefs?.enabled ?? defaults).filter((id) => all.includes(id));
 }

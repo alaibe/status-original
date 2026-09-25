@@ -56,11 +56,18 @@ export function useUnreadCounts(conversations: Conversation[]): Conversation[] {
     };
   }, [stale]);
 
-  return conversations.map((c) =>
-    c.unreadCount === undefined &&
-    counted[c.id]?.key === keyOf(c) &&
-    counted[c.id].count !== undefined
-      ? { ...c, unreadCount: counted[c.id].count }
-      : c
-  );
+  return conversations.map((c) => {
+    const count = counted[c.id]?.key === keyOf(c) ? counted[c.id].count : undefined;
+    return c.unreadCount === undefined && count !== undefined ? withCount(c, count) : c;
+  });
+}
+
+const counts = new WeakMap<Conversation, Conversation>();
+
+function withCount(conversation: Conversation, unreadCount: number): Conversation {
+  const cached = counts.get(conversation);
+  if (cached?.unreadCount === unreadCount) return cached;
+  const counted = { ...conversation, unreadCount };
+  counts.set(conversation, counted);
+  return counted;
 }

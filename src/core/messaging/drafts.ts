@@ -1,34 +1,16 @@
 import type { AccountStorage } from '@/storage/account';
+import { deferredWrite } from '@/storage/deferred-write';
 import type { ConversationId, MessageId } from './types';
 
 export type Drafts = Record<ConversationId, string>;
 
 const KEY = 'chat.drafts';
-const SAVE_DELAY_MS = 400;
-
-let pending: {
-  storage: AccountStorage;
-  drafts: Drafts;
-  timer: ReturnType<typeof setTimeout>;
-} | null = null;
 
 export async function loadDrafts(storage: AccountStorage): Promise<Drafts> {
   return (await storage.get<Drafts>(KEY)) ?? {};
 }
 
-export function saveDraftsSoon(storage: AccountStorage, drafts: Drafts): void {
-  if (pending && pending.storage !== storage) flushDrafts();
-  if (pending) clearTimeout(pending.timer);
-  pending = { storage, drafts, timer: setTimeout(flushDrafts, SAVE_DELAY_MS) };
-}
-
-export function flushDrafts(): void {
-  if (!pending) return;
-  const { storage, drafts, timer } = pending;
-  pending = null;
-  clearTimeout(timer);
-  storage.set(KEY, drafts).catch((error) => console.warn('[chat] could not save drafts', error));
-}
+export const { saveSoon: saveDraftsSoon, flush: flushDrafts } = deferredWrite<Drafts>(KEY, 400);
 
 /** A thread keeps its own draft, on this device only. */
 export function draftKey(id: ConversationId, thread?: MessageId): string {

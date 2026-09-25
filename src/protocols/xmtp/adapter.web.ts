@@ -1,6 +1,7 @@
 import {
   Client,
   ConsentState,
+  ContentType,
   DeliveryStatus,
   Dm,
   Group,
@@ -142,12 +143,25 @@ export class XmtpSession implements ChatSession {
     return new XmtpSession(client, byTypeId, opts.account, opts.accountId);
   }
 
+  async whenListed(first: Conversation[]): Promise<Conversation[]> {
+    return first;
+  }
+
   async listConversations(): Promise<Conversation[]> {
-    const raw = await this.client.conversations.list({
-      consentStates: VISIBLE,
-      orderBy: ListConversationsOrderBy.LastActivity,
-    });
-    return Promise.all(raw.map((c) => this.toConversation(c)));
+    const lists = await Promise.all(
+      VISIBLE.map(async (consent) => ({
+        consent,
+        conversations: await this.client.conversations.list({
+          consentStates: [consent],
+          orderBy: ListConversationsOrderBy.LastActivity,
+        }),
+      }))
+    );
+    return Promise.all(
+      lists.flatMap(({ consent, conversations }) =>
+        conversations.map((c) => this.toConversation(c, undefined, consent))
+      )
+    );
   }
 
   async getMessages(id: ConversationId, opts?: { limit?: number }): Promise<ChatMessage[]> {
@@ -167,14 +181,16 @@ export class XmtpSession implements ChatSession {
   async countUnread(id: ConversationId, since: number): Promise<number> {
     const conversation = await this.client.conversations.getConversationById(id);
     if (!conversation) return 0;
-    const messages = await conversation.messages({
-      limit: 1000n,
+    const count = await conversation.countMessages({
       ...(since > 0 ? { sentAfterNs: BigInt(since) * 1_000_000n } : {}),
       excludeSenderInboxIds: [this.self.participantId],
+      excludeContentTypes: [
+        ContentType.Reaction,
+        ContentType.ReadReceipt,
+        ContentType.GroupUpdated,
+      ],
     });
-    return messages.filter(
-      (message) => !isReaction(message) && !isReadReceipt(message) && !isGroupUpdated(message)
-    ).length;
+    return Number(count);
   }
 
   async resolvePeer(addressOrId: string): Promise<ParticipantId | null> {
@@ -443,9 +459,11 @@ export class XmtpSession implements ChatSession {
     });
   }
 
+  /** `consent` is passed when the listing already filtered by it. */
   private async toConversation(
     raw: Group<any> | Dm<any>,
-    current: () => boolean = () => true
+    current: () => boolean = () => true,
+    consent?: ConsentState
   ): Promise<Conversation> {
     const isGroup = raw instanceof Group;
 
@@ -466,8 +484,8 @@ export class XmtpSession implements ChatSession {
       memberIds = [peer, this.self.participantId];
     }
 
-    const [consent, recent] = await Promise.all([
-      raw.consentState(),
+    const [state, recent] = await Promise.all([
+      consent ?? raw.consentState(),
       current() ? raw.messages({ limit: 5n, direction: SortDirection.Descending }) : [],
     ]);
     const last = recent.find((m) => !isReadReceipt(m));
@@ -479,7 +497,7 @@ export class XmtpSession implements ChatSession {
       title,
       memberIds,
       createdAt: raw.createdAt?.getTime() ?? Date.now(),
-      consent: mapConsent(consent),
+      consent: mapConsent(state),
       selfRole,
       lastMessage,
     };

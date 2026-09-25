@@ -32,3 +32,12 @@ export function peersOf(
 
   return [...byPeer.values()];
 }
+
+export function peerKey({ protocol, id, conversationId }: Peer): string {
+  return JSON.stringify([protocol ?? null, id, conversationId]);
+}
+
+export function fromPeerKey(key: string): Peer {
+  const [protocol, id, conversationId] = JSON.parse(key) as [string | null, string, string];
+  return { id, protocol: protocol ?? undefined, conversationId };
+}

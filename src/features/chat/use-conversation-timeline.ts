@@ -1,6 +1,7 @@
 import { useObserve } from 'expo-observe';
 import { type FlashListRef } from '@shopify/flash-list';
 import { useEffect, useMemo, useRef } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import { toast } from '@/design';
 import { useChatStore } from '@/core/messaging/chat-store';
@@ -10,6 +11,8 @@ import { MARKED_UNREAD } from '@/core/messaging/unread';
 import { useJumpStore } from './jump-store';
 
 const NO_MESSAGES: ChatMessage[] = [];
+
+const FOLLOW_SLACK_PX = 80;
 
 export function useConversationTimeline(
   id: ConversationId,
@@ -25,7 +28,8 @@ export function useConversationTimeline(
   const loadOlderMessages = useChatStore((s) => s.loadOlderMessages);
   const watchPresence = useChatStore((s) => s.watchPresence);
   const markRead = useChatStore((s) => s.markRead);
-  const marked = useChatStore((s) => s.readAt[id] === MARKED_UNREAD);
+  const readUpTo = useChatStore((s) => s.readAt[id] ?? 0);
+  const marked = readUpTo === MARKED_UNREAD;
 
   const messages = useMemo(() => {
     if (!thread) return allMessages.filter((message) => !message.threadRoot);
@@ -52,7 +56,7 @@ export function useConversationTimeline(
 
   useEffect(() => {
     if (id && accountId && !thread) loadMessages(id);
-  }, [id, thread, accountId, loadMessages]);
+  }, [id, thread, accountId, session, loadMessages]);
 
   useEffect(
     () => (session && !thread ? watchPresence(id) : undefined),
@@ -61,21 +65,36 @@ export function useConversationTimeline(
 
   const newest = allMessages[allMessages.length - 1];
   const newestFromPeer = newest && !newest.fromMe ? newest.id : null;
+  const unseen =
+    marked ||
+    (newest !== undefined && !newest.fromMe && newest.sentAt > readUpTo) ||
+    (conversation?.unreadCount ?? 0) > 0;
   useEffect(() => {
-    if (id && !thread && (newestFromPeer || marked)) markRead(id);
-  }, [id, thread, markRead, newestFromPeer, marked]);
+    if (id && !thread && unseen) markRead(id);
+  }, [id, thread, markRead, unseen, newestFromPeer]);
 
   const list = useRef<FlashListRef<ChatMessage>>(null);
   const following = useRef(true);
+  const lastOffset = useRef(0);
   const followNewest = () => {
     following.current = true;
     list.current?.scrollToEnd({ animated: true });
   };
-  const pauseFollowing = () => {
-    following.current = false;
+  // A wheel or trackpad never begins a drag, so the scroll direction decides whether to follow.
+  const trackScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    if (contentSize.height - contentOffset.y - layoutMeasurement.height < FOLLOW_SLACK_PX)
+      following.current = true;
+    else if (contentOffset.y < lastOffset.current) following.current = false;
+    lastOffset.current = contentOffset.y;
   };
   const followIfNeeded = () => {
     if (following.current) list.current?.scrollToEnd({ animated: false });
+  };
+  const loadEarlier = () => {
+    if (thread || !messageHistory?.hasOlder || messageHistory.loading || messageHistory.error)
+      return;
+    void loadOlderMessages(id);
   };
 
   const jump = useJumpStore((s) => (!thread && s.target?.conversationId === id ? s.target : null));
@@ -121,8 +140,9 @@ export function useConversationTimeline(
     loadOlderMessages,
     list,
     followNewest,
-    pauseFollowing,
+    trackScroll,
     followIfNeeded,
+    loadEarlier,
     highlighted,
   };
 }

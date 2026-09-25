@@ -20,10 +20,11 @@ export async function readMnemonic(
   accountId: string,
   expectExisting: boolean
 ): Promise<ProtectedRead> {
-  if (!(await isKeyProtectionEnabled())) {
-    const value = await vaultGet(accountMnemonicKey(accountId));
-    return value === null ? { status: 'absent' } : { status: 'ok', value };
-  }
+  const [sealed, value] = await Promise.all([
+    isKeyProtectionEnabled(),
+    vaultGet(accountMnemonicKey(accountId)),
+  ]);
+  if (!sealed) return value === null ? { status: 'absent' } : { status: 'ok', value };
   return vaultGetProtected(accountMnemonicKey(accountId), PROMPT, expectExisting);
 }
 

@@ -114,14 +114,10 @@ export function vaultDelete(key: VaultKeyName): Promise<void> {
   return store.remove(key);
 }
 
-/** A random secret under `name`, created on first use; `valid` rejects a stored value that no longer fits. */
-async function accountSecret(
-  name: AccountScopedKey,
-  fresh: () => string,
-  valid: (value: string) => boolean = () => true
-): Promise<string> {
+/** A random secret under `name`, created on first use. */
+async function accountSecret(name: AccountScopedKey, fresh: () => string): Promise<string> {
   const existing = await vaultGet(name);
-  if (existing && valid(existing)) return existing;
+  if (existing) return existing;
 
   const value = fresh();
   await vaultSet(name, value);
@@ -131,9 +127,7 @@ async function accountSecret(
 const randomHex = () => toHex(Crypto.getRandomBytes(32));
 
 export function accountDatabaseKey(accountId: string): Promise<string> {
-  return accountSecret(accountAppDbKeyName(accountId), randomHex, (value) =>
-    /^[0-9a-f]{64}$/.test(value)
-  );
+  return accountSecret(accountAppDbKeyName(accountId), randomHex);
 }
 
 /** Base64, which is how TDLib's JSON interface takes bytes. */
@@ -143,7 +137,7 @@ export function accountTdlibDatabaseKey(accountId: string): Promise<string> {
   );
 }
 
-export function accountMatrixStorePassphrase(accountId: string): Promise<string> {
+export function accountMatrixStoreKey(accountId: string): Promise<string> {
   return accountSecret(accountMatrixStoreKeyName(accountId), randomHex);
 }
 

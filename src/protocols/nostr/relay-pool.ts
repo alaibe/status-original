@@ -27,6 +27,8 @@ export interface Subscription {
 
 export interface RelayPoolOptions {
   urls: string[];
+  /** Events handled on an earlier run. */
+  handled?: Iterable<string>;
   authenticate?(url: string, challenge: string): NostrEvent;
   onStatusChange?(states: RelayState[]): void;
   createSocket?(url: string): WebSocketLike;
@@ -84,6 +86,7 @@ export class RelayPool {
       options.createSocket ?? ((url) => new WebSocket(url) as unknown as WebSocketLike);
     this.onStatusChange = options.onStatusChange;
     this.authenticate = options.authenticate;
+    for (const id of options.handled ?? []) this.seen.add(id);
 
     for (const url of dedupeUrls(options.urls)) this.addRelay(url);
   }

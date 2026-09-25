@@ -45,7 +45,6 @@ class RnMatrixClient implements MatrixApi {
   private roomEntries: sdk.RoomListEntriesWithDynamicAdaptersResultLike | null = null;
   private delegateHandle: sdk.TaskHandleLike | null | undefined;
   private readonly listeners = new Set<(update: MxUpdate) => void>();
-  private readonly latestSeen = new Map<string, number>();
   private readonly live = new Map<string, LiveTimeline>();
   private readonly mapped = new WeakMap<sdk.TimelineItemLike, MxEvent | null>();
   private entries: sdk.RoomLike[] = [];
@@ -58,7 +57,7 @@ class RnMatrixClient implements MatrixApi {
     const store = new sdk.SqliteStoreBuilder(
       `${params.dataDirectory}/store`,
       `${params.dataDirectory}/cache`
-    ).passphrase(params.storePassphrase);
+    ).key(new TextEncoder().encode(params.storeKey).buffer);
     this.client = await new sdk.ClientBuilder()
       .sqliteStore(store)
       .homeserverUrl(params.homeserverUrl)
@@ -160,30 +159,7 @@ class RnMatrixClient implements MatrixApi {
 
   private async announce(room: sdk.RoomLike): Promise<void> {
     const mapped = await this.toMxRoom(room);
-    if (!mapped) return;
-    this.emit({ type: 'room', room: mapped });
-
-    const stamp = mapped.latest?.timestamp;
-    if (stamp === undefined || mapped.membership !== 'joined') return;
-    const seen = this.latestSeen.get(mapped.id);
-    if (seen !== undefined && seen >= stamp) return;
-    this.latestSeen.set(mapped.id, stamp);
-    // A live timeline already reported it; otherwise read the newest item once.
-    if (seen === undefined || this.live.has(mapped.id)) return;
-    const event = await this.newestEvent(room).catch(() => null);
-    if (event) this.emit({ type: 'event', event });
-  }
-
-  /** The bindings' latest-event value has no id, so the newest timeline item stands in. */
-  private async newestEvent(room: sdk.RoomLike): Promise<MxEvent | null> {
-    const timeline = await room.timelineWithConfiguration(timelineConfiguration());
-    try {
-      const id = await timeline.latestEventId();
-      if (!id) return null;
-      return this.toMxEventItem(room.id(), await timeline.getEventTimelineItemByEventId(id));
-    } finally {
-      if (timeline instanceof sdk.Timeline) timeline.uniffiDestroy();
-    }
+    if (mapped) this.emit({ type: 'room', room: mapped });
   }
 
   // ---- rooms ----
@@ -288,9 +264,7 @@ class RnMatrixClient implements MatrixApi {
 
   private emitItem(roomId: string, item: sdk.TimelineItemLike): void {
     const event = this.toMxEvent(roomId, item);
-    if (!event) return;
-    this.latestSeen.set(roomId, event.timestamp);
-    this.emit({ type: 'event', event });
+    if (event) this.emit({ type: 'event', event });
   }
 
   async messages(roomId: string, opts: { limit: number; before?: string }): Promise<MxEvent[]> {

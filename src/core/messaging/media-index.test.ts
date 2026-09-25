@@ -7,8 +7,9 @@ import {
   entriesOf,
   extractLinks,
   indexMessages,
+  flushMediaIndex,
   loadMediaIndex,
-  saveMediaIndex,
+  saveMediaIndexSoon,
 } from './media-index';
 import type { ChatMessage, MessageContent } from './types';
 
@@ -140,7 +141,8 @@ describe('persistence', () => {
   it('round-trips and is scoped per account', async () => {
     const a = createAccountStorage('acct-a');
     const b = createAccountStorage('acct-b');
-    await saveMediaIndex(a, { c1: [{ messageId: 'm1', category: 'media', sentAt: 1, uri: 'a' }] });
+    saveMediaIndexSoon(a, { c1: [{ messageId: 'm1', category: 'media', sentAt: 1, uri: 'a' }] });
+    await flushMediaIndex();
     expect((await loadMediaIndex(a)).c1).toHaveLength(1);
 
     expect(await loadMediaIndex(b)).toEqual({});

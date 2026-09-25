@@ -1,8 +1,8 @@
 import { isAddress, type Address } from 'viem';
 import { mainnet } from 'viem/chains';
-import { normalize } from 'viem/ens';
 
 import { publicClientFor } from './chains';
+import { viemEns } from './viem-ens';
 
 function ensClient() {
   return publicClientFor(mainnet.id);
@@ -17,6 +17,14 @@ const forwardCache = new Map<string, Address | null>();
 const reverseCache = new Map<string, string | null>();
 const coinCache = new Map<string, string | null>();
 
+function normalizedName(value: string): string | null {
+  try {
+    return viemEns().normalize(value);
+  } catch {
+    return null;
+  }
+}
+
 export function looksLikeEnsName(value: string): boolean {
   return /\.[a-z]{2,}$/i.test(value.trim());
 }
@@ -26,12 +34,8 @@ export async function resolveName(input: string): Promise<Address | null> {
   if (isAddress(value)) return value as Address;
   if (!looksLikeEnsName(value)) return null;
 
-  let name: string;
-  try {
-    name = normalize(value);
-  } catch {
-    return null;
-  }
+  const name = normalizedName(value);
+  if (!name) return null;
 
   const key = value.toLowerCase();
   if (forwardCache.has(key)) return forwardCache.get(key) ?? null;
@@ -45,12 +49,8 @@ export async function resolveNameForCoin(input: string, coinType: bigint): Promi
   const value = input.trim();
   if (!looksLikeEnsName(value)) return null;
 
-  let name: string;
-  try {
-    name = normalize(value);
-  } catch {
-    return null;
-  }
+  const name = normalizedName(value);
+  if (!name) return null;
 
   const key = `${value.toLowerCase()}:${coinType}`;
   if (coinCache.has(key)) return coinCache.get(key) ?? null;

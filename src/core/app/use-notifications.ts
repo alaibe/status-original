@@ -5,6 +5,7 @@ import { openChat } from '@/features/navigation/open';
 import { isLocalConversation } from '../messaging/bots';
 import { useChatStore, type ChatState } from '../messaging/chat-store';
 import { contentPreview } from '../messaging/preview';
+import type { ChatMessage, Conversation } from '../messaging/types';
 import { totalUnread } from '../messaging/unread';
 import {
   configureNotifications,
@@ -19,6 +20,7 @@ export function useMessageNotifications() {
   }, []);
 
   useEffect(() => {
+    const since = Date.now();
     const badge = (state: ChatState) =>
       setBadgeCount(totalUnread(state.conversations, state.readAt, state.chatPrefs));
     badge(useChatStore.getState());
@@ -32,23 +34,22 @@ export function useMessageNotifications() {
       }
       if (state.conversations === previous.conversations) return;
 
-      const seen = new Map(previous.conversations.map((c) => [c.id, c.lastMessage]));
-      const conversation = state.conversations.find(
-        (c) => c.lastMessage && c.lastMessage !== seen.get(c.id)
-      );
-      if (!conversation?.lastMessage) return;
+      for (const { conversation, message } of arrivals(
+        previous.conversations,
+        state.conversations,
+        since
+      )) {
+        if (message.fromMe) continue;
+        if (message.content.kind === 'system') continue;
+        if (state.chatPrefs[conversation.id]?.muted) continue;
+        if (isLocalConversation(conversation.id) && !wasProactive(message.id)) continue;
 
-      const message = conversation.lastMessage;
-      if (message.fromMe) return;
-      if (message.content.kind === 'system') return;
-      if (state.chatPrefs[conversation.id]?.muted) return;
-      if (isLocalConversation(conversation.id) && !wasProactive(message.id)) return;
-
-      notifyMessage({
-        conversationId: conversation.id,
-        title: conversation.title,
-        body: contentPreview(message.content),
-      });
+        notifyMessage({
+          conversationId: conversation.id,
+          title: conversation.title,
+          body: contentPreview(message.content),
+        });
+      }
     });
 
     return unsubscribe;
@@ -59,4 +60,19 @@ export function useMessageNotifications() {
       openChat(conversationId);
     });
   }, []);
+}
+
+export function arrivals(
+  previous: Conversation[],
+  current: Conversation[],
+  since: number
+): { conversation: Conversation; message: ChatMessage }[] {
+  const before = new Map(previous.map((c) => [c.id, c.lastMessage]));
+  return current.flatMap((conversation) => {
+    const message = conversation.lastMessage;
+    const replaced = before.get(conversation.id);
+    if (!message || message.id === replaced?.id) return [];
+    if (message.sentAt <= Math.max(since, replaced?.sentAt ?? 0)) return [];
+    return [{ conversation, message }];
+  });
 }

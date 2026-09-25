@@ -32,7 +32,18 @@ describe('react', () => {
     await connectFake(session);
     await useChatStore.getState().loadMessages(ns(conversation.id));
 
-    await useChatStore.getState().react(ns(conversation.id), messageId, '❤️');
+    let deliver!: () => void;
+    const send = session.send.bind(session);
+    jest
+      .spyOn(session, 'send')
+      .mockImplementationOnce(
+        (...args) => new Promise((resolve) => (deliver = () => resolve(send(...args))))
+      );
+
+    const reacting = useChatStore.getState().react(ns(conversation.id), messageId, '❤️');
+    expect(reactionsOn(ns(conversation.id), messageId)).toEqual(['❤️']);
+    deliver();
+    await reacting;
 
     expect(reactionsOn(ns(conversation.id), messageId)).toEqual(['❤️']);
   });

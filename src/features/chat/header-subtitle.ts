@@ -12,6 +12,6 @@ export function headerSubtitle(conversation: Conversation | undefined): string {
   const network = protocolSubtitle(conversation?.protocol);
   if (conversation?.kind === 'channel') return `Channel · ${network}`;
   if (conversation?.kind === 'group')
-    return `${conversation.memberIds.length} members · ${network}`;
+    return `${conversation.memberCount ?? conversation.memberIds.length} members · ${network}`;
   return network;
 }

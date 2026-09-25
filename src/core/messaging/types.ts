@@ -105,6 +105,8 @@ export interface Conversation {
   title: string;
   avatarUri?: string;
   memberIds: ParticipantId[];
+  /** How many members the network reports, where memberIds may not list them all. */
+  memberCount?: number;
   createdAt: number;
   lastMessage?: ChatMessage;
   unreadCount?: number;

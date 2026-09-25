@@ -130,7 +130,7 @@ export const chatHandlers = {
     const info = chat.kind === 'dm' ? {} : await store.getGroupInfo(chat.id).catch(() => ({}));
     const data = {
       ...chatJson(chat, { title: chat.label, peer: chat.peer, address: chat.address }),
-      members: chat.memberIds.length,
+      members: chat.memberCount ?? chat.memberIds.length,
       role: chat.selfRole,
       online: chat.online,
       lastSeenAt: chat.lastSeenAt ? new Date(chat.lastSeenAt).toISOString() : undefined,

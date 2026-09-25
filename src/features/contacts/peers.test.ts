@@ -1,6 +1,6 @@
 import type { Conversation } from '@/core/messaging/types';
 
-import { peersOf } from './peers';
+import { fromPeerKey, peerKey, peersOf } from './peers';
 
 /**
  * Pinned after React complained: the same peer appeared once per DM held with
@@ -86,5 +86,14 @@ describe('the people behind a list of conversations', () => {
     const keys = peers.map((p) => `${p.protocol}-${p.id}`);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).toEqual(['nostr-a', 'nostr-b', 'xmtp-a']);
+  });
+});
+
+describe('peerKey', () => {
+  it('round-trips a peer, with or without a protocol', () => {
+    const withProtocol = { id: 'bob', protocol: 'xmtp', conversationId: 'xmtp-1' };
+    const without = { id: 'bob', protocol: undefined, conversationId: 'c1' };
+    expect(fromPeerKey(peerKey(withProtocol))).toEqual(withProtocol);
+    expect(fromPeerKey(peerKey(without))).toEqual(without);
   });
 });

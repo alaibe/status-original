@@ -16,7 +16,7 @@ pub(super) async fn build_session(
         // databases, which alone exhausts macOS's 256 open files on a large Mac.
         .sqlite_store_with_config_and_cache_path(
             SqliteStoreConfig::new(data_directory.join("store"))
-                .passphrase(Some(&params.store_passphrase))
+                .key(Some(params.store_key.as_bytes()))
                 .pool_max_size(4),
             None::<PathBuf>,
         )

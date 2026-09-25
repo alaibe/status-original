@@ -11,10 +11,10 @@ const driver: TdDriver = {
   },
   async receive() {
     try {
-      return await TdLib.td_json_client_receive();
+      return [JSON.parse(await TdLib.td_json_client_receive())];
     } catch (error) {
       // The native call rejects on its own timeout when TDLib is idle.
-      if (isNativeCode(error, 'RECEIVE_ERROR')) return null;
+      if (isNativeCode(error, 'RECEIVE_ERROR')) return [];
       throw error;
     }
   },

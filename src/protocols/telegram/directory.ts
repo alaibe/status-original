@@ -22,7 +22,7 @@ export class TdDirectory {
   readonly users = new Map<number, TdUser>();
   readonly basicGroups = new Map<number, TdBasicGroup>();
   readonly supergroups = new Map<number, TdSupergroup>();
-  readonly members = new Map<number, Promise<GroupMember[]>>();
+  readonly members = new Map<number, { pending: Promise<GroupMember[]>; known?: GroupMember[] }>();
 
   constructor(
     private readonly api: () => TdApi,
@@ -106,14 +106,31 @@ export class TdDirectory {
   }
 
   membersOf(chat: TdChat): Promise<GroupMember[]> {
-    let pending = this.members.get(chat.id);
-    if (!pending) {
-      pending = this.fetchMembers(chat).catch(() => [
-        { id: this.selfId(), role: 'member' as const },
-      ]);
-      this.members.set(chat.id, pending);
-    }
-    return pending;
+    const cached = this.members.get(chat.id);
+    if (cached) return cached.pending;
+    const entry: { pending: Promise<GroupMember[]>; known?: GroupMember[] } = {
+      pending: this.fetchMembers(chat)
+        .catch(() => [{ id: this.selfId(), role: 'member' as const }])
+        .then((members) => {
+          entry.known = members;
+          return members;
+        }),
+    };
+    this.members.set(chat.id, entry);
+    return entry.pending;
+  }
+
+  knownMembers(chat: TdChat): GroupMember[] | undefined {
+    return this.members.get(chat.id)?.known;
+  }
+
+  memberCount(chat: TdChat): number | undefined {
+    const type = chat.type;
+    return type['@type'] === 'chatTypeBasicGroup'
+      ? this.basicGroups.get(type.basic_group_id)?.member_count
+      : type['@type'] === 'chatTypeSupergroup'
+        ? this.supergroups.get(type.supergroup_id)?.member_count
+        : undefined;
   }
 
   private async fetchMembers(chat: TdChat): Promise<GroupMember[]> {

@@ -50,6 +50,7 @@ export const NOSTR_PROTOCOL = {
       derive,
       relays: configLines(config.relays),
       store: storage.messages,
+      storage,
     });
   },
 } satisfies ProtocolDescriptor;

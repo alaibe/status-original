@@ -2,7 +2,7 @@ import type { AccountDatabase } from './account-database';
 import { deleteDatabase, openDatabase } from './sqlite-engine';
 import { accountDatabaseKey } from './vault';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 1;
 
 const databases = new Map<string, Promise<AccountDatabase>>();
 const operations = new Map<
@@ -53,11 +53,11 @@ export function openAccountDatabase(accountId: string): Promise<AccountDatabase>
     const db = await openDatabase(databaseNameFor(accountId));
     try {
       const key = await accountDatabaseKey(accountId);
-      await db.execAsync(`PRAGMA key = '${key.replace(/'/g, "''")}'`);
+      await db.execAsync(`PRAGMA key = "x'${key}'"; PRAGMA synchronous = NORMAL;`);
       const cipher = await db.getFirstAsync<{ cipher_version: string }>('PRAGMA cipher_version');
       if (!cipher?.cipher_version) throw new Error('SQLCipher is unavailable in this app build.');
 
-      await migrate(db);
+      await createSchema(db);
       return db;
     } catch (error) {
       await db.closeAsync().catch(() => {});
@@ -72,58 +72,56 @@ export function openAccountDatabase(accountId: string): Promise<AccountDatabase>
   return opening;
 }
 
-async function migrate(db: AccountDatabase): Promise<void> {
+async function createSchema(db: AccountDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  const current = row?.user_version ?? 0;
-  if (current >= SCHEMA_VERSION) return;
+  if ((row?.user_version ?? 0) >= SCHEMA_VERSION) return;
 
-  if (current < 1) {
-    await db.execAsync(`
-      PRAGMA journal_mode = WAL;
+  await db.execAsync(`
+    PRAGMA journal_mode = WAL;
 
-      CREATE TABLE IF NOT EXISTS conversations (
-        id           TEXT PRIMARY KEY NOT NULL,
-        protocol_id  TEXT NOT NULL,
-        participants TEXT NOT NULL,
-        title        TEXT,
-        created_at   INTEGER NOT NULL,
-        hidden       INTEGER NOT NULL DEFAULT 0,
-        routing_key  TEXT
-      );
+    CREATE TABLE IF NOT EXISTS conversations (
+      id           TEXT PRIMARY KEY NOT NULL,
+      protocol_id  TEXT NOT NULL,
+      participants TEXT NOT NULL,
+      title        TEXT,
+      created_at   INTEGER NOT NULL,
+      hidden       INTEGER NOT NULL DEFAULT 0,
+      routing_key  TEXT
+    );
 
-      CREATE INDEX IF NOT EXISTS conversations_by_protocol
-        ON conversations (protocol_id);
+    CREATE INDEX IF NOT EXISTS conversations_by_protocol
+      ON conversations (protocol_id);
 
-      CREATE TABLE IF NOT EXISTS messages (
-        id              TEXT NOT NULL,
-        conversation_id TEXT NOT NULL,
-        sender_id       TEXT NOT NULL,
-        sent_at         INTEGER NOT NULL,
-        from_me         INTEGER NOT NULL DEFAULT 0,
-        status          TEXT NOT NULL DEFAULT 'sent',
-        content         TEXT NOT NULL,
-        reply_to        TEXT,
-        PRIMARY KEY (conversation_id, id)
-      );
+    CREATE TABLE IF NOT EXISTS messages (
+      id              TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      sender_id       TEXT NOT NULL,
+      sent_at         INTEGER NOT NULL,
+      from_me         INTEGER NOT NULL DEFAULT 0,
+      status          TEXT NOT NULL DEFAULT 'sent',
+      content         TEXT NOT NULL,
+      reply_to        TEXT,
+      PRIMARY KEY (conversation_id, id)
+    );
 
-      -- Every read is "the newest N in this conversation, oldest first".
-      CREATE INDEX IF NOT EXISTS messages_by_conversation
-        ON messages (conversation_id, sent_at);
-    `);
-  }
+    -- Every read is "the newest N in this conversation, oldest first".
+    CREATE INDEX IF NOT EXISTS messages_by_conversation
+      ON messages (conversation_id, sent_at);
 
-  if (current < 2) {
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS transport_cursors (
-        protocol_id    TEXT NOT NULL,
-        conversation_id TEXT NOT NULL,
-        timestamp      INTEGER NOT NULL,
-        PRIMARY KEY (protocol_id, conversation_id)
-      );
-    `);
-  }
+    CREATE TABLE IF NOT EXISTS transport_cursors (
+      protocol_id     TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      timestamp       INTEGER NOT NULL,
+      PRIMARY KEY (protocol_id, conversation_id)
+    );
 
-  await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    CREATE TABLE IF NOT EXISTS conversation_cache (
+      id   TEXT PRIMARY KEY NOT NULL,
+      data TEXT NOT NULL
+    );
+
+    PRAGMA user_version = ${SCHEMA_VERSION};
+  `);
 }
 
 export async function deleteAccountDatabase(accountId: string): Promise<void> {

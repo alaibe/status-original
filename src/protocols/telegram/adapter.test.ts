@@ -503,11 +503,15 @@ describe('TelegramSession conversations', () => {
       ['200', 'dm', 'Bob Builder'],
     ]);
     expect(conversations[0]).toMatchObject({
-      memberIds: ['100', '200'],
+      memberIds: ['100'],
+      memberCount: 2,
       selfRole: 'owner',
       canSend: true,
       consent: 'allowed',
     });
+    expect(td().requests('getBasicGroupFullInfo')).toEqual([]);
+    expect((await session.getMembers('-5')).map((m) => m.id)).toEqual(['100', '200']);
+    expect((await session.listConversations())[0].memberIds).toEqual(['100', '200']);
     expect(conversations[1]).toMatchObject({ memberIds: ['100'], canSend: false });
     expect(conversations[2]).toMatchObject({
       memberIds: ['200', '100'],
@@ -566,6 +570,23 @@ describe('TelegramSession conversations', () => {
     });
     await flush();
     expect(seen.at(-1)?.canSend).toBe(true);
+  });
+
+  it('announces a chat once for all the updates that touched it in one batch', async () => {
+    const { session, td } = await signedIn();
+    const seen: Conversation[] = [];
+    await session.streamConversations((c) => seen.push(c));
+
+    td().emit({ '@type': 'updateNewChat', chat: privateChat(200, 'Bob') });
+    td().emit({ '@type': 'updateChatTitle', chat_id: 200, title: 'Robert' });
+    td().emit({
+      '@type': 'updateUserStatus',
+      user_id: 200,
+      status: { '@type': 'userStatusOnline' },
+    });
+    await flush();
+
+    expect(seen.map((c) => [c.title, c.online])).toEqual([['Robert', true]]);
   });
 
   it('streams a chat when it lands in the main list, and again when its title changes', async () => {
@@ -1110,24 +1131,26 @@ describe('TelegramSession messages', () => {
     expect(conversations.at(-1)?.avatarUri).toContain('/files/carol.jpg');
   });
 
-  it('shows a placeholder for a photo until TDLib has it, then the image', async () => {
-    const { td, received } = await inChatWithBob();
+  it('shows a placeholder for a photo, downloads it when it is shown, then the image', async () => {
+    const { session, td, received } = await inChatWithBob();
     td().answer('downloadFile', {
       '@type': 'file',
       id: 77,
       size: 1,
       local: { path: '', is_downloading_completed: false, is_downloading_active: true },
     });
-    td().emit({
-      '@type': 'updateNewMessage',
-      message: photoMessage(200, 15, 200, { id: 77, path: '', downloaded: false }, 'sunset'),
-    });
+    const pending = photoMessage(200, 15, 200, { id: 77, path: '', downloaded: false }, 'sunset');
+    td().emit({ '@type': 'updateNewMessage', message: pending });
     await flush();
     expect(received[0].content).toEqual({
       kind: 'unsupported',
       typeId: 'photo',
       fallback: '📷 Photo · sunset',
     });
+    expect(td().requests('downloadFile')).toEqual([]);
+
+    td().answer('getMessage', pending);
+    await session.fetchMedia('200', received[0].id);
     expect(td().requests('downloadFile')[0]).toMatchObject({ file_id: 77 });
 
     td().answer(

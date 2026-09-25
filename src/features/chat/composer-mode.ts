@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useChatStore } from '@/core/messaging/chat-store';
 import { draftKey } from '@/core/messaging/drafts';
@@ -86,11 +86,9 @@ export function useComposerMode(id: ConversationId, onSend?: () => void, thread?
   const key = draftKey(id, thread);
   const [state, setState] = useState({ key, mode: COMPOSE });
   const mode = state.key === key ? state.mode : COMPOSE;
-  return new ComposerModeController(
-    id,
-    mode,
-    (next) => setState({ key, mode: next }),
-    onSend,
-    thread
+  return useMemo(
+    () =>
+      new ComposerModeController(id, mode, (next) => setState({ key, mode: next }), onSend, thread),
+    [id, mode, key, onSend, thread]
   );
 }

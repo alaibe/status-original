@@ -17,7 +17,7 @@ pub struct MxSession {
 #[serde(rename_all = "camelCase")]
 pub struct StartParams {
     pub(super) data_directory: String,
-    pub(super) store_passphrase: String,
+    pub(super) store_key: String,
     pub(super) homeserver_url: String,
     pub(super) user_id: String,
     pub(super) device_name: String,

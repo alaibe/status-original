@@ -50,6 +50,8 @@ import { BridgeProvisioning, type MatrixCapabilities } from './provisioning';
 
 export const MATRIX_PROTOCOL_ID = 'matrix';
 
+const UNFETCHED_LIMIT = 2_000;
+
 export interface MatrixConnectOptions {
   createApi(): Promise<MatrixApi>;
   parameters: MxStartParams;
@@ -82,6 +84,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   private readonly networks = new Map<string, string>();
   private readonly mediaPaths = new Map<string, string>();
   private readonly awaitedMedia = new Map<string, MxEvent>();
+  private readonly unfetched = new Map<MessageId, { raw: MxEvent; media: MxMedia }>();
   private readonly avatars = new Map<string, string | null>();
   private readonly presence = new PresenceWatcher(
     () => this.homeserver(),
@@ -250,7 +253,7 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     if (this.messageListeners.size === 0) return;
     const room = this.rooms.get(raw.roomId);
     if (room && !included(room)) return;
-    const message = this.toMessage(raw, true);
+    const message = this.toMessage(raw, false);
     for (const listener of this.messageListeners) listener(message);
   }
 
@@ -273,7 +276,14 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     });
     const room = this.rooms.get(roomId);
     if (room && !room.isDm) void this.membersOf(roomId);
-    return events.map((event) => this.toMessage(event, true));
+    return events.map((event) => this.toMessage(event, false));
+  }
+
+  async fetchMedia(_id: ConversationId, messageId: MessageId): Promise<void> {
+    const unfetched = this.unfetched.get(messageId);
+    if (!unfetched) return;
+    this.unfetched.delete(messageId);
+    this.download(unfetched.raw, unfetched.media);
   }
 
   async resolvePeer(addressOrId: string): Promise<ParticipantId | null> {
@@ -706,27 +716,31 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
     };
   }
 
-  /**
-   * Media is downloaded on request. A file that is not local yet renders as
-   * a placeholder, and the message is re-emitted once it is.
-   */
   private mediaUri(raw: MxEvent, media: MxMedia, fetchMedia: boolean): string | null {
     const path = this.mediaPaths.get(media.source);
     if (path) return localFileUri(path);
-    if (!fetchMedia) return null;
-    if (!this.awaitedMedia.has(media.source)) {
-      this.awaitedMedia.set(media.source, raw);
-      this.api
-        .media(media)
-        .then((downloaded) => {
-          this.mediaPaths.set(media.source, downloaded);
-          const event = this.awaitedMedia.get(media.source);
-          this.awaitedMedia.delete(media.source);
-          if (event) return this.emitMessage(event);
-        })
-        .catch(() => this.awaitedMedia.delete(media.source));
+    if (fetchMedia) {
+      this.download(raw, media);
+    } else {
+      if (this.unfetched.size >= UNFETCHED_LIMIT)
+        this.unfetched.delete(this.unfetched.keys().next().value!);
+      this.unfetched.set(raw.id, { raw, media });
     }
     return null;
+  }
+
+  private download(raw: MxEvent, media: MxMedia): void {
+    if (this.awaitedMedia.has(media.source)) return;
+    this.awaitedMedia.set(media.source, raw);
+    this.api
+      .media(media)
+      .then((downloaded) => {
+        this.mediaPaths.set(media.source, downloaded);
+        const event = this.awaitedMedia.get(media.source);
+        this.awaitedMedia.delete(media.source);
+        if (event) return this.emitMessage(event);
+      })
+      .catch(() => this.awaitedMedia.delete(media.source));
   }
 
   private nameOf(userId: string): string {

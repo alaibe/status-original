@@ -58,7 +58,7 @@ describe('MatrixSession sign-in', () => {
     const { api, chat } = await connect();
     expect(api.startParams).toMatchObject({
       dataDirectory: '/tmp/matrix',
-      storePassphrase: 'pass',
+      storeKey: 'pass',
       session: SESSION,
     });
     expect(chat.self).toEqual({ participantId: ME, address: ME });
@@ -881,6 +881,10 @@ describe('MatrixSession messages', () => {
     const [first] = await chat.getMessages(DM_ID);
     expect(first.content).toEqual({ kind: 'unsupported', typeId: 'image', fallback: '📷 Photo' });
     await flush();
+    expect(api.named('media')).toHaveLength(0);
+
+    await chat.fetchMedia(DM_ID, first.id);
+    await flush();
     expect(api.named('media')).toHaveLength(1);
     expect(streamed).toHaveLength(1);
     expect(streamed[0].content).toMatchObject({
@@ -914,6 +918,7 @@ describe('MatrixSession messages', () => {
     });
     const first = await chat.getMessages(DM_ID);
     expect(first[0].content).toMatchObject({ kind: 'unsupported', typeId: 'video' });
+    await chat.fetchMedia(DM_ID, first[0].id);
     await flush();
     const again = await chat.getMessages(DM_ID);
     expect(again[0].content).toMatchObject({

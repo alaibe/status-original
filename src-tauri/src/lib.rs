@@ -27,6 +27,16 @@ async fn set_badge(app: AppHandle, count: i64) -> Result<(), String> {
     Ok(())
 }
 
+fn paint_canvas(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let color = match window.theme() {
+            Ok(tauri::Theme::Dark) => tauri::window::Color(9, 9, 13, 255),
+            _ => tauri::window::Color(255, 255, 255, 255),
+        };
+        let _ = window.set_background_color(Some(color));
+    }
+}
+
 /// An app opened from Finder gets launchd's soft limit of 256 open files, too
 /// few for TDLib, Matrix and SQLCipher together. 10240 is the most macOS allows.
 #[cfg(unix)]
@@ -175,6 +185,8 @@ pub fn run() {
             }
             #[cfg(debug_assertions)]
             probe::watch(app.handle().clone());
+            vault::preload(app.handle());
+            paint_canvas(app.handle());
             cli::serve(app.handle());
             if cli::launched_in_background() {
                 #[cfg(target_os = "macos")]

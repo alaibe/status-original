@@ -1,9 +1,9 @@
 import type { Address } from 'viem';
 import { mainnet } from 'viem/chains';
-import { labelhash, normalize } from 'viem/ens';
 
 import { publicClientFor } from './chains';
 import { lookupName } from './ens';
+import { viemEns } from './viem-ens';
 
 const BASE_REGISTRAR = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const;
 
@@ -22,6 +22,7 @@ export async function ensPaidUntil(name: string): Promise<Date | null> {
   if (parts.length !== 2 || parts[1] !== 'eth') return null;
 
   try {
+    const { labelhash } = viemEns();
     const expiry = await ensClient().readContract({
       address: BASE_REGISTRAR,
       abi: NAME_EXPIRES_ABI,
@@ -61,7 +62,7 @@ export async function resolveEnsProfile(address: Address): Promise<EnsProfile | 
       return null;
     }
 
-    const normalized = normalize(name);
+    const normalized = viemEns().normalize(name);
     const client = ensClient();
 
     const [avatar, description, url, paidUntil] = await Promise.all([

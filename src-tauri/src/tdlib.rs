@@ -164,13 +164,13 @@ pub async fn td_send(
     Ok(())
 }
 
-/// Blocks for up to `timeout` seconds; `None` means TDLib had nothing to say.
 #[tauri::command]
 pub async fn td_receive(
     app: AppHandle,
     state: State<'_, Telegram>,
     timeout: f64,
-) -> Result<Option<String>, String> {
+    limit: usize,
+) -> Result<tauri::ipc::Response, String> {
     let api = api(&app)?;
     let client = current(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -178,15 +178,21 @@ pub async fn td_receive(
         if *gone {
             return Err("TDLib client is closed".to_string());
         }
-        let raw = unsafe { (api.receive)(client.ptr, timeout) };
-        if raw.is_null() {
-            return Ok(None);
+        let mut batch = String::from("[");
+        let mut wait = timeout;
+        for index in 0..limit {
+            let raw = unsafe { (api.receive)(client.ptr, wait) };
+            if raw.is_null() {
+                break;
+            }
+            if index > 0 {
+                batch.push(',');
+            }
+            batch.push_str(&unsafe { CStr::from_ptr(raw) }.to_string_lossy());
+            wait = 0.0;
         }
-        Ok(Some(
-            unsafe { CStr::from_ptr(raw) }
-                .to_string_lossy()
-                .into_owned(),
-        ))
+        batch.push(']');
+        Ok(tauri::ipc::Response::new(batch))
     })
     .await
     .map_err(|e| e.to_string())?

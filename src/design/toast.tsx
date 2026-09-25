@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 
 import { cn } from './lib/cn';
+import { PASS_THROUGH } from './lib/pass-through';
 import { Duration, Enter, Exit, Spring } from './motion';
 import { Icon } from './icon';
 import { useThemeColors } from './hooks/use-theme-colors';
@@ -166,7 +167,7 @@ export function ToastHost() {
 
   return (
     <View
-      style={{ bottom, pointerEvents: 'box-none' }}
+      style={[PASS_THROUGH, { bottom }]}
       className="absolute left-0 right-0 z-50 items-center gap-2 px-gutter">
       {toasts.map((t) => (
         <SwipeableToast key={t.id} toast={t} />

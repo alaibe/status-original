@@ -1,4 +1,3 @@
-import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 
 import type { LocalAccount, Address } from 'viem';
@@ -6,7 +5,7 @@ import type { LocalAccount, Address } from 'viem';
 import type { AccountKind } from './account-kind';
 import { deriveEd25519, type Ed25519Key } from './slip10';
 import * as Crypto from 'expo-crypto';
-import { english, generateMnemonic, mnemonicToAccount } from 'viem/accounts';
+import { english, generateMnemonic, HDKey, hdKeyToAccount } from 'viem/accounts';
 
 import { writeMnemonic } from './key-protection';
 import { base64ToBytes, bytesToBase64 } from '@/lib/bytes';
@@ -45,9 +44,9 @@ export function normalizeMnemonic(phrase: string): string {
 
 export function keyringFromMnemonic(phrase: string, addressIndex = 0): Keyring {
   const mnemonic = normalizeMnemonic(phrase);
-  const account = mnemonicToAccount(mnemonic, { addressIndex });
-
-  let root: HDKey | null = null;
+  const seed = mnemonicToSeedSync(mnemonic);
+  const root = HDKey.fromMasterSeed(seed);
+  const account = hdKeyToAccount(root, { addressIndex });
 
   return {
     kind: 'phrase',
@@ -55,8 +54,6 @@ export function keyringFromMnemonic(phrase: string, addressIndex = 0): Keyring {
     account,
     address: account.address,
     derive(path: string): DerivedKey {
-      root ??= HDKey.fromMasterSeed(mnemonicToSeedSync(mnemonic));
-
       const node = root.derive(path);
       if (!node.privateKey || !node.publicKey) {
         throw new Error(`Could not derive a key at "${path}"`);
@@ -64,7 +61,7 @@ export function keyringFromMnemonic(phrase: string, addressIndex = 0): Keyring {
       return { path, privateKey: node.privateKey, publicKey: node.publicKey };
     },
     deriveEd25519(path: string): Ed25519Key {
-      return deriveEd25519(mnemonicToSeedSync(mnemonic), path);
+      return deriveEd25519(seed, path);
     },
   };
 }

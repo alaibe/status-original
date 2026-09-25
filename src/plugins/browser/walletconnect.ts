@@ -1,7 +1,5 @@
-import { Core } from '@walletconnect/core';
-import { WalletKit, type WalletKitTypes } from '@reown/walletkit';
+import type { WalletKit, WalletKitTypes } from '@reown/walletkit';
 import type { SessionTypes } from '@walletconnect/types';
-import { buildApprovedNamespaces, getSdkError, parseUri } from '@walletconnect/utils';
 import { create } from 'zustand';
 
 import type { PluginContext } from '@/core/plugins/types';
@@ -83,7 +81,10 @@ async function returnAfterRequest(
   context.ui.notify(`Approved. Switch back to ${peer.name || 'the site'} to carry on.`, 'success');
 }
 
-function isPairingUri(uri: string) {
+const utils = () => import('@walletconnect/utils');
+
+async function isPairingUri(uri: string) {
+  const { parseUri } = await utils();
   try {
     const { version, topic, symKey, relay } = parseUri(uri);
     return version === 2 && /^[0-9a-f]{64}$/i.test(topic) && !!symKey && relay.protocol === 'irn';
@@ -119,6 +120,10 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
 
     set({ initializing: true, error: null });
     try {
+      const [{ Core }, { WalletKit }] = await Promise.all([
+        import('@walletconnect/core'),
+        import('@reown/walletkit'),
+      ]);
       const core = new Core({ projectId });
       const kit = await WalletKit.init({ core, metadata: APP_METADATA });
 
@@ -161,7 +166,7 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
   async pair(uri) {
     const kit = get().kit;
     if (!kit) throw new Error(get().error ?? 'WalletConnect is still starting up.');
-    if (!isPairingUri(uri)) {
+    if (!(await isPairingUri(uri))) {
       throw new Error('That is not a whole pairing link. Copy it again from the site.');
     }
     try {
@@ -180,6 +185,7 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
   async disconnectSession(topic) {
     const kit = get().kit;
     if (!kit) return;
+    const { getSdkError } = await utils();
     await kit.disconnectSession({ topic, reason: getSdkError('USER_DISCONNECTED') });
   },
 
@@ -193,6 +199,7 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
         const address = context.identity.address;
         const chains = SUPPORTED_CHAINS.map((c) => toCaip2(c.id));
 
+        const { buildApprovedNamespaces } = await utils();
         const namespaces = buildApprovedNamespaces({
           proposal: head.proposal.params,
           supportedNamespaces: {
@@ -246,6 +253,7 @@ export const useWalletConnectStore = create<WalletConnectState>((set, get) => ({
     if (!kit || !head) return;
 
     try {
+      const { getSdkError } = await utils();
       if (head.kind === 'proposal') {
         await kit.rejectSession({ id: head.id, reason: getSdkError('USER_REJECTED') });
       } else {

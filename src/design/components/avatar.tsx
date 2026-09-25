@@ -54,6 +54,8 @@ export function Avatar({ seed, size = 'md', label, image, emoji, className }: Av
         accessibilityRole="image"
         accessibilityLabel={label ? `Avatar for ${label}` : 'Avatar'}
         source={typeof image === 'string' ? { uri: image } : image}
+        recyclingKey={typeof image === 'string' ? image : undefined}
+        cachePolicy="memory-disk"
         contentFit="cover"
         style={{ width: px, height: px, borderRadius: px / 2 }}
       />

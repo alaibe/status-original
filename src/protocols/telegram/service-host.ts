@@ -7,7 +7,7 @@ import type { TdChat, TdMessage } from './types';
 export interface TelegramHost {
   api(): TdApi;
   readonly td: TdDirectory;
-  toConversation(chat: TdChat): Promise<Conversation>;
+  toConversation(chat: TdChat): Conversation;
   selfUserId(): number | undefined;
   toMessage(raw: TdMessage, fetchMedia: boolean): ChatMessage;
   refetch(chatId: number, messageId: number): Promise<void>;

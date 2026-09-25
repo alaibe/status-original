@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   ActionSheet,
@@ -13,14 +14,14 @@ import {
   Text,
   useThemeColors,
 } from '@/design';
-import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
+import { selfIdFor, useChatStore, type ChatState } from '@/core/messaging/chat-store';
 import { useDisplayNames } from '@/features/chat/use-display-names';
 import {
   currentAccess,
   manageLimitedAccess,
   type ContactAccess,
 } from '@/features/contacts/device-contacts';
-import { peersOf } from '@/features/contacts/peers';
+import { fromPeerKey, peerKey, peersOf } from '@/features/contacts/peers';
 import { openChat } from '@/features/navigation/open';
 
 export type ContactSort = 'name' | 'recent';
@@ -36,6 +37,27 @@ export interface ContactListProps {
   selectedConversationId?: string;
 }
 
+let lastKeys: {
+  conversations: ChatState['conversations'];
+  sessions: ChatState['sessions'];
+  byName: boolean;
+  keys: string[];
+} | null = null;
+
+function peerKeysOf(state: ChatState, byName: boolean): string[] {
+  const { conversations, sessions } = state;
+  if (
+    lastKeys?.conversations === conversations &&
+    lastKeys.sessions === sessions &&
+    lastKeys.byName === byName
+  ) {
+    return lastKeys.keys;
+  }
+  const listed = peersOf(conversations, (protocol) => selfIdFor(state, protocol)).map(peerKey);
+  lastKeys = { conversations, sessions, byName, keys: byName ? listed.sort() : listed };
+  return lastKeys.keys;
+}
+
 /** Everyone you talk to: the Contacts tab on a phone, the sidebar on desktop. */
 export function ContactList({
   query,
@@ -48,8 +70,7 @@ export function ContactList({
   const router = useRouter();
   const colors = useThemeColors();
 
-  const conversations = useChatStore((s) => s.conversations);
-  const sessions = useChatStore((s) => s.sessions);
+  const keys = useChatStore(useShallow((s) => peerKeysOf(s, sortBy === 'name')));
 
   const [access, setAccess] = useState<ContactAccess>('unknown');
 
@@ -61,7 +82,7 @@ export function ContactList({
 
   useEffect(refreshAccess, [refreshAccess]);
 
-  const peers = peersOf(conversations, (protocol) => selfIdFor({ sessions }, protocol));
+  const peers = keys.map(fromPeerKey);
 
   const { nameFor } = useDisplayNames(peers);
 

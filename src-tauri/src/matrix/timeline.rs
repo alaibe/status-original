@@ -94,6 +94,7 @@ impl Session {
         before: Option<&str>,
     ) -> Result<Vec<MxEvent>, String> {
         let live = self.live_timeline(room_id).await?;
+        let mut searched = 0;
         loop {
             let items = live.timeline.items().await;
             let end = match before {
@@ -108,10 +109,12 @@ impl Session {
                 let mut page: Vec<MxEvent> = items
                     .iter()
                     .take(end)
+                    .rev()
                     .filter_map(|item| to_mx_event(room_id, item))
+                    .take(limit)
                     .collect();
+                page.reverse();
                 if page.len() >= limit {
-                    page.drain(..page.len() - limit);
                     return Ok(page);
                 }
                 let short = limit - page.len();
@@ -124,6 +127,10 @@ impl Session {
                     return Ok(page);
                 }
             } else {
+                searched += 1;
+                if searched > ANCHOR_SEARCH_PAGES {
+                    return Ok(Vec::new());
+                }
                 let hit_start = live
                     .timeline
                     .paginate_backwards(HISTORY_PAGE)
@@ -214,6 +221,9 @@ pub async fn mx_pinned_messages(
 ) -> Result<Vec<MxEvent>, String> {
     let session = current(&state)?;
     let room = session.room(&room_id)?;
+    if room.pinned_event_ids().is_none_or(|ids| ids.is_empty()) {
+        return Ok(Vec::new());
+    }
     let timeline = room
         .timeline_builder()
         .with_focus(TimelineFocus::PinnedEvents)

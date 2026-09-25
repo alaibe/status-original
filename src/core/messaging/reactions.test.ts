@@ -93,6 +93,20 @@ describe('foldReactions', () => {
     const input = [message({ id: 'm1' }), message({ id: 'm2' })];
     expect(foldReactions(input)).toEqual(input);
   });
+
+  it('hands back the same reacted message while its reactions stay the same', () => {
+    const target = message({ id: 'm1' });
+    const first = foldReactions([target, reaction('r1', 'm1', '👍', 'added')]);
+    const again = foldReactions([
+      target,
+      reaction('r1', 'm1', '👍', 'added'),
+      message({ id: 'm2' }),
+    ]);
+    const changed = foldReactions([target, reaction('r1', 'm1', '❤️', 'added')]);
+
+    expect(again[0]).toBe(first[0]);
+    expect(changed[0]).not.toBe(first[0]);
+  });
 });
 
 describe('hasReacted', () => {

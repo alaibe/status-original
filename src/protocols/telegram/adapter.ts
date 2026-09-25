@@ -106,9 +106,14 @@ export class TelegramSession implements ChatSession {
   private readonly refetching = new Map<string, Promise<void>>();
   private readonly typing = new TypingTracker((chatId) => {
     const chat = this.td.chats.get(chatId);
-    if (chat) void this.announce(chat);
+    if (chat) this.announce(chat);
   });
+  private readonly changedChats = new Set<number>();
   private chatsLoaded: Promise<void> | null = null;
+  private markListed!: () => void;
+  private readonly signedInAndLoaded = new Promise<void>((resolve) => {
+    this.markListed = resolve;
+  });
   private stopped = false;
 
   private constructor(private readonly options: TelegramConnectOptions) {}
@@ -249,7 +254,7 @@ export class TelegramSession implements ChatSession {
     this.me = await this.api.send<TdUser>({ '@type': 'getMe' });
     this.td.users.set(this.me.id, this.me);
     this.setLogin(null);
-    await this.api
+    this.api
       .send({
         '@type': 'setOption',
         name: 'online',
@@ -257,7 +262,9 @@ export class TelegramSession implements ChatSession {
       })
       .catch(() => {});
     this.chatsLoaded = null;
-    await this.ensureChatsLoaded().catch(() => {});
+    await this.ensureChatsLoaded()
+      .then(() => this.markListed())
+      .catch(() => {});
   }
 
   /** TDLib closed on its own (sign-out); start over so the next sign-in can happen. */
@@ -305,7 +312,7 @@ export class TelegramSession implements ChatSession {
         const chatId = update.chat_id as number;
         this.typing.set(chatId, (update.action as TdObject)['@type'] === 'chatActionTyping');
         const chat = this.td.chats.get(chatId);
-        if (chat) await this.announce(chat);
+        if (chat) this.announce(chat);
         return;
       }
       case 'updateBasicGroup': {
@@ -379,24 +386,35 @@ export class TelegramSession implements ChatSession {
     }
   }
 
-  private async announce(chat: TdChat): Promise<void> {
-    if (this.conversationListeners.size === 0 || !this.included(chat) || !inMainList(chat)) return;
-    const conversation = await this.toConversation(chat);
-    for (const listener of this.conversationListeners) listener(conversation);
+  private announce(chat: TdChat): void {
+    if (this.conversationListeners.size === 0) return;
+    if (this.changedChats.size === 0) queueMicrotask(() => this.announceChanged());
+    this.changedChats.add(chat.id);
   }
 
-  private async announceUserChats(userId: number): Promise<void> {
-    for (const chat of this.td.chats.values()) {
-      if (chat.type['@type'] === 'chatTypePrivate' && chat.type.user_id === userId)
-        await this.announce(chat);
+  private announceChanged(): void {
+    const ids = [...this.changedChats];
+    this.changedChats.clear();
+    for (const id of ids) {
+      const chat = this.td.chats.get(id);
+      if (!chat || !this.included(chat) || !inMainList(chat)) continue;
+      const conversation = this.toConversation(chat);
+      for (const listener of this.conversationListeners) listener(conversation);
     }
+  }
+
+  /** A private chat's id is its user's id. */
+  private announceUserChats(userId: number): void {
+    const chat = this.td.chats.get(userId);
+    if (chat?.type['@type'] === 'chatTypePrivate' && chat.type.user_id === userId)
+      this.announce(chat);
   }
 
   private async emitMessage(raw: TdMessage): Promise<void> {
     if (this.messageListeners.size === 0) return;
     const chat = await this.td.requireChat(raw.chat_id);
     if (!this.included(chat)) return;
-    const message = this.toMessage(raw, true);
+    const message = this.toMessage(raw, false);
     for (const listener of this.messageListeners) listener(message);
   }
 
@@ -418,6 +436,11 @@ export class TelegramSession implements ChatSession {
 
   // ---- ChatSession ----
 
+  async whenListed(): Promise<Conversation[]> {
+    await this.signedInAndLoaded;
+    return this.listConversations();
+  }
+
   async listConversations(): Promise<Conversation[]> {
     if (!this.me) return [];
     await this.ensureChatsLoaded();
@@ -429,7 +452,7 @@ export class TelegramSession implements ChatSession {
     const chats = chat_ids
       .map((id) => this.td.chats.get(id))
       .filter((chat): chat is TdChat => chat !== undefined && this.included(chat));
-    return Promise.all(chats.map((chat) => this.toConversation(chat)));
+    return chats.map((chat) => this.toConversation(chat));
   }
 
   async getMessages(
@@ -462,7 +485,16 @@ export class TelegramSession implements ChatSession {
       from = page[page.length - 1].id;
     }
 
-    return collected.map((m) => this.toMessage(m, true)).reverse();
+    return collected.map((m) => this.toMessage(m, false)).reverse();
+  }
+
+  async fetchMedia(id: ConversationId, messageId: MessageId): Promise<void> {
+    const raw = await this.api.send<TdMessage>({
+      '@type': 'getMessage',
+      chat_id: Number(id),
+      message_id: tdMessageId(messageId),
+    });
+    if (this.toMessage(raw, true).content.kind !== 'unsupported') await this.emitMessage(raw);
   }
 
   async resolvePeer(addressOrId: string): Promise<ParticipantId | null> {
@@ -496,29 +528,31 @@ export class TelegramSession implements ChatSession {
   }
 
   async resolveAddresses(ids: ParticipantId[]): Promise<Record<ParticipantId, string>> {
-    const out: Record<ParticipantId, string> = {};
-    for (const id of ids) {
-      const user = await this.td.userFor(id);
-      if (user) out[id] = handleOf(user);
-    }
-    return out;
+    const users = await Promise.all(ids.map((id) => this.td.userFor(id)));
+    return Object.fromEntries(
+      ids.flatMap((id, i) => {
+        const user = users[i];
+        return user ? [[id, handleOf(user)]] : [];
+      })
+    );
   }
 
   async resolveNames(ids: ParticipantId[]): Promise<Record<ParticipantId, string>> {
-    const out: Record<ParticipantId, string> = {};
-    for (const id of ids) {
-      const user = await this.td.userFor(id);
-      if (user) {
-        out[id] = nameOf(user);
-        continue;
-      }
-      const chatId = chatSenderId(id);
-      if (chatId !== null) {
-        const chat = await this.td.requireChat(chatId).catch(() => null);
-        if (chat) out[id] = chat.title;
-      }
-    }
-    return out;
+    const names = await Promise.all(
+      ids.map(async (id) => {
+        const user = await this.td.userFor(id);
+        if (user) return nameOf(user);
+        const chatId = chatSenderId(id);
+        if (chatId === null) return undefined;
+        return (await this.td.requireChat(chatId).catch(() => null))?.title;
+      })
+    );
+    return Object.fromEntries(
+      ids.flatMap((id, i) => {
+        const name = names[i];
+        return name ? [[id, name]] : [];
+      })
+    );
   }
 
   async createDm(peer: ParticipantId): Promise<Conversation> {
@@ -701,11 +735,7 @@ export class TelegramSession implements ChatSession {
     this.conversationListeners.add(onConversation);
     // Chats TDLib pushed before anyone was listening.
     for (const chat of this.td.chats.values()) {
-      if (this.included(chat) && inMainList(chat)) {
-        void this.toConversation(chat).then((conversation) => {
-          if (this.conversationListeners.has(onConversation)) onConversation(conversation);
-        });
-      }
+      if (this.included(chat) && inMainList(chat)) onConversation(this.toConversation(chat));
     }
     return () => this.conversationListeners.delete(onConversation);
   }
@@ -753,7 +783,7 @@ export class TelegramSession implements ChatSession {
     }
   }
 
-  private async toConversation(chat: TdChat): Promise<Conversation> {
+  private toConversation(chat: TdChat): Conversation {
     const selfId = this.self.participantId;
     const isDm = chat.type['@type'] === 'chatTypePrivate';
     const isChannel = chat.type['@type'] === 'chatTypeSupergroup' && chat.type.is_channel;
@@ -761,7 +791,7 @@ export class TelegramSession implements ChatSession {
       ? [selfId]
       : isDm
         ? [...new Set([String((chat.type as { user_id: number }).user_id), selfId])]
-        : (await this.td.membersOf(chat)).map((member) => member.id);
+        : (this.td.knownMembers(chat)?.map((member) => member.id) ?? [selfId]);
     const peer =
       chat.type['@type'] === 'chatTypePrivate' ? this.td.users.get(chat.type.user_id) : undefined;
 
@@ -771,6 +801,7 @@ export class TelegramSession implements ChatSession {
       title: chat.title,
       avatarUri: this.photoUri(chat),
       memberIds,
+      memberCount: isDm ? undefined : this.td.memberCount(chat),
       createdAt: chat.last_message ? chat.last_message.date * 1000 : 0,
       lastMessage: chat.last_message ? this.toMessage(chat.last_message, false) : undefined,
       unreadCount: chat.unread_count,
@@ -805,10 +836,6 @@ export class TelegramSession implements ChatSession {
     return toMessage(raw, this.mapping(raw, fetchMedia));
   }
 
-  /**
-   * TDLib downloads on request. A file that is not local yet renders as a
-   * placeholder, and the message is re-emitted once `updateFile` says it is.
-   */
   private localUri(raw: TdMessage, file: TdFile, fetchMedia: boolean): string | null {
     if (file.local.is_downloading_completed && file.local.path)
       return localFileUri(file.local.path);

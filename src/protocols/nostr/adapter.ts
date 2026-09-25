@@ -5,6 +5,7 @@ import type { ChatSession } from '@/core/messaging/protocol';
 import { StoreBackedSession } from '@/core/messaging/store-backed-session';
 import type { ChatTransport, SendResult, TransportSink } from '@/core/messaging/transport';
 import type { MessageContent, ParticipantId, SelfIdentity } from '@/core/messaging/types';
+import type { AccountStorage } from '@/storage/account';
 import { npubFor, parsePublicKey } from '@/lib/bech32';
 import { firstTagValue, nowSeconds, signEvent, type NostrEvent, type Rumor } from './events';
 import { identityFromDerivedKey, NOSTR_DERIVATION_PATH, type NostrIdentity } from './keys';
@@ -38,6 +39,42 @@ export interface NostrConnectOptions {
   relays: string[];
   createSocket?(url: string): WebSocketLike;
   store: MessageStore;
+  /** Where the gift wraps already opened are remembered between runs. */
+  storage?: AccountStorage;
+}
+
+const HANDLED_KEY = 'nostr.handledWraps';
+const HANDLED_FOR_SECONDS = 7 * 24 * 60 * 60;
+
+class HandledWraps {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  private constructor(
+    private readonly storage: AccountStorage,
+    private readonly wraps: Map<string, number>
+  ) {}
+
+  static async load(storage: AccountStorage): Promise<HandledWraps> {
+    const stored = (await storage.get<Record<string, number>>(HANDLED_KEY)) ?? {};
+    return new HandledWraps(storage, new Map(Object.entries(stored)));
+  }
+
+  ids(): Iterable<string> {
+    return this.wraps.keys();
+  }
+
+  add(event: NostrEvent): void {
+    this.wraps.set(event.id, event.created_at);
+    this.timer ??= setTimeout(() => this.save(), 1_000);
+  }
+
+  save(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    const oldest = nowSeconds() - HANDLED_FOR_SECONDS;
+    for (const [id, createdAt] of this.wraps) if (createdAt < oldest) this.wraps.delete(id);
+    this.storage.set(HANDLED_KEY, Object.fromEntries(this.wraps)).catch(() => {});
+  }
 }
 
 class NostrTransport implements ChatTransport {
@@ -73,7 +110,8 @@ class NostrTransport implements ChatTransport {
 
   constructor(
     readonly identity: NostrIdentity,
-    readonly pool: RelayPool
+    readonly pool: RelayPool,
+    private readonly handled?: HandledWraps
   ) {
     this.self = { participantId: identity.publicKey, address: identity.npub };
   }
@@ -112,7 +150,10 @@ class NostrTransport implements ChatTransport {
 
   private async ingest(event: NostrEvent): Promise<void> {
     const rumor = unwrapGiftWrap(event, this.identity);
-    if (!rumor) return;
+    if (!rumor) {
+      this.handled?.add(event);
+      return;
+    }
 
     try {
       await this.sink?.deliverToParticipants(
@@ -126,6 +167,7 @@ class NostrTransport implements ChatTransport {
           createdAt: rumor.created_at * 1000,
         }
       );
+      this.handled?.add(event);
     } catch (error) {
       this.deliveryError = error;
       this.retryHistory = true;
@@ -255,6 +297,7 @@ class NostrTransport implements ChatTransport {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.pool.close();
+    this.handled?.save();
   }
 }
 
@@ -269,10 +312,12 @@ export class NostrSession extends StoreBackedSession implements ChatSession {
 
   static async connect(options: NostrConnectOptions): Promise<NostrSession> {
     const identity = identityFromDerivedKey(options.derive(NOSTR_DERIVATION_PATH));
+    const handled = options.storage ? await HandledWraps.load(options.storage) : undefined;
     const transport = new NostrTransport(
       identity,
       new RelayPool({
         urls: options.relays,
+        handled: handled?.ids(),
         createSocket: options.createSocket,
         authenticate: (url, challenge) =>
           signEvent(
@@ -288,7 +333,8 @@ export class NostrSession extends StoreBackedSession implements ChatSession {
             },
             identity.secretKey
           ),
-      })
+      }),
+      handled
     );
 
     const session = new NostrSession(transport, options.store);

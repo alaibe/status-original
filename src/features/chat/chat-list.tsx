@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import { useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { FlashList, type FlashListRef, type ListRenderItemInfo } from '@shopify/flash-list';
 import { RefreshControl, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -17,11 +17,13 @@ import {
   useEscapeKey,
   useThemeColors,
 } from '@/design';
-import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
-import type { Conversation } from '@/core/messaging/types';
+import { type ChatState, selfIdFor, useChatStore } from '@/core/messaging/chat-store';
+import type { Conversation, ConversationId } from '@/core/messaging/types';
 import { messagePreview } from '@/core/messaging/preview';
-import { orderConversations, type ChatPrefs } from '@/core/messaging/chat-prefs';
+import { orderConversations, type ChatPrefs, type ChatPrefsMap } from '@/core/messaging/chat-prefs';
 import {
+  type ChatFilter,
+  chatRow,
   type Directory,
   type InboxRow,
   inboxRows,
@@ -40,7 +42,6 @@ import { FilterTabs } from '@/features/chat/folder-tabs';
 import { useFolderStore } from '@/features/chat/folder-store';
 import { useUnreadCounts } from '@/features/chat/use-unread-counts';
 import { protocolById } from '@/protocols';
-import { openChat } from '@/features/navigation/open';
 import {
   ConnectingState,
   ConversationRow,
@@ -48,6 +49,67 @@ import {
   DirectoryRow,
   Separator,
 } from './chat-list-rows';
+
+const NO_IDS: ReadonlySet<string> = new Set();
+
+const isFolded = (network: string) => protocolById(network)?.external ?? true;
+
+function inbox({
+  conversations,
+  chatPrefs,
+  readAt,
+  directory,
+  filter,
+  query,
+  held,
+  sessions,
+  nameFor,
+}: {
+  conversations: Conversation[];
+  chatPrefs: ChatPrefsMap;
+  readAt: Record<ConversationId, number>;
+  directory: Directory | null;
+  filter: ChatFilter;
+  query: string;
+  held: ReadonlySet<string>;
+  sessions: ChatState['sessions'];
+  nameFor: (id: string) => string;
+}) {
+  const titleOf = (c: Conversation) =>
+    conversationTitle(c, selfIdFor({ sessions }, c.protocol), nameFor);
+  const allowed = conversations.filter((c) => c.consent === 'allowed');
+  const requests = conversations.filter((c) => c.consent === 'unknown');
+  const context = { prefs: chatPrefs, readAt };
+  const ordered = orderConversations(allowed, chatPrefs, { includeArchived: true });
+  const scope = directory
+    ? ordered.filter((c) => inDirectory(c, directory, context))
+    : ordered.filter((c) => !chatPrefs[c.id]?.archived);
+  const unread = scope.filter((c) => isUnreadHere(c, context));
+
+  const q = query.trim().toLowerCase();
+  const include = (c: Conversation) =>
+    (!q ||
+      titleOf(c).toLowerCase().includes(q) ||
+      messagePreview(c.lastMessage).toLowerCase().includes(q)) &&
+    (matchesFilter(c, filter, context) || (filter === 'unread' && held.has(c.id)));
+  const nativeNetworks = new Set(
+    scope.map(networkOf).filter((n): n is string => n !== undefined && !isFolded(n))
+  );
+
+  return {
+    allowed,
+    requests,
+    scope,
+    rows:
+      directory || q
+        ? scope.filter(include).map(chatRow)
+        : inboxRows(ordered, include, isFolded, context),
+    unseen: filter === 'unread' ? unread.filter((c) => !held.has(c.id)).map((c) => c.id) : [],
+    unreadHere: unread.length,
+    mentionsHere: scope.filter((c) => hasUnreadMentions(c, readAt)).length,
+    showNetwork: !directory && nativeNetworks.size > 1,
+  };
+}
 
 export interface ChatListProps {
   query: string;
@@ -87,12 +149,14 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   const setChatPref = useChatStore((s) => s.setChatPref);
   const markUnread = useChatStore((s) => s.markUnread);
   const toggle = (id: string, key: keyof ChatPrefs) =>
-    setChatPref(id, { [key]: !chatPrefs[id]?.[key] });
+    setChatPref(id, { [key]: !useChatStore.getState().chatPrefs[id]?.[key] });
 
   const [menu, setMenu] = useState<{
     conversation: Conversation;
     anchor: MenuAnchor | null;
   } | null>(null);
+  const showMenu = (conversation: Conversation, anchor: MenuAnchor | null) =>
+    setMenu({ conversation, anchor });
   const managing = menu?.conversation ?? null;
   const directory = useFolderStore((s) => s.directory);
   const setDirectory = useFolderStore((s) => s.setDirectory);
@@ -100,43 +164,30 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   const setFilter = useFolderStore((s) => s.setFilter);
   const [navigated, setNavigated] = useState(false);
 
-  const { allowed, requests } = {
-    allowed: conversations.filter((c) => c.consent === 'allowed'),
-    requests: conversations.filter((c) => c.consent === 'unknown'),
-  };
-
-  const folderContext = { prefs: chatPrefs, readAt };
-  const ordered = orderConversations(allowed, chatPrefs, { includeArchived: true });
-  const scope = directory
-    ? ordered.filter((c) => inDirectory(c, directory, folderContext))
-    : ordered.filter((c) => !chatPrefs[c.id]?.archived);
-
-  const trimmed = query.trim();
-  const q = trimmed.toLowerCase();
-  const matchesQuery = (c: Conversation) =>
-    !q ||
-    conversationTitle(c, selfIdOf(c), nameFor).toLowerCase().includes(q) ||
-    messagePreview(c.lastMessage).toLowerCase().includes(q);
-
   // A chat read under Unread stays until the view changes, rather than vanishing under the pointer.
   const view = `${directory}|${filter}`;
-  const [kept, setKept] = useState<{ view: string; ids: string[] }>({ view, ids: [] });
-  if (filter === 'unread') {
-    const held = kept.view === view ? kept.ids : [];
-    const added = scope
-      .filter((c) => isUnreadHere(c, folderContext) && !held.includes(c.id))
-      .map((c) => c.id);
-    if (kept.view !== view || added.length > 0) setKept({ view, ids: [...held, ...added] });
-  }
-  const include = (c: Conversation) =>
-    matchesQuery(c) &&
-    (matchesFilter(c, filter, folderContext) || (filter === 'unread' && kept.ids.includes(c.id)));
+  const [kept, setKept] = useState({ view, ids: NO_IDS });
+  const held = kept.view === view ? kept.ids : NO_IDS;
+  const titleOf = (c: Conversation) => conversationTitle(c, selfIdOf(c), nameFor);
+  const deferredQuery = useDeferredValue(query);
+  const { allowed, requests, scope, rows, unseen, unreadHere, mentionsHere, showNetwork } = useMemo(
+    () =>
+      inbox({
+        conversations,
+        chatPrefs,
+        readAt,
+        directory,
+        filter,
+        query: deferredQuery,
+        held,
+        sessions,
+        nameFor,
+      }),
+    [conversations, chatPrefs, readAt, directory, filter, deferredQuery, held, sessions, nameFor]
+  );
+  if (unseen.length > 0) setKept({ view, ids: new Set([...held, ...unseen]) });
 
-  const folded = (network: string) => protocolById(network)?.external ?? true;
-  const rows: InboxRow[] =
-    directory || q
-      ? scope.filter(include).map((conversation) => ({ kind: 'chat', conversation }))
-      : inboxRows(ordered, include, folded, folderContext);
+  const trimmed = query.trim();
   const list = useRef<FlashListRef<InboxRow>>(null);
   const selectedIndex = rows.findIndex(
     (row) => row.kind === 'chat' && row.conversation.id === selectedId
@@ -153,9 +204,6 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   useEffect(() => {
     if (selectedListed) revealSelected();
   }, [selectedId, selectedListed]);
-  const unreadHere = scope.filter((c) => isUnreadHere(c, folderContext)).length;
-  const mentionsHere = scope.filter((c) => hasUnreadMentions(c, readAt)).length;
-
   const go = (next: Directory | null) => {
     setNavigated(true);
     setDirectory(next);
@@ -164,11 +212,11 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   useEscapeKey(directory !== null, leaveDirectory);
   const openSelectedDirectory = useEffectEvent(() => {
     const selected = allowed.find((c) => c.id === selectedId);
-    if (!selected || selectedListed || q) return;
+    if (!selected || selectedListed || trimmed) return;
     const network = networkOf(selected);
     const home: Directory | null = chatPrefs[selected.id]?.archived
       ? 'archive'
-      : network && folded(network) && !chatPrefs[selected.id]?.pinned
+      : network && isFolded(network) && !chatPrefs[selected.id]?.pinned
         ? `network:${network}`
         : null;
     if (home !== directory) setDirectory(home);
@@ -182,10 +230,28 @@ export function ChatList({ query, selectedId }: ChatListProps) {
     if (managing) toggle(managing.id, key);
   };
 
-  const nativeNetworks = new Set(
-    scope.map(networkOf).filter((n): n is string => n !== undefined && !folded(n))
-  );
-  const showNetwork = !directory && nativeNetworks.size > 1;
+  const folderContext = { prefs: chatPrefs, readAt };
+  const renderItem = ({ item: row }: ListRenderItemInfo<InboxRow>) =>
+    row.kind === 'directory' ? (
+      <DirectoryRow
+        row={row}
+        unread={row.chats.filter((c) => isUnreadHere(c, folderContext)).length}
+        preview={`${titleOf(row.latest)}: ${messagePreview(row.latest.lastMessage)}`}
+        onPress={() => go(row.directory)}
+      />
+    ) : (
+      <ConversationRow
+        conversation={row.conversation}
+        selfId={selfIdOf(row.conversation)}
+        nameFor={nameFor}
+        unread={isUnread(row.conversation, readAt)}
+        network={showNetwork ? networkOf(row.conversation) : undefined}
+        prefs={chatPrefs[row.conversation.id]}
+        selected={row.conversation.id === selectedId}
+        onMenu={showMenu}
+        onToggle={toggle}
+      />
+    );
 
   return (
     <>
@@ -263,60 +329,7 @@ export function ChatList({ query, selectedId }: ChatListProps) {
                 ) : null}
               </>
             }
-            renderItem={({ item: row }) => {
-              if (row.kind === 'directory') {
-                return (
-                  <DirectoryRow
-                    row={row}
-                    unread={row.chats.filter((c) => isUnreadHere(c, folderContext)).length}
-                    preview={`${conversationTitle(row.latest, selfIdOf(row.latest), nameFor)}: ${messagePreview(row.latest.lastMessage)}`}
-                    onPress={() => go(row.directory)}
-                  />
-                );
-              }
-              const item = row.conversation;
-              const prefs = chatPrefs[item.id];
-              return (
-                <ConversationRow
-                  conversation={item}
-                  selfId={selfIdOf(item)}
-                  nameFor={nameFor}
-                  unread={isUnread(item, readAt)}
-                  network={showNetwork ? networkOf(item) : undefined}
-                  pinned={Boolean(prefs?.pinned)}
-                  muted={Boolean(prefs?.muted)}
-                  onPress={() => openChat(item.id)}
-                  selected={item.id === selectedId}
-                  onLongPress={() => setMenu({ conversation: item, anchor: null })}
-                  onContextMenu={(anchor) => setMenu({ conversation: item, anchor })}
-                  left={[
-                    {
-                      id: 'pin',
-                      label: prefs?.pinned ? 'Unpin' : 'Pin',
-                      icon: 'pin-outline',
-                      tone: 'neutral',
-                      onPress: () => toggle(item.id, 'pinned'),
-                    },
-                  ]}
-                  right={[
-                    {
-                      id: 'mute',
-                      label: prefs?.muted ? 'Unmute' : 'Mute',
-                      icon: prefs?.muted ? 'volume-high-outline' : 'volume-mute-outline',
-                      tone: 'warning',
-                      onPress: () => toggle(item.id, 'muted'),
-                    },
-                    {
-                      id: 'archive',
-                      label: prefs?.archived ? 'Unarchive' : 'Archive',
-                      icon: 'archive-outline',
-                      tone: 'brand',
-                      onPress: () => toggle(item.id, 'archived'),
-                    },
-                  ]}
-                />
-              );
-            }}
+            renderItem={renderItem}
           />
         </Animated.View>
       )}

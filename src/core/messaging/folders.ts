@@ -22,6 +22,17 @@ export function networkOf(conversation: Conversation): string | undefined {
   return conversation.network ?? conversation.protocol;
 }
 
+const chatRows = new WeakMap<Conversation, InboxRow>();
+
+export function chatRow(conversation: Conversation): InboxRow {
+  let row = chatRows.get(conversation);
+  if (!row) {
+    row = { kind: 'chat', conversation };
+    chatRows.set(conversation, row);
+  }
+  return row;
+}
+
 export function isUnreadHere(conversation: Conversation, context: FolderContext): boolean {
   return !context.prefs[conversation.id]?.muted && isUnread(conversation, context.readAt);
 }
@@ -74,7 +85,7 @@ export function inboxRows(
     if (context.prefs[conversation.id]?.archived || !include(conversation)) continue;
     const network = networkOf(conversation);
     if (!network || !folded(network) || context.prefs[conversation.id]?.pinned) {
-      rows.push({ kind: 'chat', conversation });
+      rows.push(chatRow(conversation));
       continue;
     }
     const existing = directories.get(network);

@@ -37,6 +37,7 @@ import type {
 import { isParticipantId } from '@/core/messaging/bots';
 import { PLUGIN_AUTHORITY } from './codec';
 import { fallbackFilename, xmtpEnvironment } from './shared';
+import type { AccountStorage } from '@/storage/account';
 
 function signerForAccount(account: LocalAccount): Signer {
   return {
@@ -57,6 +58,8 @@ export interface XmtpConnectOptions {
   env?: XMTPEnvironment;
   codecs?: JSContentCodec<any>[];
   appVersion?: string;
+  /** Where the inbox id is remembered between launches. */
+  storage?: AccountStorage;
 }
 
 export interface XmtpEraseOptions {
@@ -102,10 +105,14 @@ export class XmtpSession implements ChatSession {
       codecs,
     };
 
+    const inboxKey = `xmtp.inboxId.${options.env}`;
+    const knownInboxId = (await opts.storage?.get<InboxId>(inboxKey)) ?? undefined;
     const client = await Client.build(
       new PublicIdentity(opts.account.address, 'ETHEREUM'),
-      options
+      options,
+      knownInboxId
     ).catch(async () => Client.create(signerForAccount(opts.account), options));
+    if (client.inboxId !== knownInboxId) await opts.storage?.set(inboxKey, client.inboxId);
 
     const byTypeId = new Map<string, JSContentCodec<any>>();
     for (const codec of codecs) byTypeId.set(codec.contentType.typeId, codec);
@@ -113,9 +120,13 @@ export class XmtpSession implements ChatSession {
     return new XmtpSession(client, byTypeId, opts.account, opts.accountId);
   }
 
+  async whenListed(first: Conversation[]): Promise<Conversation[]> {
+    return first;
+  }
+
   async listConversations(): Promise<Conversation[]> {
     const raw = await this.client.conversations.list(
-      undefined,
+      { lastMessage: true },
       undefined,
       ['allowed', 'unknown'],
       undefined,
@@ -352,6 +363,7 @@ export class XmtpSession implements ChatSession {
           for (const listener of this.deletedListeners) listener(message.topic, [deletedId]);
           return;
         }
+        if (isReadReceipt(message)) return;
         onMessage(await this.toMessage(message, message.topic));
       },
       'all',
@@ -391,8 +403,8 @@ export class XmtpSession implements ChatSession {
 
     if (isGroup) {
       const group = raw as Group<any>;
-      const [name, members] = await Promise.all([group.name(), group.members()]);
-      title = name?.trim() || 'Untitled group';
+      const members = await group.members();
+      title = group.groupName?.trim() || 'Untitled group';
       memberIds = members.map((m) => m.inboxId);
       selfRole = mapRole(
         members.find((m) => m.inboxId === this.self.participantId)?.permissionLevel
@@ -411,9 +423,17 @@ export class XmtpSession implements ChatSession {
       createdAt: raw.createdAt,
       consent: mapConsent(raw.state),
       selfRole,
-      lastMessage:
-        current() && raw.lastMessage ? await this.toMessage(raw.lastMessage, raw.id) : undefined,
+      lastMessage: current() ? await this.previewOf(raw) : undefined,
     };
+  }
+
+  private async previewOf(raw: XmtpConversation<any>): Promise<ChatMessage | undefined> {
+    const last = raw.lastMessage;
+    if (!last) return undefined;
+    const shown = isReadReceipt(last)
+      ? (await raw.messages({ limit: 5 })).find((message) => !isReadReceipt(message))
+      : last;
+    return shown ? this.toMessage(shown, raw.id) : undefined;
   }
 
   private async toMessage(
@@ -502,6 +522,10 @@ export class XmtpSession implements ChatSession {
 
 function toXmtpId(id: ConversationId): XmtpConversationId {
   return id as XmtpConversationId;
+}
+
+function isReadReceipt(message: DecodedMessage<any>): boolean {
+  return message.contentTypeId.startsWith('xmtp.org/readReceipt:');
 }
 
 function parseTypeId(contentTypeId: string): string {

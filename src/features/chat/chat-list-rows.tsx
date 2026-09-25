@@ -1,11 +1,12 @@
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import type { ChatPrefs } from '@/core/messaging/chat-prefs';
 import { useChatStore } from '@/core/messaging/chat-store';
 import { conversationTitle } from '@/core/messaging/display-names';
 import type { Directory, InboxRow } from '@/core/messaging/folders';
 import { formatTimestamp, messagePreview } from '@/core/messaging/preview';
-import type { Conversation } from '@/core/messaging/types';
+import type { Conversation, ConversationId } from '@/core/messaging/types';
 import { unreadBadge } from '@/core/messaging/unread';
 import {
   Enter,
@@ -15,10 +16,10 @@ import {
   type MenuAnchor,
   Pressable,
   SwipeableRow,
-  type SwipeAction,
   Text,
   useThemeColors,
 } from '@/design';
+import { openChat } from '@/features/navigation/open';
 import { protocolLabel } from '@/features/protocols/presentation';
 import { ConversationAvatar } from './conversation-avatar';
 import { CountBadge } from './folder-tabs';
@@ -29,37 +30,57 @@ export function ConversationRow({
   nameFor,
   unread,
   network,
-  pinned,
-  muted,
-  onPress,
-  onLongPress,
-  onContextMenu,
+  prefs,
   selected = false,
-  left,
-  right,
+  onMenu,
+  onToggle,
 }: {
   conversation: Conversation;
   selfId: string;
   nameFor: (id: string) => string;
   unread: boolean;
   network?: string;
-  pinned: boolean;
-  muted: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-  onContextMenu: (anchor: MenuAnchor) => void;
+  prefs: ChatPrefs | undefined;
   selected?: boolean;
-  left?: SwipeAction[];
-  right?: SwipeAction[];
+  onMenu: (conversation: Conversation, anchor: MenuAnchor | null) => void;
+  onToggle: (id: ConversationId, key: keyof ChatPrefs) => void;
 }) {
   const colors = useThemeColors();
   const title = conversationTitle(conversation, selfId, nameFor);
   const last = conversation.lastMessage;
+  const preview = messagePreview(last);
+  const pinned = Boolean(prefs?.pinned);
+  const muted = Boolean(prefs?.muted);
   const loaded = useChatStore((s) => s.messages[conversation.id]);
   const since = useChatStore((s) => s.readAt[conversation.id] ?? 0);
 
   return (
-    <SwipeableRow left={left} right={right}>
+    <SwipeableRow
+      left={[
+        {
+          id: 'pin',
+          label: pinned ? 'Unpin' : 'Pin',
+          icon: 'pin-outline',
+          tone: 'neutral',
+          onPress: () => onToggle(conversation.id, 'pinned'),
+        },
+      ]}
+      right={[
+        {
+          id: 'mute',
+          label: muted ? 'Unmute' : 'Mute',
+          icon: muted ? 'volume-high-outline' : 'volume-mute-outline',
+          tone: 'warning',
+          onPress: () => onToggle(conversation.id, 'muted'),
+        },
+        {
+          id: 'archive',
+          label: prefs?.archived ? 'Unarchive' : 'Archive',
+          icon: 'archive-outline',
+          tone: 'brand',
+          onPress: () => onToggle(conversation.id, 'archived'),
+        },
+      ]}>
       <ListItem
         testID={`conversation-${conversation.id}`}
         title={
@@ -73,13 +94,13 @@ export function ConversationRow({
             ) : null}
           </>
         }
-        accessibilityLabel={[title, conversation.typing ? 'typing' : messagePreview(last)]
+        accessibilityLabel={[title, conversation.typing ? 'typing' : preview]
           .filter(Boolean)
           .join(', ')}
-        subtitle={conversation.typing ? 'typing…' : messagePreview(last)}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onContextMenu={onContextMenu}
+        subtitle={conversation.typing ? 'typing…' : preview}
+        onPress={() => openChat(conversation.id)}
+        onLongPress={() => onMenu(conversation, null)}
+        onContextMenu={(anchor) => onMenu(conversation, anchor)}
         selected={selected}
         unread={unread && !muted}
         leading={

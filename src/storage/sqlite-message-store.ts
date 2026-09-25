@@ -7,6 +7,7 @@ import type {
 } from '@/core/messaging/message-store';
 import type {
   ChatMessage,
+  Conversation,
   ConversationId,
   MessageContent,
   MessageId,
@@ -202,6 +203,39 @@ export class SqliteMessageStore implements MessageStore {
     });
   }
 
+  async cachedConversations(): Promise<Conversation[]> {
+    const rows = await this.operation((db) =>
+      db.getAllAsync<{ data: string }>('SELECT data FROM conversation_cache')
+    );
+    return rows.flatMap((row) => {
+      try {
+        const conversation = JSON.parse(row.data) as Conversation;
+        return typeof conversation?.id === 'string' ? [conversation] : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  async cacheConversations(keep: Conversation[], drop: ConversationId[]): Promise<void> {
+    await this.transaction(async (db) => {
+      for (const rows of chunks(keep, CACHE_ROWS_PER_STATEMENT)) {
+        await db.runAsync(
+          `INSERT INTO conversation_cache (id, data)
+             VALUES ${rows.map(() => '(?, ?)').join(', ')}
+             ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
+          ...rows.flatMap((conversation) => [conversation.id, JSON.stringify(conversation)])
+        );
+      }
+      for (const ids of chunks(drop, CACHE_ROWS_PER_STATEMENT)) {
+        await db.runAsync(
+          `DELETE FROM conversation_cache WHERE id IN (${ids.map(() => '?').join(', ')})`,
+          ...ids
+        );
+      }
+    });
+  }
+
   private transaction<T>(work: (db: Database) => Promise<T>): Promise<T> {
     return this.write(async (db) => {
       let result!: T;
@@ -307,4 +341,12 @@ function parseContent(raw: string): MessageContent {
     typeId: 'unknown',
     fallback: 'This message could not be read.',
   };
+}
+
+const CACHE_ROWS_PER_STATEMENT = 300;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }

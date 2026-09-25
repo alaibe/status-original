@@ -247,7 +247,7 @@ export const SESSION: MxSession = {
 
 export const PARAMETERS = {
   dataDirectory: '/tmp/matrix',
-  storePassphrase: 'pass',
+  storeKey: 'pass',
   homeserverUrl: 'https://example.org',
   userId: ME,
   deviceName: 'test',

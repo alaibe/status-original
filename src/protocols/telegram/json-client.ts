@@ -4,8 +4,8 @@ import { TdRequestError, type TdApi, type TdError, type TdObject } from './api';
 export interface TdDriver {
   create(): Promise<void>;
   send(request: TdObject): Promise<void>;
-  /** Resolves `null` when TDLib had nothing to say within the driver's own timeout. */
-  receive(): Promise<string | null>;
+  /** What TDLib said, oldest first; empty when it had nothing to say within the driver's own timeout. */
+  receive(): Promise<TdObject[]>;
   destroy(): Promise<void>;
 }
 
@@ -82,19 +82,19 @@ export class TdJsonClient implements TdApi {
 
   private async receiveLoop(): Promise<void> {
     while (this.state !== 'closed') {
-      let raw: string | null;
+      let responses: TdObject[];
       try {
-        raw = await this.driver.receive();
+        responses = await this.driver.receive();
       } catch {
         await this.finishClose();
         break;
       }
-      if (raw === null) continue;
-      const response = JSON.parse(raw) as TdObject;
-      this.dispatch(response);
-      if (isClosedState(response)) {
-        await this.finishClose();
-        break;
+      for (const response of responses) {
+        this.dispatch(response);
+        if (isClosedState(response)) {
+          await this.finishClose();
+          return;
+        }
       }
     }
   }

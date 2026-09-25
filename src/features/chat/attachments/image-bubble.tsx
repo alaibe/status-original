@@ -33,6 +33,7 @@ export function ImageBubble({ uri, width, height, caption, fromMe }: ImageBubble
         pressScale={0.99}>
         <Image
           source={{ uri }}
+          recyclingKey={uri}
           style={{ width: boxWidth, height: boxHeight, borderRadius: 14 }}
           contentFit="cover"
           transition={120}

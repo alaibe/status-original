@@ -53,11 +53,21 @@ export function hasMarkup(text: string): boolean {
 
 const hasShortcode = (text: string) => text.includes(':') && new RegExp(SHORTCODE).test(text);
 
+const parsed = new Map<string, Block[]>();
+const PARSED_LIMIT = 500;
+
+/** The blocks are shared between callers and must not be changed. */
 export function parseMarkdown(text: string): Block[] {
   if (!hasMarkup(text)) {
     return [{ kind: 'paragraph', spans: [{ text: replaceShortcodes(text), style: {} }] }];
   }
-  return blocks(marked.lexer(text));
+  let result = parsed.get(text);
+  if (!result) {
+    result = blocks(marked.lexer(text));
+    if (parsed.size >= PARSED_LIMIT) parsed.delete(parsed.keys().next().value!);
+    parsed.set(text, result);
+  }
+  return result;
 }
 
 function blocks(tokens: Token[]): Block[] {

@@ -13,6 +13,7 @@ const PROACTIVE_MEMORY = 200;
 export class BotRuntime {
   private running = new Map<string, RunningBot>();
   private proactiveIds: MessageId[] = [];
+  private ready: Promise<unknown> = Promise.resolve();
 
   ids(): string[] {
     return [...this.running.keys()];
@@ -34,6 +35,10 @@ export class BotRuntime {
     for (const id of [...this.running.keys()]) this.stopOne(id);
   }
 
+  holdUntil(ready: Promise<unknown>): void {
+    this.ready = ready;
+  }
+
   private start(bot: Bot, active: () => boolean): void {
     const conversationId = botConversationId(bot.id);
     const running: RunningBot = { stopped: false };
@@ -53,8 +58,8 @@ export class BotRuntime {
         }
       },
     };
-    Promise.resolve()
-      .then(() => bot.activate?.(context))
+    this.ready
+      .then(() => (running.stopped ? undefined : bot.activate?.(context)))
       .then((dispose) => {
         if (typeof dispose !== 'function') return;
         if (running.stopped) dispose();

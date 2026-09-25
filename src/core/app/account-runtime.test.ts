@@ -1,24 +1,15 @@
-import type { LocalAccount } from 'viem';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AccountRuntime, type RuntimeAccount } from './account-runtime';
-import type { Keyring } from '../identity/keyring';
 import { useChatStore } from '../messaging/chat-store';
 import { InMemoryChatSession } from '../messaging/in-memory-session';
 import { InMemoryMessageStore } from '../messaging/message-store';
+import { TEST_KEYRING } from '../messaging/testing/store';
 import type { ChatMessage } from '../messaging/types';
 import { PluginRegistry } from '../plugins/registry';
 import type { Plugin, PluginContext, PluginLease } from '../plugins/types';
 import { createAccountStorage } from '@/storage/account';
 import { PROTOCOLS } from '@/protocols';
-
-const keyring = {
-  kind: 'phrase',
-  mnemonic: null,
-  account: {} as LocalAccount,
-  address: '0x0000000000000000000000000000000000000000',
-  derive: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
-  deriveEd25519: () => ({ path: '', privateKey: new Uint8Array(), publicKey: new Uint8Array() }),
-} as Keyring;
 
 function input(
   accountId: string,
@@ -28,7 +19,7 @@ function input(
 ): RuntimeAccount {
   return {
     accountId,
-    keyring,
+    keyring: TEST_KEYRING,
     registry,
     defaultEnabled: registry.list().map((plugin) => plugin.manifest.id),
     makeContext,
@@ -37,7 +28,8 @@ function input(
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
   useChatStore.setState({
     status: 'idle',
     sessions: {},
@@ -319,6 +311,73 @@ describe('AccountRuntime', () => {
     expect(useChatStore.getState().sessions.xmtp).toBe(second);
     expect(nostr.disconnected).toBe(false);
     expect(useChatStore.getState().sessions.nostr).toBe(nostr);
+    await runtime.synchronize(null);
+  });
+
+  it('connects networks that need no plugin while plugins are still starting', async () => {
+    const runtime = new AccountRuntime(PROTOCOLS);
+    const xmtp = new InMemoryChatSession();
+    const nostr = new InMemoryChatSession();
+    let release!: () => void;
+    const starting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slow: Plugin = {
+      manifest: {
+        id: 'slow',
+        name: 'Slow',
+        description: '',
+        version: '1',
+        icon: 'ellipse',
+        permissions: [],
+      },
+      setup: () => ({ start: () => starting }),
+    };
+
+    const running = runtime.synchronize({
+      ...input('account-a', new PluginRegistry([slow]), async ({ protocolId }) =>
+        protocolId === 'nostr' ? nostr : xmtp
+      ),
+      only: ['xmtp', 'nostr'],
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(useChatStore.getState().sessions.nostr).toBe(nostr);
+    expect(useChatStore.getState().sessions.xmtp).toBeUndefined();
+    release();
+    await running;
+    expect(useChatStore.getState().sessions.xmtp).toBe(xmtp);
+    await runtime.synchronize(null);
+  });
+
+  it('saves network settings without waiting to reconnect, and reconnects only that network', async () => {
+    const runtime = new AccountRuntime(PROTOCOLS);
+    const xmtp = new InMemoryChatSession();
+    const nostr = new InMemoryChatSession();
+    const reconnected = new InMemoryChatSession();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let nostrStarts = 0;
+
+    await runtime.synchronize({
+      ...input('account-a', new PluginRegistry(), async ({ protocolId }) => {
+        if (protocolId === 'xmtp') return xmtp;
+        if (nostrStarts++ === 0) return nostr;
+        await held;
+        return reconnected;
+      }),
+      only: ['xmtp', 'nostr'],
+    });
+    await runtime.updateProtocolConfig('account-a', 'nostr', { relays: 'wss://relay.example' });
+    release();
+    await runtime['transition'];
+
+    expect(nostr.disconnected).toBe(true);
+    expect(useChatStore.getState().sessions.nostr).toBe(reconnected);
+    expect(xmtp.disconnected).toBe(false);
+    expect(useChatStore.getState().sessions.xmtp).toBe(xmtp);
     await runtime.synchronize(null);
   });
 });

@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use base64::prelude::*;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::paths::app_data_dir;
 
@@ -152,6 +152,13 @@ fn with_vault<T>(
         *guard = Some(load(app)?);
     }
     work(guard.as_mut().expect("loaded above"))
+}
+
+pub fn preload(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let _ = with_vault(&app, &app.state::<Vault>(), |_| Ok(()));
+    });
 }
 
 #[tauri::command]

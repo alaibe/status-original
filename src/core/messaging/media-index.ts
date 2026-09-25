@@ -1,4 +1,5 @@
 import type { AccountStorage } from '@/storage/account';
+import { deferredWrite } from '@/storage/deferred-write';
 import type { ChatMessage, ConversationId, MessageId } from './types';
 
 export type MediaCategory = 'media' | 'files' | 'voice' | 'links' | 'gifs';
@@ -123,10 +124,7 @@ export async function loadMediaIndex(storage: AccountStorage): Promise<MediaInde
   return (await storage.get<MediaIndex>(KEY)) ?? {};
 }
 
-export async function saveMediaIndex(storage: AccountStorage, index: MediaIndex): Promise<void> {
-  try {
-    await storage.set(KEY, index);
-  } catch (error) {
-    console.warn('[chat] could not persist the media index', error);
-  }
-}
+export const { saveSoon: saveMediaIndexSoon, flush: flushMediaIndex } = deferredWrite<MediaIndex>(
+  KEY,
+  1_000
+);

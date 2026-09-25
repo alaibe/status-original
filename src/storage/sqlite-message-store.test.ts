@@ -66,13 +66,18 @@ describe('the schema', () => {
     const db = await openAccountDatabase(id);
 
     const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(version?.user_version).toBe(2);
+    expect(version?.user_version).toBe(1);
 
     const tables = await db.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
     );
     expect(tables.map((t) => t.name)).toEqual(
-      expect.arrayContaining(['conversations', 'messages', 'transport_cursors'])
+      expect.arrayContaining([
+        'conversation_cache',
+        'conversations',
+        'messages',
+        'transport_cursors',
+      ])
     );
   });
 
@@ -83,6 +88,26 @@ describe('the schema', () => {
 
     const reopened = new SqliteMessageStore(id);
     expect(await reopened.loadConversations(WAKU)).toHaveLength(1);
+  });
+});
+
+describe('the cached chat list', () => {
+  it('keeps chats per network, updates them in place and drops the ones asked', async () => {
+    const store = new SqliteMessageStore(freshAccount());
+    const chat = (id: string, title: string) => ({
+      id,
+      protocol: 'xmtp',
+      kind: 'dm' as const,
+      title,
+      memberIds: ['a'],
+      createdAt: 1,
+      consent: 'allowed' as const,
+    });
+
+    await store.cacheConversations([chat('xmtp-1', 'One'), chat('xmtp-2', 'Two')], []);
+    await store.cacheConversations([chat('xmtp-1', 'Renamed')], ['xmtp-2']);
+
+    expect(await store.cachedConversations()).toEqual([chat('xmtp-1', 'Renamed')]);
   });
 });
 

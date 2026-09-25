@@ -12,7 +12,7 @@ import {
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { cn, Icon, type IconName, Text, useThemeColors } from '@/design';
+import { cn, Icon, type IconName, PASS_THROUGH, Text, useThemeColors } from '@/design';
 import { QUICK_REACTIONS } from '@/core/messaging/reactions';
 
 export interface MessageAction {
@@ -30,7 +30,7 @@ export interface MessageAnchor {
   height: number;
 }
 
-const REACTION_BAR_HEIGHT = 52;
+const REACTION_BAR_HEIGHT = 48;
 const MENU_ROW_HEIGHT = 46;
 const GAP = 8;
 
@@ -53,7 +53,7 @@ export function MessageActions({
 }) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   useEffect(() => {
     if (visible) {
@@ -63,25 +63,41 @@ export function MessageActions({
 
   if (!anchor) return null;
 
+  const above = onReact ? REACTION_BAR_HEIGHT + GAP : 0;
   const menuHeight = actions.length * MENU_ROW_HEIGHT + 16;
-  const wanted = REACTION_BAR_HEIGHT + GAP + anchor.height + GAP + menuHeight;
+  const wanted = above + anchor.height + GAP + menuHeight;
   const top = insets.top + 8;
   const bottom = screenHeight - insets.bottom - 8;
 
-  const naturalTop = anchor.y - REACTION_BAR_HEIGHT - GAP;
-  const groupTop = Math.max(top, Math.min(naturalTop, bottom - wanted));
+  const groupTop = Math.max(top, Math.min(anchor.y - above, bottom - wanted));
   const scrolls = wanted > bottom - top;
 
+  const backdrop = (
+    <RNPressable
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      onPress={onClose}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+
   const group = (
-    <View style={{ width: '100%' }}>
+    <View
+      style={[
+        PASS_THROUGH,
+        {
+          gap: GAP,
+          alignItems: fromMe ? 'flex-end' : 'flex-start',
+          paddingLeft: fromMe ? GAP : anchor.x,
+          paddingRight: fromMe ? Math.max(GAP, screenWidth - anchor.x - anchor.width) : GAP,
+        },
+        !scrolls && { position: 'absolute', left: 0, right: 0, top: groupTop },
+      ]}>
       {onReact ? (
-        <Animated.View
-          entering={FadeIn.duration(140)}
-          exiting={FadeOut.duration(100)}
-          className={cn('px-gutter pb-2', fromMe ? 'items-end' : 'items-start')}>
+        <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)}>
           <View
-            style={{ borderCurve: 'continuous' }}
-            className="flex-row items-center gap-1 rounded-pill bg-surface-raised px-2 py-1.5 shadow-sm">
+            style={{ borderCurve: 'continuous', height: REACTION_BAR_HEIGHT }}
+            className="flex-row items-center gap-1 rounded-pill bg-surface-raised px-2 shadow-sm">
             {QUICK_REACTIONS.map((emoji) => (
               <RNPressable
                 key={emoji}
@@ -99,12 +115,9 @@ export function MessageActions({
         </Animated.View>
       ) : null}
 
-      <View style={{ pointerEvents: 'none' }}>{render()}</View>
+      <View style={{ pointerEvents: 'none', width: anchor.width }}>{render()}</View>
 
-      <Animated.View
-        entering={FadeIn.duration(140).delay(30)}
-        exiting={FadeOut.duration(100)}
-        className={cn('px-gutter pt-2', fromMe ? 'items-end' : 'items-start')}>
+      <Animated.View entering={FadeIn.duration(140).delay(30)} exiting={FadeOut.duration(100)}>
         <View
           style={{ borderCurve: 'continuous', minWidth: 200 }}
           className="overflow-hidden rounded-card bg-surface-raised py-1 shadow-sm">
@@ -143,30 +156,18 @@ export function MessageActions({
           intensity={40}
           tint={colors.scheme === 'dark' ? 'dark' : 'light'}
           style={{ flex: 1 }}>
-          <RNPressable
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            onPress={onClose}
-            style={StyleSheet.absoluteFill}
-          />
-
           {scrolls ? (
             <ScrollView
               contentContainerStyle={{ paddingTop: top, paddingBottom: screenHeight - bottom }}
               showsVerticalScrollIndicator={false}>
+              {backdrop}
               {group}
             </ScrollView>
           ) : (
-            <View
-              style={{
-                pointerEvents: 'box-none',
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: groupTop,
-              }}>
+            <>
+              {backdrop}
               {group}
-            </View>
+            </>
           )}
         </BlurView>
       </Animated.View>

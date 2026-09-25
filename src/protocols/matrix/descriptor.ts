@@ -5,7 +5,7 @@ import { guideUrl } from '@/lib/guide';
 import { accountDirectory, eraseAccountDirectory } from '@/storage/media';
 import {
   accountMatrixSessionKey,
-  accountMatrixStorePassphrase,
+  accountMatrixStoreKey,
   vaultDelete,
   vaultGet,
   vaultSet,
@@ -78,19 +78,19 @@ export const MATRIX_PROTOCOL = {
     if (!USER_ID.test(userId)) throw new Error('The Matrix ID must look like @you:example.org.');
 
     const sessionKey = accountMatrixSessionKey(accountId);
-    const [{ MatrixSession }, { MatrixClient }, dataDirectory, storePassphrase, session] =
+    const [{ MatrixSession }, { MatrixClient }, dataDirectory, storeKey, session] =
       await Promise.all([
         import('./adapter'),
         import('./client'),
         accountDirectory('matrix', accountId),
-        accountMatrixStorePassphrase(accountId),
+        accountMatrixStoreKey(accountId),
         readSession(sessionKey, userId, homeserverUrl),
       ]);
     return MatrixSession.connect({
       createApi: () => MatrixClient.create(),
       parameters: {
         dataDirectory,
-        storePassphrase,
+        storeKey,
         homeserverUrl,
         userId,
         deviceName: DEVICE_NAME,

@@ -192,6 +192,10 @@ export class StoreBackedSession implements ChatSession, TransportSink {
     return conversation;
   }
 
+  async whenListed(first: Conversation[]): Promise<Conversation[]> {
+    return first;
+  }
+
   async listConversations(): Promise<Conversation[]> {
     const [stored, latest] = await Promise.all([
       this.store.loadConversations(this.transport.protocolId),

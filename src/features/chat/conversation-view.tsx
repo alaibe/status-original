@@ -19,6 +19,7 @@ import { isLocalConversation } from '@/core/messaging/bots';
 import { selfIdFor, useChatStore } from '@/core/messaging/chat-store';
 import type {
   ChatMessage,
+  Conversation,
   ConversationId,
   MessageContent,
   MessageId,
@@ -31,8 +32,12 @@ import { ConsentBar } from './consent-bar';
 import { DateSeparator } from './date-separator';
 import { CommandPending } from './command-pending';
 import { ForwardSheet } from './forward-sheet';
-import { MessageBubble, type ReplyPreview, type ThreadChip } from './message-bubble';
-import { conversationPeers, conversationTitle } from '@/core/messaging/display-names';
+import { MessageBubble, type ReplyPreview } from './message-bubble';
+import {
+  conversationPeers,
+  conversationTitle,
+  type DisplayParticipant,
+} from '@/core/messaging/display-names';
 import { useDisplayNames } from './use-display-names';
 import { useSupports } from './use-supports';
 import { useComposerMode } from './composer-mode';
@@ -105,9 +110,6 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
 
   const isBot = isLocalConversation(id);
 
-  const peers = conversation ? conversationPeers(conversation, selfId) : [];
-  const { nameFor } = useDisplayNames(peers);
-
   const { session, supports, threads } = useSupports(id);
   const {
     allMessages,
@@ -118,10 +120,14 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
     loadOlderMessages,
     list,
     followNewest,
-    pauseFollowing,
+    trackScroll,
     followIfNeeded,
+    loadEarlier,
     highlighted,
   } = useConversationTimeline(id, thread, conversation, session, Boolean(onOpenThread));
+  const { nameFor } = useDisplayNames(
+    conversation ? chatPeople(conversation, selfId, allMessages) : []
+  );
   const pinnedMessages = usePinnedMessages(
     id,
     allMessages,
@@ -145,10 +151,7 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
     await sendMessage(id, content, undefined, thread);
   };
 
-  const previewOf = (target: ChatMessage): ReplyPreview => ({
-    author: target.fromMe ? 'You' : nameFor(target.senderId),
-    preview: contentPreview(target.content) || 'Message',
-  });
+  const previewOf = (target: ChatMessage) => replyPreview(target, nameFor);
 
   const composer = useComposerMode(id, followNewest, thread);
 
@@ -184,30 +187,28 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
     pin: supports('setMessagePinned') && conversation?.canPin !== false,
     thread: threads && onOpenThread !== undefined,
   };
-  const canVote = supports('votePoll');
+  const actionsFor = (message: ChatMessage) => messageActions(message, handlers, can);
+  const onVote = supports('votePoll')
+    ? (messageId: MessageId, optionIds: number[]) => votePoll(id, messageId, optionIds)
+    : undefined;
 
-  const renderItem = ({ item, index }: ListRenderItemInfo<ChatMessage>) => {
-    const previous = messages[index - 1];
-    const replies = replyCounts.get(item.id) ?? 0;
-    const target = item.replyTo ? byId.get(item.replyTo) : undefined;
-    return (
-      <MessageRow
-        message={item}
-        previous={previous}
-        highlighted={item.id === highlighted}
-        replyPreview={item.replyTo ? (target ? previewOf(target) : MISSING_REPLY) : undefined}
-        senderName={isBot ? botName : nameFor(item.senderId)}
-        isGroup={isGroup}
-        onCommand={runCommand}
-        actions={messageActions(item, handlers, can)}
-        onReact={item.privateToMe ? undefined : (emoji) => onReactTo(item.id, emoji)}
-        onVote={canVote ? (optionIds) => votePoll(id, item.id, optionIds) : undefined}
-        thread={
-          replies > 0 && onOpenThread ? { replies, onOpen: () => onOpenThread(item.id) } : undefined
-        }
-      />
-    );
-  };
+  const renderItem = ({ item, index }: ListRenderItemInfo<ChatMessage>) => (
+    <MessageRow
+      message={item}
+      previous={messages[index - 1]}
+      highlighted={item.id === highlighted}
+      replyTarget={item.replyTo ? byId.get(item.replyTo) : undefined}
+      nameFor={nameFor}
+      senderName={isBot ? botName : nameFor(item.senderId)}
+      isGroup={isGroup}
+      onCommand={runCommand}
+      actionsFor={actionsFor}
+      onReact={item.privateToMe ? undefined : onReactTo}
+      onVote={onVote}
+      replies={onOpenThread ? (replyCounts.get(item.id) ?? 0) : 0}
+      onOpenThread={onOpenThread}
+    />
+  );
 
   const chatTitle = conversation
     ? conversationTitle(conversation, selfId, nameFor)
@@ -241,29 +242,34 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
         {messages.length === 0 ? (
           <View className="flex-1">
             <HistoryStatus protocol={conversation?.protocol} />
-            <EmptyState
-              icon={
-                <Icon
-                  name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
-                  size={40}
-                  color={colors['content-subtle']}
-                />
-              }
-              title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
-              description={
-                isBot
-                  ? 'Type /commands to see what you can do in this chat.'
-                  : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
-              }
-            />
+            {messageHistory || isBot ? (
+              <EmptyState
+                icon={
+                  <Icon
+                    name={isBot ? 'sparkles-outline' : 'lock-closed-outline'}
+                    size={40}
+                    color={colors['content-subtle']}
+                  />
+                }
+                title={fetchingHistory ? 'Fetching history…' : 'No messages yet'}
+                description={
+                  isBot
+                    ? 'Type /commands to see what you can do in this chat.'
+                    : 'Messages are end-to-end encrypted. Type /commands to see what you can do here.'
+                }
+              />
+            ) : null}
           </View>
         ) : (
           <FlashList
             key={id}
             ref={list}
             data={messages}
-            onScrollBeginDrag={pauseFollowing}
+            onScroll={trackScroll}
+            scrollEventThrottle={32}
             onContentSizeChange={followIfNeeded}
+            onStartReached={loadEarlier}
+            onStartReachedThreshold={0.5}
             keyExtractor={(m) => m.id}
             getItemType={(m) => m.content.kind}
             maintainVisibleContentPosition={{
@@ -374,30 +380,56 @@ export function ConversationView({ id, thread, onOpenThread, onBack }: Conversat
   );
 }
 
+function chatPeople(
+  conversation: Conversation,
+  selfId: string,
+  messages: ChatMessage[]
+): DisplayParticipant[] {
+  const members = conversationPeers(conversation, selfId);
+  const listed = new Set(members.map((member) => member.id));
+  const writers = new Set(
+    messages
+      .filter((message) => !message.fromMe && !listed.has(message.senderId))
+      .map((message) => message.senderId)
+  );
+  return [...members, ...[...writers].map((id) => ({ id, protocol: conversation.protocol }))];
+}
+
+function replyPreview(target: ChatMessage, nameFor: (id: string) => string): ReplyPreview {
+  return {
+    author: target.fromMe ? 'You' : nameFor(target.senderId),
+    preview: contentPreview(target.content) || 'Message',
+  };
+}
+
 function MessageRow({
   message,
   previous,
   highlighted,
-  replyPreview,
+  replyTarget,
+  nameFor,
   senderName,
   isGroup,
   onCommand,
-  actions,
+  actionsFor,
   onReact,
   onVote,
-  thread,
+  replies,
+  onOpenThread,
 }: {
   message: ChatMessage;
   previous: ChatMessage | undefined;
   highlighted: boolean;
-  replyPreview: ReplyPreview | undefined;
+  replyTarget: ChatMessage | undefined;
+  nameFor: (id: string) => string;
   senderName: string;
   isGroup: boolean;
   onCommand: (command: string) => void;
-  actions: MessageAction[];
-  onReact?: (emoji: string) => void;
-  onVote?: (optionIds: number[]) => Promise<void>;
-  thread?: ThreadChip;
+  actionsFor: (message: ChatMessage) => MessageAction[];
+  onReact?: (messageId: MessageId, emoji: string) => void;
+  onVote?: (messageId: MessageId, optionIds: number[]) => Promise<void>;
+  replies: number;
+  onOpenThread?: (root: MessageId) => void;
 }) {
   const grouped =
     !!previous &&
@@ -417,11 +449,21 @@ function MessageRow({
           senderName={senderName}
           showSender={isGroup && !grouped && !message.privateToMe}
           onCommand={onCommand}
-          actions={actions}
-          replyPreview={replyPreview}
-          onReact={onReact}
-          onVote={onVote}
-          thread={thread}
+          actions={() => actionsFor(message)}
+          replyPreview={
+            message.replyTo
+              ? replyTarget
+                ? replyPreview(replyTarget, nameFor)
+                : MISSING_REPLY
+              : undefined
+          }
+          onReact={onReact && ((emoji) => onReact(message.id, emoji))}
+          onVote={onVote && ((optionIds) => onVote(message.id, optionIds))}
+          thread={
+            replies > 0 && onOpenThread
+              ? { replies, onOpen: () => onOpenThread(message.id) }
+              : undefined
+          }
         />
       </View>
     </>

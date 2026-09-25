@@ -1,4 +1,4 @@
-import type { ChatMessage, ConversationId, MessageId, ParticipantId } from './types';
+import type { ChatMessage, Conversation, ConversationId, MessageId, ParticipantId } from './types';
 import { matchesSearch, SEARCH_LIMIT } from './search';
 import { countsAsUnread } from './unread';
 
@@ -44,6 +44,8 @@ export interface MessageStore {
     conversationId?: ConversationId
   ): Promise<number | undefined>;
   clear(protocolId: string): Promise<void>;
+  cachedConversations(): Promise<Conversation[]>;
+  cacheConversations(keep: Conversation[], drop: ConversationId[]): Promise<void>;
 }
 
 export const HYDRATE_LIMIT = 500;
@@ -168,6 +170,17 @@ export class InMemoryMessageStore implements MessageStore {
       if (newest) latest.set(conversation.id, newest);
     }
     return latest;
+  }
+
+  private readonly cached = new Map<ConversationId, Conversation>();
+
+  async cachedConversations(): Promise<Conversation[]> {
+    return [...this.cached.values()];
+  }
+
+  async cacheConversations(keep: Conversation[], drop: ConversationId[]): Promise<void> {
+    for (const conversation of keep) this.cached.set(conversation.id, conversation);
+    for (const id of drop) this.cached.delete(id);
   }
 
   async clear(protocolId: string): Promise<void> {

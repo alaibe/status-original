@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { cn, Icon, Text, useThemeColors } from '@/design';
 import { usePluginHost } from '@/core/plugins/host';
-import type { ChatMessage, WidgetContent } from '@/core/messaging/types';
+import { sessionFor, useChatStore } from '@/core/messaging/chat-store';
+import type { ChatMessage, MessageId, WidgetContent } from '@/core/messaging/types';
 import type { MessageAction } from './message-actions';
 import { BubbleShell, type ReplyPreview, type ThreadChip } from './bubble-shell';
 import { findTransactionHash } from '@/lib/evm/transactions';
@@ -21,10 +23,10 @@ import { ImageBubble } from './attachments/image-bubble';
 import { VoiceBubble } from './attachments/voice-bubble';
 import { VideoBubble } from './attachments/video-bubble';
 import { PollBubble } from './poll-bubble';
-import { formatTimestamp } from '@/core/messaging/preview';
+import { awaitsFile, formatTimestamp } from '@/core/messaging/preview';
 import { openInBrowser } from '@/lib/open-url';
 
-export type { ReplyPreview, ThreadChip } from './bubble-shell';
+export type { ReplyPreview } from './bubble-shell';
 
 export interface MessageBubbleProps {
   message: ChatMessage;
@@ -34,7 +36,7 @@ export interface MessageBubbleProps {
   onCommand?: (command: string) => void;
   onReact?: (emoji: string) => void;
   onVote?: (optionIds: number[]) => Promise<void>;
-  actions: MessageAction[];
+  actions: () => MessageAction[];
   replyPreview?: ReplyPreview;
   thread?: ThreadChip;
 }
@@ -52,6 +54,7 @@ export function MessageBubble({
   thread,
 }: MessageBubbleProps) {
   const { registry } = usePluginHost();
+  useMissingMedia(message);
 
   const { fromMe, content } = message;
 
@@ -314,4 +317,17 @@ function LiveWidget({
   onCommand?: (command: string) => void;
 }) {
   return <WidgetView widget={useLiveWidget(content)} onCommand={onCommand} onOpenUrl={openUrl} />;
+}
+
+const requestedMedia = new Set<MessageId>();
+
+function useMissingMedia({ id, conversationId, content }: ChatMessage) {
+  const missing = awaitsFile(content);
+  useEffect(() => {
+    if (!missing || requestedMedia.has(id)) return;
+    const store = useChatStore.getState();
+    if (!sessionFor(store, conversationId)?.fetchMedia) return;
+    requestedMedia.add(id);
+    store.fetchMedia(conversationId, id).catch(() => requestedMedia.delete(id));
+  }, [missing, id, conversationId]);
 }

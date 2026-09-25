@@ -34,15 +34,19 @@ export default function PluginsScreen() {
     plugin: Plugin;
     loss: BotChatLoss;
   } | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [toggling, setToggling] = useState<Record<string, boolean>>({});
 
   const apply = async (plugin: Plugin, next: boolean) => {
+    const id = plugin.manifest.id;
     const done = `${plugin.manifest.name} ${next ? 'enabled' : 'disabled'}`;
+    setToggling((current) => ({ ...current, [id]: next }));
     try {
-      await setEnabled(plugin.manifest.id, next);
+      await setEnabled(id, next);
       toast.success(done);
     } catch (e) {
       toast.error(errorMessage(e, 'Could not update plugin'));
+    } finally {
+      setToggling(({ [id]: _settled, ...rest }) => rest);
     }
   };
 
@@ -75,7 +79,7 @@ export default function PluginsScreen() {
 
         <Section surface="card" className="mb-6">
           {registry.list().map((plugin) => {
-            const enabled = enabledIds.includes(plugin.manifest.id);
+            const enabled = toggling[plugin.manifest.id] ?? enabledIds.includes(plugin.manifest.id);
             return (
               <ListItem
                 key={plugin.manifest.id}
@@ -155,17 +159,14 @@ export default function PluginsScreen() {
         onClose={() => setPendingDisable(null)}
         title={copy?.title}
         body={copy?.body}
-        busy={busy}
         cancelLabel="Keep it on"
         confirm={{
           label: copy?.confirmLabel ?? 'Turn off',
-          busyLabel: 'Turning off…',
           tone: 'danger',
-          onPress: async () => {
+          onPress: () => {
             if (!pendingDisable) return;
-            setBusy(true);
-            await apply(pendingDisable.plugin, false).finally(() => setBusy(false));
             setPendingDisable(null);
+            void apply(pendingDisable.plugin, false);
           },
         }}
       />

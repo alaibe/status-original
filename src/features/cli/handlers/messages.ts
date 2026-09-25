@@ -1,7 +1,13 @@
 import { fallbackMimeType } from '@/core/messaging/attachments';
-import { sessionFor, useChatStore, type SendOutcome } from '@/core/messaging/chat-store';
+import {
+  type ChatState,
+  sessionFor,
+  useChatStore,
+  type SendOutcome,
+} from '@/core/messaging/chat-store';
 import { readMediaBase64 } from '@/core/messaging/media-store';
-import type { ConversationId, MessageContent } from '@/core/messaging/types';
+import { awaitsFile } from '@/core/messaging/preview';
+import type { ChatMessage, ConversationId, MessageContent } from '@/core/messaging/types';
 import { errorMessage } from '@/core/errors';
 import { base64ToBytes } from '@/lib/bytes';
 import { contentFromBrowserFile } from '@/features/chat/attachments/pick';
@@ -16,6 +22,7 @@ import {
   readyMessage,
   type CliHandler,
   type CliIo,
+  waitFor,
 } from '../context';
 import { CliError } from '../errors';
 import { basename, readFileArg, stdinText } from './input';
@@ -164,7 +171,8 @@ export const messageHandlers = {
   },
 
   async download({ args, flags }, { io }) {
-    const { message } = await readyMessage(args.chat!, args.message!);
+    const { chat, message: listed } = await readyMessage(args.chat!, args.message!);
+    const message = await withLocalMedia(chat.id, listed);
     const c = message.content;
     if (c.kind !== 'image' && c.kind !== 'file' && c.kind !== 'voice' && c.kind !== 'video') {
       throw new CliError('That message has no attachment.', 'usage');
@@ -181,3 +189,17 @@ export const messageHandlers = {
     };
   },
 } satisfies Record<string, CliHandler>;
+
+async function withLocalMedia(chatId: ConversationId, message: ChatMessage): Promise<ChatMessage> {
+  const store = useChatStore.getState();
+  if (!awaitsFile(message.content) || !sessionFor(store, chatId)?.fetchMedia) {
+    return message;
+  }
+  const local = (state: ChatState) =>
+    state.messages[chatId]?.find((m) => m.id === message.id && m.content.kind !== 'unsupported');
+  await store.fetchMedia(chatId, message.id);
+  await waitFor(useChatStore, (state) => local(state) !== undefined, MEDIA_TIMEOUT_MS);
+  return local(useChatStore.getState()) ?? message;
+}
+
+const MEDIA_TIMEOUT_MS = 60_000;
