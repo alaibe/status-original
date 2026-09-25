@@ -159,6 +159,20 @@ export function ChatList({ query, selectedId }: ChatListProps) {
   };
   const leaveDirectory = () => go(null);
   useEscapeKey(directory !== null, leaveDirectory);
+  const openSelectedDirectory = useEffectEvent(() => {
+    const selected = allowed.find((c) => c.id === selectedId);
+    if (!selected || selectedListed || q) return;
+    const network = networkOf(selected);
+    const home: Directory | null = chatPrefs[selected.id]?.archived
+      ? 'archive'
+      : network && folded(network) && !chatPrefs[selected.id]?.pinned
+        ? `network:${network}`
+        : null;
+    if (home !== directory) setDirectory(home);
+  });
+  useEffect(() => {
+    openSelectedDirectory();
+  }, [selectedId]);
 
   const managed = managing ? chatPrefs[managing.id] : undefined;
   const choose = (key: keyof ChatPrefs) => {
