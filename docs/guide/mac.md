@@ -8,6 +8,7 @@ taps.
 ## What changes
 
 - **⌘K** opens the switcher: type a few letters of a chat and press Enter.
+- **⌘F** searches messages: inside a chat it searches only that chat.
 - **⌘N** starts a new message, **⌘,** opens settings, **⌘1/2/3** switch tabs.
 - **Enter** sends; **Shift-Enter** makes a new line.
 - **Right-click** a message for what long-press does on the phone.

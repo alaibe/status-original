@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 
@@ -41,6 +41,10 @@ const RECENT = 6;
  */
 export function QuickSwitcher() {
   const router = useRouter();
+  const segments = useSegments() as string[];
+  const { id } = useGlobalSearchParams<{ id?: string }>();
+  const chatId = segments[0] === 'chat' ? id : undefined;
+  const searching = segments[0] === 'search';
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -55,6 +59,11 @@ export function QuickSwitcher() {
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault();
         router.push('/new-chat');
+      } else if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        if (!searching) {
+          router.push(chatId ? `/search?chatId=${encodeURIComponent(chatId)}` : '/search');
+        }
       } else if (event.key === ',') {
         event.preventDefault();
         openTab('/settings');
@@ -66,7 +75,7 @@ export function QuickSwitcher() {
     // Capture phase: react-native-web stops keydown from bubbling out of inputs.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, router]);
+  }, [chatId, open, router, searching]);
 
   return open ? <QuickSwitcherPanel onClose={() => setOpen(false)} /> : null;
 }
@@ -110,6 +119,13 @@ function QuickSwitcherPanel({ onClose }: { onClose: () => void }) {
         subtitle: '⌘N',
         icon: 'create-outline',
         run: () => router.push('/new-chat'),
+      },
+      {
+        id: 'search',
+        title: 'Search messages',
+        subtitle: '⌘F',
+        icon: 'search-outline',
+        run: () => router.push('/search'),
       },
       {
         id: 'contacts',
