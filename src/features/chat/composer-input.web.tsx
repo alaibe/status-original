@@ -1,4 +1,11 @@
-import { useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { htmlToMarkdown } from '@/core/messaging/html-markdown';
 import { markdownHtml } from '@/core/messaging/markdown';
@@ -123,28 +130,51 @@ export function ComposerInput({
   };
 
   // A file dropped anywhere in the window goes to the open conversation.
+  const [dragging, setDragging] = useState(false);
+  const depth = useRef(0);
+  const carriesFiles = (event: DragEvent) =>
+    Boolean(onFile && event.dataTransfer?.types.includes('Files'));
+  const onDragEnter = useEffectEvent((event: DragEvent) => {
+    if (!carriesFiles(event)) return;
+    depth.current += 1;
+    setDragging(true);
+  });
+  const onDragLeave = useEffectEvent((event: DragEvent) => {
+    if (!carriesFiles(event)) return;
+    depth.current = Math.max(0, depth.current - 1);
+    if (depth.current === 0) setDragging(false);
+  });
   const onDragOver = useEffectEvent((event: DragEvent) => {
-    if (onFile && event.dataTransfer?.types.includes('Files')) event.preventDefault();
+    if (carriesFiles(event)) event.preventDefault();
   });
   const onDrop = useEffectEvent((event: DragEvent) => {
-    if (!onFile || !event.dataTransfer?.types.includes('Files')) return;
+    depth.current = 0;
+    setDragging(false);
+    if (!onFile || !carriesFiles(event)) return;
     event.preventDefault();
-    [...event.dataTransfer.files].forEach(onFile);
+    [...(event.dataTransfer?.files ?? [])].forEach(onFile);
   });
   useEffect(() => {
-    const over = (event: DragEvent) => onDragOver(event);
-    const drop = (event: DragEvent) => onDrop(event);
-    window.addEventListener('dragover', over);
-    window.addEventListener('drop', drop);
+    const listeners = {
+      dragenter: (event: DragEvent) => onDragEnter(event),
+      dragleave: (event: DragEvent) => onDragLeave(event),
+      dragover: (event: DragEvent) => onDragOver(event),
+      drop: (event: DragEvent) => onDrop(event),
+    };
+    for (const [type, listener] of Object.entries(listeners)) {
+      window.addEventListener(type, listener as EventListener);
+    }
     return () => {
-      window.removeEventListener('dragover', over);
-      window.removeEventListener('drop', drop);
+      for (const [type, listener] of Object.entries(listeners)) {
+        window.removeEventListener(type, listener as EventListener);
+      }
     };
   }, []);
 
   return (
     <div style={{ position: 'relative', flex: 1, minWidth: 0, alignSelf: 'center' }}>
       <style>{STYLE}</style>
+      {dragging ? <DropZone /> : null}
       {value === '' ? (
         <div
           aria-hidden
@@ -173,6 +203,29 @@ export function ComposerInput({
         className="composer-rich text-body text-content"
         style={{ maxHeight: 128, minHeight: 22, overflowY: 'auto', padding: '10px 4px 10px 0' }}
       />
+    </div>
+  );
+}
+
+function DropZone() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'fixed',
+        inset: 8,
+        zIndex: 50,
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 20,
+        border: '2px dashed rgb(var(--color-brand))',
+        background: 'rgb(var(--color-canvas) / 0.85)',
+      }}>
+      <div className="text-title font-semibold" style={{ color: 'rgb(var(--color-brand))' }}>
+        Drop to send
+      </div>
     </div>
   );
 }
