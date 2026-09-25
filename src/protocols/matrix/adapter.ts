@@ -418,18 +418,20 @@ export class MatrixSession implements ChatSession, MatrixCapabilities {
   async mentionCandidates(id: ConversationId, query: string): Promise<MentionCandidate[]> {
     const needle = query.toLowerCase();
     const members = await this.membersOf(roomIdOf(id));
-    return members
-      .filter((member) => member.userId !== this.userId)
-      .map((member) => ({
-        id: member.userId,
-        name: member.displayName || localpart(member.userId),
-        handle: member.userId,
-      }))
-      .filter(
-        (member) =>
-          member.name.toLowerCase().includes(needle) || member.handle.toLowerCase().includes(needle)
-      )
-      .slice(0, 20);
+    return (
+      members
+        .filter((member) => member.userId !== this.userId)
+        // No handle: a bridged user's Matrix id means nothing on Slack or Discord, a pill does.
+        .map((member) => ({
+          id: member.userId,
+          name: member.displayName || localpart(member.userId),
+        }))
+        .filter(
+          (member) =>
+            member.name.toLowerCase().includes(needle) || member.id.toLowerCase().includes(needle)
+        )
+        .slice(0, 20)
+    );
   }
 
   async addMembers(id: ConversationId, peers: ParticipantId[]): Promise<void> {

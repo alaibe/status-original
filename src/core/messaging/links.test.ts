@@ -49,6 +49,10 @@ describe('segmentText', () => {
     ]);
   });
 
+  it('leaves the server of a Matrix id alone', () => {
+    expect(links('@slack_t0-u07:laibe.cc see above')).toEqual([]);
+  });
+
   it('links phone numbers in common layouts', () => {
     const cases: [string, string][] = [
       ['+33 6 12 34 56 78', 'tel:+33612345678'],

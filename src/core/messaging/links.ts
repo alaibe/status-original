@@ -91,6 +91,8 @@ function classify(match: RegExpExecArray, text: string): LinkSegment | null {
 
   if (url || bare) {
     if (/[\w@/.-]/.test(before)) return null;
+    // The server of a Matrix id, @name:server.
+    if (bare && /(?:^|\s)@[^\s:]+:$/.test(text.slice(0, match.index))) return null;
     const trimmed = trimUrl(url ?? bare);
     const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     return { kind: 'url', text: trimmed, href };

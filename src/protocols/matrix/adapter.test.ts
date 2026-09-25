@@ -582,7 +582,7 @@ describe('MatrixSession conversations', () => {
       ]);
     });
     expect(await chat.mentionCandidates(GROUP_ID, 'builder')).toEqual([
-      { id: BOB, name: 'Bob Builder', handle: BOB },
+      { id: BOB, name: 'Bob Builder' },
     ]);
     await chat.send(GROUP_ID, { kind: 'text', text: `Hi ${BOB}.` });
     await chat.send(GROUP_ID, {
