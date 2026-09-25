@@ -293,6 +293,34 @@ describe('sending', () => {
     await Promise.all([first, second]);
   });
 
+  it.each(['before', 'after'])(
+    'reconciles a media send whose echo carries its own file, echoed %s the send resolves',
+    async (when) => {
+      const session = new InMemoryChatSession();
+      session.seedConversation({ id: 'c1' });
+      await connect(session);
+      await useChatStore.getState().loadMessages(ns('c1'));
+      const echo = () =>
+        session.deliver('c1', {
+          id: 'echo-img',
+          senderId: session.self.participantId,
+          fromMe: true,
+          content: { kind: 'image', uri: 'file:///network/copy.jpg' },
+        });
+      jest.spyOn(session, 'send').mockImplementation(async () => {
+        if (when === 'before') echo();
+        return 'echo-img';
+      });
+
+      await useChatStore
+        .getState()
+        .sendMessage(ns('c1'), { kind: 'image', uri: 'https://example.com/picked.jpg' });
+      if (when === 'after') echo();
+
+      expect(useChatStore.getState().messages[ns('c1')].map((m) => m.id)).toEqual(['echo-img']);
+    }
+  );
+
   it('reconciles only one pending row when concurrent sends have identical content', async () => {
     const session = new InMemoryChatSession();
     session.seedConversation({ id: 'c1' });

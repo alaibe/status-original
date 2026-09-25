@@ -132,7 +132,8 @@ export interface ChatState {
   replacePending(
     conversationId: ConversationId,
     pendingId: string,
-    status: ChatMessage['status']
+    status: ChatMessage['status'],
+    sentId?: MessageId
   ): void;
   retryMessage(conversationId: ConversationId, messageId: string): Promise<SendOutcome | null>;
   editMessage(id: ConversationId, messageId: MessageId, text: string): Promise<void>;
@@ -294,8 +295,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => withRaw(state, id, [...rawOf(state, id), pending]));
 
     try {
-      await route.session.send(route.nativeId, content, replyTo);
-      get().replacePending(id, pending.id, 'sent');
+      const sentId = await route.session.send(route.nativeId, content, replyTo);
+      get().replacePending(id, pending.id, 'sent', sentId);
       return { sent: true };
     } catch (error) {
       get().replacePending(id, pending.id, 'failed');
@@ -313,8 +314,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().replacePending(id, messageId, 'sending');
 
     try {
-      await route.session.send(route.nativeId, message.content, message.replyTo);
-      get().replacePending(id, messageId, 'sent');
+      const sentId = await route.session.send(route.nativeId, message.content, message.replyTo);
+      get().replacePending(id, messageId, 'sent', sentId);
       return { sent: true };
     } catch (error) {
       get().replacePending(id, messageId, 'failed');
@@ -823,14 +824,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       );
   },
 
-  replacePending(conversationId: ConversationId, pendingId: string, status: ChatMessage['status']) {
-    set((state) =>
-      withRaw(
+  replacePending(conversationId, pendingId, status, sentId) {
+    set((state) => {
+      const raw = rawOf(state, conversationId);
+      if (sentId && raw.some((m) => m.id === sentId)) {
+        return withRaw(
+          state,
+          conversationId,
+          raw.filter((m) => m.id !== pendingId)
+        );
+      }
+      if (sentId) sentAs.set(sentId, pendingId);
+      return withRaw(
         state,
         conversationId,
-        rawOf(state, conversationId).map((m) => (m.id === pendingId ? { ...m, status } : m))
-      )
-    );
+        raw.map((m) => (m.id === pendingId ? { ...m, status } : m))
+      );
+    });
   },
 }));
 
@@ -1045,8 +1055,16 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
   return [...byId.values()].sort((a, b) => a.sentAt - b.sentAt);
 }
 
+// A network hands media back with its own file, so a sent message is matched to its echo by id.
+const sentAs = new Map<MessageId, string>();
+
 function removeMatchingPending(messages: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
   if (!incoming.fromMe) return messages;
+  const pendingId = sentAs.get(incoming.id);
+  if (pendingId) {
+    sentAs.delete(incoming.id);
+    return messages.filter((message) => message.id !== pendingId);
+  }
   const content = JSON.stringify(incoming.content);
   const index = messages.findIndex(
     (message) =>
